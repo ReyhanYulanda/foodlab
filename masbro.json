@@ -1,13 +1,1 @@
-{
-  "type": "service_account",
-  "project_id": "masbro-canteen",
-  "private_key_id": "055d38c2503153edbdaef11af4ddc9e693517e73",
-  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC50Ir7YrPtRZzO\nMGtaZ/uvIDykAnBciZuxjbA3LN/wzfupZ26n3TOu8McnUmSBIMIgSE4VY48FCfo1\nkf7oI8bPqb8pm3iIHY4mC1ZdPrUvOmBloB9WCs0oZsQXShz9dKTEJgEDniRGLbYU\nFgy3C6rzpYUgJkmgRPgantl7kNkxj+WTpTeEw4N9h8xKYSJa9CDPH4Kv3tRzOhQO\n/mGXzgZKe78/evXPgaLCjoFcwdydbJb5wVTRTl1LPzqi5MdjVP4nXQWP+dJuS6Ay\n0QEgHJLD3Ry/DCha0WA92fhFQyDa2NHykdfRFbgKgeJlwduMiW6nw4U8eb9IKi7R\npz0NUMttAgMBAAECggEAAdMw2kE2P9lULe4/JQHVG1DiEkD34ODKclb66RUmvz22\nqrZFBEm24pFOKMO1ZaibCigg+YgjH8s2SuURL4R9GmMHaUgz9ITzIB/dDEi7t31c\n9Ffl7DlqRGr7TWNBSk1P+kvel1jWmwiDO5/v0LMWTb2iw2sSLrcesgbnX0BP8chS\nDz3zWWrPG6zit18mYFWuvdR4yKn10BFAaNRnHBO59q0+s1EEy/kEvHXzIOuBOy7T\nv8TMmkEstTWRhb+qQMmxCtEP0mPzDxKzM8lcnHYNM4LFqsgD38p36NKWtnJSy8Vw\nD3NiI75uty8ehCJm2hYn4EYkavQ/qfBCDuapLhw+QQKBgQDpkh+24ucVAyRHkWIb\nhd01A33MVd3W6HywUk23poAq/rxCnyKwOENGQ3q50l9Y1k1PJ7NS/zCRLBs3a1Cl\nARuBf04nsq+SIWsUiq/Cr0Nq/YkRM+yOs7/IPOcGOqQl4biKTyc1mTNuSfwxHvsg\nzHZ4+dl97H6PWaUStCcxqBp08QKBgQDLqG2JXlFq+Jn7q+yy/E7WP0ikzEBvrVDj\nG7AGa7wkUPfQMJBwJn8sUGdU6oOZHSOuudc9MUKq9UUhUVsgeufBqGoWsPgCYR/O\nabp5Pc8U267rgXB5g6r33xO+UtwAGxrHWe0/zEWJJGqAY3HjQZh58xxDmF3Xbjg3\n5Hj8X3nOPQKBgHNde1Cnzh9wx9CZnG2fttzidpYgq0vk1QF6BWz6Tj/uRipZ05Za\nk8/2sH1rzTBh2RmJsGcEKIbr1B2RYem+HEngCUhOV63D19HzllCApLoJtFPM48Cw\nQ7+xZSKMgFs9nBqkcedlXiPRY0EX3k4a70FdlvE9iF1hl8kfNmSudTLhAoGBAI1m\nDVc40xKQNGkWPysuHpaGLaut3HctQGHOUXLDzkbwqH41mbMkJ1vfHz9H68KdBq9D\nfHuR/hWwYST21WxBqTM9+Rp0GF2ejXTE16FiFqsGs/XzUuIrVsLucUjNQs4YA4mx\nmBWZgBXt4LvvT51XZ8QT1OXhnhX7ArFbwdyHdYyJAoGAUVj/hvCNu6kgcPu14S/c\nnB1t/YCf8mFOcWMvjYgDYvfBA1Tbw5LwXYdGVF/XYd07fcK5pmpShF/JVXtFtoHv\npcjHW67LOss4QkHuClyeAJ9cBcbaY6efwNAQGGB4aZcZ55OGk8zAxO6+nnm9PiDp\nUC9KSV7IE67zv8C5x1RMWhM=\n-----END PRIVATE KEY-----\n",
-  "client_email": "firebase-adminsdk-18gxr@masbro-canteen.iam.gserviceaccount.com",
-  "client_id": "103829298769519769887",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-18gxr%40masbro-canteen.iam.gserviceaccount.com",
-  "universe_domain": "googleapis.com"
-}
+DIGANTI DENGAN FIREBASE AUTHENTICATION SENDIRI2
