@@ -17,11 +17,19 @@
             <ul class="flex h-full w-full flex-col">
                 @foreach ($menus as $mm)
                     @can("read $mm->nama")
-                        <li class="mb-2 hover:bg-sidebarHover sm:rounded-sm {{ explode('/', request()->path())[0] == $mm->nama ? 'bg-red-400' : '' }}">
+                        <li
+                            class="mb-2 hover:bg-sidebarHover sm:rounded-sm {{ explode('/', request()->path())[0] == $mm->nama ? 'bg-red-400' : '' }}">
                             <a href="{{ $mm->url }}"
                                 class="h-12 w-full items-center justify-center px-10 text-sm font-normal text-gray-400 focus:text-red-400 sm:justify-start sm:px-6">
+                                @if (Str::endsWith($mm->ikon, '.svg'))
+                                <i class="fas fa-list-alt {{ explode('/', request()->path())[0] == $mm->nama ? 'text-white' : 'text-black' }}"></i>
+                                @else
                                 <i class="fas fa-{{ $mm->ikon }} {{ explode('/', request()->path())[0] == $mm->nama ? 'text-white' : 'text-black' }}"></i>
-                                <span class="items-center hidden sm:inline-block {{ explode('/', request()->path())[0] == $mm->nama ? 'text-white' : 'text-black' }}">{{strtoupper($mm->nama)}}</span>
+                                @endif
+                                {{-- <i
+                                    class="fas fa-{{ $mm->ikon }} {{ explode('/', request()->path())[0] == $mm->nama ? 'text-white' : 'text-black' }}"></i> --}}
+                                <span
+                                    class="items-center hidden sm:inline-block {{ explode('/', request()->path())[0] == $mm->nama ? 'text-white' : 'text-black' }}">{{ strtoupper($mm->nama) }}</span>
                             </a>
                         </li>
                         {{-- <li class="{{ explode('/', request()->path())[0] == $mm->nama ? 'active' : '' }} link">
@@ -110,13 +118,16 @@
         </ul> --}}
 
        <!-- Logout Button -->
-       <div class="logout-button w-full text-center mt-auto">
+       <div class="logout-button w-full text-center mt-auto mb-4">
         <form action="{{ route('logout') }}" method="post">
             @csrf
-            <button type="submit" class="btn-logout w-full py-4 text-lg font-bold text-gray-400 hover:text-red-400 focus:outline-none">
-                <i class="fas fa-sign-out-alt mr-2"></i> Logout
-            </button>
+            <div class="inline-flex flex-shrink-0 items-center justify-center h-12 w-40 text-white bg-red-400 rounded mr-6">
+                <button type="submit" class="btn-logout w-full py-4 text-lg font-bold text-white hover:text-red-400 focus:outline-none">
+                    <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                </button>
+            </div>
         </form>
     </div>
+
     </aside>
 </nav>

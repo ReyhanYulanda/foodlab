@@ -288,7 +288,7 @@ class TenantController extends Controller
 
         try {
             $menu->update([
-                "tenant_id" => @$tenant->id,
+                "tenant_id" => @$tenant->id ?? $menu->tenant_id,
                 "kategori_id" => @$request->kategori_id ?? $menu->kategori_id,
                 "harga" => @$request->harga ?? $menu->harga,
                 "gambar" => @$url ?? $menu->gambar,

@@ -28,7 +28,10 @@ class KeuanganController extends Controller
             $query->where('id', $tenant->id);
         })
             ->whereIn('status', ['selesai'])
-            ->get();
+            ->paginate(15);
+        $lastPage = $dataPesanan->lastPage();
+        $currentPage = $dataPesanan->currentPage();
+        // dd($dataPesanan);
 
         $summary = DB::table('transaksi_detail')
             ->join('transaksi', 'transaksi.id', 'transaksi_detail.transaksi_id')
@@ -59,6 +62,6 @@ class KeuanganController extends Controller
             "jumlah_semua" => $summarySemua,
         ];
 
-        return view('pages.keuangan.index', compact('dataPesanan', 'summary'));
+        return view('pages.keuangan.index', compact('dataPesanan', 'summary', 'lastPage', 'currentPage'));
     }
 }

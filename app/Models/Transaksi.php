@@ -35,7 +35,7 @@ class Transaksi extends Model
 
     public function getOrderIdAttribute(){
         $tanggal = $tanggal = Carbon::parse($this->created_at)->format("Ymd");
-        return "ORDER$tanggal{$this->id}";
+        return "ORDER".$tanggal."000{$this->id}";
     }
 
     public function getSubTotalAttribute()
