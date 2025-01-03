@@ -152,21 +152,22 @@ class TransaksiController extends Controller
             ], 403);
         }
 
-        if (!$transaksiCek->antar()) {
-            return response()->json([
-                'status' => 'failed',
-                'message' => 'tidak memiliki akses antar',
-            ], 403);
-        }
-        ;
+        // sewaktu waktu dibutuhkan
+        // if (!$transaksiCek->antar()) {
+        //     return response()->json([
+        //         'status' => 'failed',
+        //         'message' => 'tidak memiliki akses antar',
+        //     ], 403);
+        // }
+        // ;
 
-        if (!$transaksiCek->metodePembayaran()) {
-            return response()->json([
-                'status' => 'failed',
-                'message' => 'tidak memiliki akses transfer atau COD',
-            ], 403);
-        }
-        ;
+        // if (!$transaksiCek->metodePembayaran()) {
+        //     return response()->json([
+        //         'status' => 'failed',
+        //         'message' => 'tidak memiliki akses transfer atau COD',
+        //     ], 403);
+        // }
+        // ;
 
         $validatator = Validator::make($request->all(), [
             'isAntar' => 'required|boolean',

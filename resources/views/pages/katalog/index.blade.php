@@ -46,7 +46,9 @@
             <div class="container px-8">
                 <div class="mt-0 mb-0">
                     <div>
-                        <h2 class="text-2xl font-semibold leading-tight">{{ $tenant->listMenu->count() }} Produk</h2>
+                        <h2 class="text-2xl font-semibold leading-tight">
+                            {{ $tenant && $tenant->listMenu ? $tenant->listMenu->count() : 0 }} Produk
+                        </h2>
                     </div>
                     <div class="-mx-4 sm:-mx-8 px-4 sm:px-8 py-4 overflow-x-auto">
                         <div class="inline-block min-w-full rounded-lg overflow-hidden">
