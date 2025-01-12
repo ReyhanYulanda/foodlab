@@ -7,101 +7,64 @@ use App\Models\Ruangan;
 use App\Response\ResponseApi;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
+use App\Helpers\ValidationHelper;
+use App\Services\Admin\RuanganService;
 
 class RuanganController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     *
-     */
+    protected $ruanganService;
+
+    public function __construct(RuanganService $ruanganService)
+    {
+        $this->ruanganService = $ruanganService;
+    }
+
     public function index()
     {
-        $ruangan = Ruangan::all();
+        $ruangan = $this->ruanganService->getAll();
         return ResponseApi::success(compact('ruangan'), 'data berhasil diambil');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'nama' => 'required',
-            'gedung_id' => 'required'
-        ]);
+        $error = ValidationHelper::validate($request->all(), ['nama' => 'required']);
+        if ($error) return $error;
 
-        if($validator->fails()){
-            // Return Exception error
-            return ResponseApi::error($validator->errors()->all());
-        }
+        $ruangan = $this->ruanganService->create($request->all());
 
-        $ruangan = Ruangan::create($request->all());
-
-        if($ruangan){
-            return ResponseApi::success(compact('ruangan'), 'data berhasil dibuat');
-        }else{
-            return ResponseApi::error('Gagal Membuat ruangan');
-        }
+        return $ruangan
+            ? ResponseApi::success(compact('ruangan'), 'data berhasil dibuat')
+            : ResponseApi::error('data gagal dibuat');
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     */
     public function show($id)
     {
-        try{
-            $ruangan = Ruangan::findOrFail($id);
+        try {
+            $ruangan = $this->ruanganService->findById($id);
             return ResponseApi::success(compact('ruangan'), 'data berhasil diambil');
-        }catch(ModelNotFoundException $err){
+        } catch (ModelNotFoundException $err) {
             return ResponseApi::error('data gagal diambil');
         }
     }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     */
     public function update(Request $request, $id)
     {
-        $validator = Validator::make($request->all(), [
-            'nama' => 'required',
-            'gedung_id' => 'required'
-        ]);
+        $error = ValidationHelper::validate($request->all(), ['nama' => 'required']);
+        if ($error) return $error;
 
-        if($validator->fails()){
-            // Return Exception error
-            return ResponseApi::error($validator->errors()->all());
-        }
+        $ruangan = $this->ruanganService->update($id, $request->all());
 
-        $ruangan = Ruangan::where('id', $id)->update($request->only(['nama','gedung_id']));
-
-        if($ruangan){
-            return ResponseApi::success(compact('ruangan'), 'data berhasil diupdate');
-        }else{
-            return ResponseApi::error('data gagal diupdate');
-        }
+        return $ruangan
+            ? ResponseApi::success(compact('ruangan'), 'data berhasil diupdate')
+            : ResponseApi::error('data gagal diupdate');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     */
     public function destroy($id)
     {
-        $ruangan = Ruangan::find($id)->delete();
-        if($ruangan){
-            return ResponseApi::success(compact('ruangan'), 'data berhasil dihapus');
-        }else{
-            return ResponseApi::error('data gagal dihapus');
-        }
+        $ruangan = $this->ruanganService->delete($id);
+
+        return $ruangan
+            ? ResponseApi::success(compact('ruangan'), 'data berhasil dihapus')
+            : ResponseApi::error('data gagal dihapus');
     }
 }

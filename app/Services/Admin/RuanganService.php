@@ -2,32 +2,32 @@
 
 namespace App\Services\Admin;
 
-use App\Models\Gedung;
+use App\Models\Ruangan;
 
-class GedungService
+class RuanganService
 {
     public function getAll()
     {
-        return Gedung::all();
+        return Ruangan::all();
     }
 
     public function create($data)
     {
-        return Gedung::create($data);
+        return Ruangan::create($data);
     }
 
     public function findById($id)
     {
-        return Gedung::findOrFail($id);
+        return Ruangan::findOrFail($id);
     }
 
     public function update($id, $data)
     {
-        return Gedung::where('id', $id)->update($data);
+        return Ruangan::where('id', $id)->update($data);
     }
 
     public function delete($id)
     {
-        return Gedung::find($id)->delete();
+        return Ruangan::find($id)->delete();
     }
 }

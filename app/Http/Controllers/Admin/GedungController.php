@@ -7,7 +7,7 @@ use App\Response\ResponseApi;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use App\Helpers\ValidationHelper;
-use App\Services\GedungService;
+use App\Services\Admin\GedungService;
 
 class GedungController extends Controller
 {
@@ -33,7 +33,7 @@ class GedungController extends Controller
 
         return $gedung
             ? ResponseApi::success(compact('gedung'), 'data berhasil dibuat')
-            : ResponseApi::error('Gagal Membuat Gedung');
+            : ResponseApi::error('data gagal dibuat');
     }
 
     public function show($id)
@@ -55,7 +55,7 @@ class GedungController extends Controller
 
         return $gedung
             ? ResponseApi::success(compact('gedung'), 'data berhasil diupdate')
-            : ResponseApi::error('Gagal Membuat Gedung');
+            : ResponseApi::error('data gagal diupdate');
     }
 
     public function destroy($id)
@@ -64,7 +64,7 @@ class GedungController extends Controller
         if($gedung){
             return ResponseApi::success(compact('gedung'), 'data berhasil dihapus');
         }else{
-            return ResponseApi::error('gagal menghapus gedung');
+            return ResponseApi::error('data gagal dihapus');
         }
     }
 }
