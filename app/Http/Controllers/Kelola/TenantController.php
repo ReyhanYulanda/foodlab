@@ -13,68 +13,38 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use App\Helpers\ValidationHelper;
 
 class TenantController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
     public function index(Request $request)
     {
         $user = $request->user();
 
         if (!$user->can('read kelola tenant')) {
-            return response()->json([
-                'status' => 'failed',
-                'message' => 'tidak memiliki akses',
-            ], 403);
+            return ResponseApi::forbidden('tidak memiliki akses');
         }
 
         $tenant = Tenants::where('user_id', $user->id)->with('listMenu')->first();
-        return response()->json([
-            'status' => 'success',
-            'message' => 'berhasil mengambil data',
-            'data' => [
-                'tenant' => $tenant
-            ]
-        ]);
+        return ResponseApi::success(compact('tenant'), 'berhasil mengambil data');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
     public function storeMenu(Request $request)
     {
         $user = $request->user();
 
-        if (!$user->can('create katalog')) {
-            return response()->json([
-                'status' => 'failed',
-                'message' => 'tidak memiliki akses',
-            ], 403);
-        }
-
         $tenant = Tenants::where("user_id", $user->id)->first();
 
-        $validator = Validator::make($request->all(), [
-            // 'menu_id' => 'required',
+        $validationError = ValidationHelper::validate($request->all(), [
             'harga' => 'required|numeric',
             'nama_menu' => 'required',
             'deskripsi_menu' => 'nullable',
             'kategori_id' => 'required',
             'gambar' => 'nullable|mimes:png,jpg|max:2048',
         ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                "status" => "Bad Request",
-                "message" => $validator->errors()->all()
-            ], 400);
+    
+        if ($validationError) {
+            return $validationError;
         }
 
         $url = '/assets/images/default-image.jpg';
@@ -85,8 +55,6 @@ class TenantController extends Controller
 
             $url = Storage::url($path);
         }
-
-        // $menu = Menus::find($request->menu_id);
 
         try {
             $newMenu = Menus::create([
@@ -112,24 +80,11 @@ class TenantController extends Controller
         }
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function show($id)
     {
         //
     }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function update(Request $request)
     {
         $user = $request->user();
@@ -183,6 +138,7 @@ class TenantController extends Controller
             'messages' => 'berhasil'
         ]);
     }
+
     public function updateMenu(Request $request, $id)
     {
         $user = $request->user();
@@ -241,6 +197,7 @@ class TenantController extends Controller
             return response()->json([
                 'status' => 'success',
                 'messages' => 'berhasil update menu',
+                "data" => $menu
             ]);
         } catch (\Throwable $th) {
             Log::error($th->getMessage());
@@ -311,12 +268,6 @@ class TenantController extends Controller
         }
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function destroyMenu(Request $request, $id)
     {
         $user = $request->user();

@@ -37,6 +37,11 @@ class ResponseApi implements Responsable
         return new static(null, $message, $statusCode, $status);
     }
 
+    public static function forbidden($message = null, $statusCode = 403, $status = 'failed')
+    {
+        return new static(null, $message, $statusCode, $status);
+    }
+
     public function toResponse($request)
     {
         if($this->status == 'success'){
