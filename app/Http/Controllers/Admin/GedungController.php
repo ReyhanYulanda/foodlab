@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Response\ResponseApi;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
-use App\Helpers\ValidationHelper;
+use App\Helper\ValidationHelper;
 use App\Services\Admin\GedungService;
 
 class GedungController extends Controller

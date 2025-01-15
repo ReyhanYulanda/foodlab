@@ -13,10 +13,18 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
-use App\Helpers\ValidationHelper;
+use App\Helper\ValidationHelper;
+use App\Services\Kelola\TenantService;
 
 class TenantController extends Controller
 {
+    protected $tenantService;
+
+    public function __construct(TenantService $tenantService) 
+    {
+        $this->tenantService = $tenantService;
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -25,7 +33,7 @@ class TenantController extends Controller
             return ResponseApi::forbidden('tidak memiliki akses');
         }
 
-        $tenant = Tenants::where('user_id', $user->id)->with('listMenu')->first();
+        $tenant = $this->tenantService->getTenantData($user);
         return ResponseApi::success(compact('tenant'), 'berhasil mengambil data');
     }
 
@@ -33,7 +41,9 @@ class TenantController extends Controller
     {
         $user = $request->user();
 
-        $tenant = Tenants::where("user_id", $user->id)->first();
+        if (!$user->can('create katalog')) {
+            return ResponseApi::forbidden('tidak memiliki akses',   403);
+        }
 
         $validationError = ValidationHelper::validate($request->all(), [
             'harga' => 'required|numeric',
@@ -47,96 +57,13 @@ class TenantController extends Controller
             return $validationError;
         }
 
-        $url = '/assets/images/default-image.jpg';
-        if ($request->hasFile('gambar')) {
-            $gambar = $request->file('gambar');
-
-            $path = $gambar->store('public/images');
-
-            $url = Storage::url($path);
-        }
-
         try {
-            $newMenu = Menus::create([
-                "harga" => $request->harga,
-                "gambar" => $url,
-                "nama" => $request->nama_menu,
-                "deskripsi" => @$request->deskripsi_menu,
-                "tenant_id" => @$tenant->id,
-                "kategori_id" => $request->kategori_id,
-            ]);
-
-            return response()->json([
-                "status" => "success",
-                "message" => "menu makanan berhasil ditambahkan",
-                "data" => $newMenu
-            ]);
+            $newMenu = $this->tenantService->storeMenu($request, $user);
+            return ResponseApi::success(compact('newMenu'), 'menu makanan berhasil ditambahkan');
         } catch (\Throwable $th) {
             Log::error($th->getMessage());
-            return response()->json([
-                "status" => "failed",
-                "message" => ResponseApi::serverError(),
-            ], 500);
+            return ResponseApi::serverError();
         }
-    }
-
-    public function show($id)
-    {
-        //
-    }
-
-    public function update(Request $request)
-    {
-        $user = $request->user();
-
-        if (!$user->can('update kelola tenant')) {
-            return response()->json([
-                'status' => 'failed',
-                'message' => 'tidak memiliki akses',
-            ], 403);
-        }
-
-        $tenant = Tenants::where("user_id", $user->id)->first();
-        // Gate::authorize('update-tenant', $tenant);
-
-        $validator = Validator::make($request->all(), [
-            'nama_kavling' => 'required',
-            'nama_tenant' => 'required',
-            'gambar' => 'nullable|mimes:png,jpg|max:2048',
-            'jam' => 'required|timezone'
-        ]);
-
-        if ($request->hasFile('gambar')) {
-            $gambar = $request->file('gambar');
-
-            $path = $gambar->store('public/images');
-
-            $url = Storage::url($path);
-        }
-
-        if ($validator->fails()) {
-            return response()->json([
-                'messages' => $validator->errors()->all()
-            ]);
-        }
-
-        $update = $tenant->update([
-            'nama_kavling' => $request->input('nama_kavling'),
-            'nama_tenant' => $request->input('nama_tenant'),
-            'jam' => Carbon::parse($request->input('jam'))->format('H:i:s'),
-            'nama_gambar' => $url,
-        ]);
-
-        if (!$update) {
-            return response()->json([
-                'status' => 'success',
-                'messages' => 'berhasil update tenant',
-            ], 500);
-        }
-
-        return response()->json([
-            'messages' => 'berhasil'
-        ]);
     }
 
     public function updateMenu(Request $request, $id)
@@ -144,10 +71,7 @@ class TenantController extends Controller
         $user = $request->user();
 
         if (!$user->can('update katalog')) {
-            return response()->json([
-                'status' => 'failed',
-                'message' => 'tidak memiliki akses',
-            ], 403);
+            return ResponseApi::forbidden('tidak memiliki akses',   403);
         }
 
         $tenant = Tenants::where("user_id", $request->user()->id)->first();
@@ -157,8 +81,7 @@ class TenantController extends Controller
             return ResponseApi::error('Anda Bukan Pemilik Tenant Ini', 403);
         }
 
-        $validator = Validator::make($request->all(), [
-            // 'menu_id' => 'nullable',
+        $validationError = ValidationHelper::validate($request->all(), [
             'harga' => 'nullable|numeric|gt:0',
             'gambar' => 'nullable|mimes:png,jpg|max:2048',
             'nama_menu' => 'nullable',
@@ -166,46 +89,18 @@ class TenantController extends Controller
             'kategori_id' => 'nullable',
             'isReady' => 'nullable'
         ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'messages' => $validator->errors()->all()
-            ]);
-        }
-
-        $url = $menu->gambar;
-        if ($request->hasFile('gambar')) {
-            $gambar = $request->file('gambar');
-
-            $path = $gambar->store('public/images');
-
-            $url = Storage::url($path);
+    
+        if ($validationError) {
+            return $validationError;
         }
 
         try {
-            $menu->update([
-                // "menu_id" => @$request->menu_id ?? $menu->menu_id,
-                "tenant_id" => @$tenant->id,
-                "kategori_id" => @$request->kategori_id ?? $menu->kategori_id,
-                "harga" => @$request->harga ?? $menu->harga,
-                "gambar" => @$url,
-                "nama" => @$request->nama_menu ?? $menu->nama,
-                "deskripsi" => @$request->deskripsi_menu,
-                "isReady" => @$request->isReady ?? $menu->isReady
-            ]);
+            $menus = $this->tenantService->updateMenu($menu, $tenant, $request);
 
-            return response()->json([
-                'status' => 'success',
-                'messages' => 'berhasil update menu',
-                "data" => $menu
-            ]);
+            return ResponseApi::success(compact('menu'), 'menu makanan berhasil diupdate');
         } catch (\Throwable $th) {
             Log::error($th->getMessage());
-            return response()->json([
-                'status' => 'gagal',
-                "messages" => "Terjadi Kesalahan Pada Server"
-            ], 500);
-            //throw $th;
+            return ResponseApi::serverError();
         }
     }
 
@@ -271,24 +166,20 @@ class TenantController extends Controller
     public function destroyMenu(Request $request, $id)
     {
         $user = $request->user();
-        if (!$user->can('delete katalog')) {
-            return response()->json([
-                'status' => 'failed',
-                'message' => 'tidak memiliki akses',
-            ], 403);
-        }
-        try {
-            $menu = Menus::find($id)->delete();
 
-            return response()->json([
-                "status" => "success",
-                "message" => "data berhasil dihapus",
-            ]);
+        if (!$user->can('delete katalog')) {
+            return ResponseApi::forbidden('tidak memiliki akses', 403);
+        }
+        
+        try {
+            $menu = $this->tenantService->destroyMenu($id);
+            return ResponseApi::success(null, $menu);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ResponseApi::error('Menu makanan tidak ditemukan', 404);
+        } catch (\Exception $e) {
+            return ResponseApi::error($e->getMessage(), 404);
         } catch (\Throwable $th) {
-            return response()->json([
-                "status" => "failed",
-                "message" => $th->getMessage(),
-            ], 500);
+            return ResponseApi::serverError();
         }
     }
 }

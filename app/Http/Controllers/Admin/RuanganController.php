@@ -7,7 +7,7 @@ use App\Models\Ruangan;
 use App\Response\ResponseApi;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
-use App\Helpers\ValidationHelper;
+use App\Helper\ValidationHelper;
 use App\Services\Admin\RuanganService;
 
 class RuanganController extends Controller

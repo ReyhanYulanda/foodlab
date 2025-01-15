@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Helpers;
+namespace App\Helper;
 
 use Illuminate\Support\Facades\Validator;
 use App\Response\ResponseApi;
