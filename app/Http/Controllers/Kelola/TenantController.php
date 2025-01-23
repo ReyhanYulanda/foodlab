@@ -45,7 +45,7 @@ class TenantController extends Controller
             return ResponseApi::forbidden('tidak memiliki akses',   403);
         }
 
-        $validationError = ValidationHelper::validate($request->all(), [
+        $validation = ValidationHelper::validate($request->all(), [
             'harga' => 'required|numeric',
             'nama_menu' => 'required',
             'deskripsi_menu' => 'nullable',
@@ -53,8 +53,8 @@ class TenantController extends Controller
             'gambar' => 'nullable|mimes:png,jpg|max:2048',
         ]);
     
-        if ($validationError) {
-            return $validationError;
+        if ($validation) {
+            return $validation;
         }
 
         try {

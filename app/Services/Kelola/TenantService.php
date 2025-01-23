@@ -6,7 +6,6 @@ use App\Models\Menus;
 use App\Models\Tenants;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
-use Exception;
 
 class TenantService
 {
