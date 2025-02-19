@@ -55,4 +55,9 @@ class User extends Authenticatable
     public function tenant(){
         return  $this->belongsTo(Tenants::class, 'id', 'user_id');
     }
+
+    public function transaksiKoin()
+{
+    return $this->hasMany(TransaksiKoin::class);
+}
 }

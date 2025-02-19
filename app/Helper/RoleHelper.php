@@ -6,7 +6,7 @@ use App\Models\Role;
 
 class RoleHelper
 {
-    static function isRoleExist($role_name)
+    public static function isRoleExist($role_name)
     {
         $roleExist = Role::where('name', $role_name)->exists();;
 

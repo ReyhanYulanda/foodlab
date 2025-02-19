@@ -10,6 +10,7 @@ use App\Http\Controllers\Masbro\PesananController;
 use App\Http\Controllers\Tenant\TenantController;
 use App\Http\Controllers\Transaksi\TransaksiController;
 use App\Http\Controllers\User\UserController;
+use App\Http\Controllers\Api\SaldoKoin\SaldoKoinController;
 use App\Models\Transaksi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -51,6 +52,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // Route::get('/order/riwayat/2', [TransaksiController::class, 'orderUser']);
     Route::post('/order/detail', [TransaksiController::class, 'store'])->name('');
     Route::get('/ruangan', [RuanganController::class, 'index']);
+
+    // dari rei
+    // saldo
+    Route::get('/saldo', [SaldoKoinController::class, 'cekSaldo']);
+    Route::post('/saldo/tambah', [SaldoKoinController::class, 'tambahSaldo']);
+    Route::post('/saldo/kurang', [SaldoKoinController::class, 'kurangiSaldo']);
+    Route::get('/saldo/riwayat', [SaldoKoinController::class, 'riwayatTransaksi']);
 
     // TENANT
     Route::prefix('tenant')->middleware(['role:tenant'])->name('api.tenant.')->group(function () {
