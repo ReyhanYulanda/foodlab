@@ -213,7 +213,7 @@ class TransaksiController extends Controller
 
             if ($success) {
                 DB::commit();
-                $firebases->withNotification('Pesanan Masuk', 'Ada Pesanan Masuk di Tenant Kamu')->sendMessages($tenantUser->fcm_token);
+                // $firebases->withNotification('Pesanan Masuk', 'Ada Pesanan Masuk di Tenant Kamu')->sendMessages($tenantUser->fcm_token);
                 if($status == 'selesai'){
                     return response()->json([
                         "status" => 'success',
@@ -231,14 +231,14 @@ class TransaksiController extends Controller
                 }
 
                 $transaksi = Transaksi::with(['user', 'listTransaksiDetail.menus'])->where('id', $transaksi->id)->first();
-                $midtrans = new Midtrans();
-                $snapMidtrans = $midtrans->createSnapTransaction($transaksi);
+                // $midtrans = new Midtrans();
+                // $snapMidtrans = $midtrans->createSnapTransaction($transaksi);
 
                 return response()->json([
                     "status" => 'success',
                     'messages' => "transaksi berhasil dibuat",
                     "order_id" => $transaksi->id,
-                    "snap" => $snapMidtrans
+                    // "snap" => $snapMidtrans
                 ], 201);
             } else {
                 return response()->json([
