@@ -16,6 +16,7 @@ use App\Http\Controllers\Web\PesananController;
 use App\Http\Controllers\Web\RuanganController as WebRuanganController;
 use App\Http\Controllers\Web\TenantController;
 use App\Http\Controllers\Web\UserController;
+use App\Http\Controllers\Web\SaldoKoin\SaldoKoinController;
 use App\Models\Gedung;
 use Illuminate\Support\Facades\Route;
 
@@ -68,6 +69,15 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
     //     Route::resource('menu', MenuController::class);
     // });
     Route::post('menu/{id}', [KelolaTenantController::class, 'updateMenuWeb']);
+
+    // dari rei
+    Route::get('/saldo_koin', [SaldoKoinController::class, 'index'])->name('saldoKoin.index');
+    Route::get('/saldo_koin/create', [SaldoKoinController::class, 'create'])->name('saldoKoin.create');
+    Route::post('/saldo_koin', [SaldoKoinController::class, 'store'])->name('saldoKoin.store');
+    Route::get('/saldo_koin/{id}/edit', [SaldoKoinController::class, 'edit'])->name('saldoKoin.edit');
+    Route::put('/saldo_koin/{id}', [SaldoKoinController::class, 'update'])->name('saldoKoin.update');
+    Route::delete('/saldo_koin/{id}', [SaldoKoinController::class, 'destroy'])->name('saldoKoin.destroy');
+    Route::get('/saldo_koin/riwayat/{user_id}', [SaldoKoinController::class, 'riwayatTransaksi'])->name('saldoKoin.riwayat');
 });
 
 require __DIR__ . '/auth.php';

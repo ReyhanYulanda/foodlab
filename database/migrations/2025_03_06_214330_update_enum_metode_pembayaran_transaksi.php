@@ -10,9 +10,4 @@ return new class extends Migration {
     {
         DB::statement("ALTER TABLE transaksi MODIFY COLUMN metode_pembayaran ENUM('transfer', 'cod', 'koin') NOT NULL");
     }
-
-    public function down(): void
-    {
-        DB::statement("ALTER TABLE transaksi MODIFY COLUMN metode_pembayaran ENUM('transfer', 'cod') NOT NULL");
-    }
 };
