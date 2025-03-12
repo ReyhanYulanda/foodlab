@@ -49,7 +49,7 @@ class Tenants extends Model
     {
         // tenant dapat mengrlola banyak makanan
         return $this->hasMany(MenusKelola::class, 'tenant_id');
-    }
+    }  
     public function listMenu()
     {
         // tenant memiliki banyak menu

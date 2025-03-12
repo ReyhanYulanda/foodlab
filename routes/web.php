@@ -17,6 +17,7 @@ use App\Http\Controllers\Web\RuanganController as WebRuanganController;
 use App\Http\Controllers\Web\TenantController;
 use App\Http\Controllers\Web\UserController;
 use App\Http\Controllers\Web\SaldoKoin\SaldoKoinController;
+use App\Http\Controllers\Web\Transaksi\TransaksiTenantController;
 use App\Models\Gedung;
 use Illuminate\Support\Facades\Route;
 
@@ -78,6 +79,7 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
     Route::put('/saldo_koin/{id}', [SaldoKoinController::class, 'update'])->name('saldoKoin.update');
     Route::delete('/saldo_koin/{id}', [SaldoKoinController::class, 'destroy'])->name('saldoKoin.destroy');
     Route::get('/saldo_koin/riwayat/{user_id}', [SaldoKoinController::class, 'riwayatTransaksi'])->name('saldoKoin.riwayat');
+    Route::get('/transaksi/tenant', [TransaksiTenantController::class, 'index'])->name('transaksi.tenant');
 });
 
 require __DIR__ . '/auth.php';

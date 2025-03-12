@@ -33,12 +33,6 @@
                                     <td>{{ $saldo->user->name }}</td>
                                     <td>{{ number_format($saldo->jumlah) }}</td>
                                     <td>
-                                        {{-- <a href="{{ route('saldoKoin.edit', $saldo->id) }}" class="btn btn-secondary">Edit</a>
-                                        <form action="{{ route('saldoKoin.destroy', $saldo->id) }}" class="d-inline" method="POST">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-danger" onclick="return confirm('Yakin ingin menghapus?')">Delete</button>
-                                        </form> --}}
                                         <a href="{{ route('saldoKoin.riwayat', $saldo->user_id) }}" class="btn btn-info">Lihat Riwayat</a>
                                     </td>
                                 </tr>

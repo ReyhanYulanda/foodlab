@@ -195,7 +195,7 @@ class TransaksiController extends Controller
                 });
             })->first();
 
-            $status = @$request->status ?? ($request->metode_pembayaran == 'cod' ? "pesanan_masuk" : "pending");
+            $status = @$request->status ?? ($request->metode_pembayaran == 'cod' || $request->metode_pembayaran == 'koin' ? "pesanan_masuk" : "pending");
 
             $transaksi = Transaksi::create([
                 'user_id' => $user->id,

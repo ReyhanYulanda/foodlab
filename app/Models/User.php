@@ -58,6 +58,6 @@ class User extends Authenticatable
 
     public function transaksiKoin()
 {
-    return $this->hasMany(TransaksiKoin::class);
+    return $this->hasMany(TransaksiSaldoKoin::class);
 }
 }
