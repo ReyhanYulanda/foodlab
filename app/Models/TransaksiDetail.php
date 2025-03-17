@@ -12,7 +12,7 @@ class TransaksiDetail extends Model
 
     protected $table = 'transaksi_detail';
     protected $fillable = [
-        'menus_kelola_id',
+        'menu_id',
         'transaksi_id',
         'jumlah',
         'catatan',

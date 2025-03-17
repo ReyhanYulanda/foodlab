@@ -79,7 +79,11 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
     Route::put('/saldo_koin/{id}', [SaldoKoinController::class, 'update'])->name('saldoKoin.update');
     Route::delete('/saldo_koin/{id}', [SaldoKoinController::class, 'destroy'])->name('saldoKoin.destroy');
     Route::get('/saldo_koin/riwayat/{user_id}', [SaldoKoinController::class, 'riwayatTransaksi'])->name('saldoKoin.riwayat');
-    Route::get('/transaksi/tenant', [TransaksiTenantController::class, 'index'])->name('transaksi.tenant');
+
+    Route::get('/transaksi_tenant', [TransaksiTenantController::class, 'transaksiTenant'])->name('transaksi.tenant');
+    Route::get('/transaksi_tenant/{id}', [TransaksiTenantController::class, 'detailTransaksiTenant'])->name('detail.transaksi.tenant');
+    Route::get('/export-transaksi-tenant', [TransaksiTenantController::class, 'exportCsv'])->name('export.transaksi.tenant');
+
 });
 
 require __DIR__ . '/auth.php';

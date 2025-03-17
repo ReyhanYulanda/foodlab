@@ -15,8 +15,8 @@
                         </div>
                     </div>
                 </div>
-                <div class="card-body">
-                    <table class="table">
+                <div class="card-body table-responsive"">
+                    <table class="table table-striped">
                         <thead>
                             <th>No</th>
                             <th>Nama Tenant</th>
@@ -25,7 +25,7 @@
                             <th>Jam Tutup</th>
                             <th>Pemilik</th>
                             <th>Gambar</th>
-                            <th>isOpen</th>
+                            <th>Status Toko</th>
                             <th>Action</th>
                         </thead>
                         <tbody>
@@ -38,10 +38,17 @@
                                     <td>{{ $tenant->jam_tutup }}</td>
                                     <td>{{ @$tenant->pemilik->name }}</td>
                                     <td>
-                                        <img src="{{ $tenant->gambar }}" alt="" class="img-fluid"
-                                            width="20px">
+                                        <a href="#" data-bs-toggle="modal" data-bs-target="#imageModal{{ $loop->index }}">
+                                            <img src="{{ $tenant->gambar }}" alt="Gambar Tenant" class="img-fluid" width="200px">
+                                        </a>
                                     </td>
-                                    <td>{{ $tenant->is_open }}</td>
+                                    <td>
+                                        @if ($tenant->is_open)
+                                            <span class="badge bg-success">Buka</span>
+                                        @else
+                                            <span class="badge bg-danger">Tutup</span>
+                                        @endif
+                                    </td>
                                     <td>
                                         <a href="{{ route('tenant.edit', $tenant->id) }}"
                                             class="btn btn-secondary">Edit</a>
@@ -61,6 +68,23 @@
         </div>
 
     </div>
+
+    <!-- Modal untuk menampilkan gambar -->
+    @foreach ($tenants as $tenant)
+        <div class="modal fade" id="imageModal{{ $loop->index }}" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Gambar Tenant</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        <img src="{{ $tenant->gambar }}" alt="Gambar Tenant" class="img-fluid">
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endforeach
 
     @push('js')
         @if ($errors->any())

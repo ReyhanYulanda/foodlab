@@ -71,6 +71,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/order/{id}', [TenantOrderController::class, 'update']);
     });
 
+    // MASBRO
     Route::prefix('masbro')->middleware(['role:masbro'])->name('api.masbro.')->group(function () {
         Route::get('/order', [PesananController::class, 'index']);
         Route::put('/order/{transaksiId}', [PesananController::class, 'update']);

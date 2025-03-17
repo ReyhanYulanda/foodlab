@@ -5,8 +5,8 @@
 
         <div class="sidebar-header">
             <div class="hidden sm:block text-4xl font-bold">
-                <h2>Mas<span class="text-red-400">Bro</span></h2>
-                <p class="text-sm text-center">canteen</p>
+                <h2>Food<span class="text-red-400">Lab</span></h2>
+                <p class="text-sm text-center">PENS Canteen</p>
             </div>
             <div class="close-sidebar action-toggle">
                 <i class="ti-close"></i>

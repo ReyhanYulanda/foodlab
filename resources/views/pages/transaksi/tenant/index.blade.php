@@ -14,6 +14,24 @@
                     @if(session('success'))
                         <div class="alert alert-success">{{ session('success') }}</div>
                     @endif
+
+                    <form method="GET" action="{{ route('transaksi.tenant') }}" class="mb-3">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="start_date">Dari Tanggal:</label>
+                                <input type="date" id="start_date" name="start_date" class="form-control" value="{{ request('start_date') }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="end_date">Sampai Tanggal:</label>
+                                <input type="date" id="end_date" name="end_date" class="form-control" value="{{ request('end_date') }}">
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary">Cari</button>
+                                <a href="{{ route('export.transaksi.tenant', ['start_date' => request('start_date'), 'end_date' => request('end_date')]) }}" class="btn btn-success ms-2">Export CSV</a>
+                            </div>
+                        </div>
+                    </form>
+                    
                     <table class="table table-bordered text-center">
                         <thead>
                             <tr>
@@ -24,28 +42,34 @@
                                 <th class="align-middle" rowspan="2">Rincian Penjualan</th>
                             </tr>
                             <tr>
-                                <th>Pendapatan Kotor 1</th>
+                                <th>Pendapatan Kotor</th>
                                 <th>Ongkir</th>
                                 <th>Pendapatan Bersih</th>
-                                <th>Pendapatan Kotor 2</th>
+                                <th>Pendapatan Kotor</th>
                                 <th>Pendapatan Bersih</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($pendapatan as $index => $p)
+                            @foreach ($transaksiTenant as $index => $p)
                             <tr>
-                                <td>{{ $index + 1 }}</td>
+                                <td>{{ $transaksiTenant->firstItem() + $index }}</td> <!-- Nomor berlanjut sesuai halaman -->
                                 <td>{{ $p->nama_tenant }}</td>
                                 <td>Rp{{ number_format($p->pendapatan_kotor_1, 0, ',', '.') }}</td> 
                                 <td>Rp{{ number_format($p->total_ongkir, 0, ',', '.') }}</td> 
                                 <td>Rp{{ number_format($p->pendapatan_bersih_1, 0, ',', '.') }}</td> 
                                 <td>Rp{{ number_format($p->pendapatan_kotor_2, 0, ',', '.') }}</td> 
                                 <td>Rp{{ number_format($p->pendapatan_bersih_2, 0, ',', '.') }}</td> 
-                                <td><a href="#">Lihat</a></td>
+                                <td><a href="{{ route('detail.transaksi.tenant', $p->id) }}" class="btn btn-info ms-2">Lihat</a></td>
                             </tr>
                             @endforeach
                         </tbody>
                     </table>
+
+                    <!-- Tambahkan navigasi pagination -->
+                    <div class="d-flex justify-content-center mt-3">
+                        {{ $transaksiTenant->links() }}
+                    </div>
+
                 </div>
             </div>
         </div>

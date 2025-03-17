@@ -53,6 +53,7 @@ class UserController extends Controller
             'role' => $user->getRoleNames(),
             'menu' => $menu,
             'permission' => $permission,
+            'isOnline' => $user->isOnline,
         ];
 
         if(!$user){

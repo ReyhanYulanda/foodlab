@@ -108,35 +108,45 @@ class TenantController extends Controller
     public function update(Request $request, $id)
     {
         $tenant = Tenants::find($id);
+        
         $request->validate([
             'nama_tenant' => 'required',
             'nama_kavling' => 'required',
             'jam_buka' => 'required',
             'jam_tutup' => 'required',
             'pemilik' => 'required',
-            'gambar' => 'nullable',
+            'gambar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
-
-        Storage::delete($tenant->nama_url);
-        $url = null;
+    
+        // Cek apakah ada file gambar baru
         if ($request->hasFile('gambar')) {
-            Storage::delete(@$tenant->nama_url);
+            // Hapus gambar lama jika ada
+            if ($tenant->nama_gambar) {
+                Storage::delete(str_replace('/storage/', 'public/', $tenant->nama_gambar));
+            }
+    
+            // Simpan gambar baru
             $gambar = $request->file('gambar');
             $path = $gambar->store('public/images');
             $url = Storage::url($path);
+        } else {
+            // Gunakan gambar lama jika tidak ada upload baru
+            $url = $tenant->nama_gambar;
         }
-
+    
+        // Update data tenant
         $tenant->update([
             'nama_tenant' => $request->nama_tenant,
             'nama_kavling' => $request->nama_kavling,
             'jam_buka' => $request->jam_buka,
             'jam_tutup' => $request->jam_tutup,
             'user_id' => $request->pemilik,
-            'nama_gambar' => $url,
+            'nama_gambar' => $url, // Simpan gambar lama jika tidak ada perubahan
         ]);
-
+    
         return redirect()->route('tenant.index')->with(["status" => "success", 'message' => "Tenant berhasil diupdate"]);
     }
+    
 
     /**
      * Remove the specified resource from storage.

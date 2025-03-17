@@ -20,9 +20,10 @@ class SaldoKoinController extends Controller
 
     public function create()
     {
-        $users = User::all();
+        $users = User::select('id', 'name', 'email')->get();
         return view('pages.saldoKoin.create', compact('users'));
     }
+    
 
     public function store(Request $request)
     {

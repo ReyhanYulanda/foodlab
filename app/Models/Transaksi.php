@@ -23,7 +23,8 @@ class Transaksi extends Model
         'biaya_layanan',
         'isAntar',
         'metode_pembayaran',
-        'catatan'
+        'catatan',
+        'driver_id'
     ];
 
     public $appends = ['sub_total', 'gedung', 'nama_ruangan', "nama_pembeli", "order_id"];
@@ -67,5 +68,10 @@ class Transaksi extends Model
 
     public function ruangan(){
         return $this->belongsTo(Ruangan::class,'ruangan_id','id');
+    }
+
+    public function driver()
+    {
+        return $this->belongsTo(User::class, 'driver_id', 'id');
     }
 }

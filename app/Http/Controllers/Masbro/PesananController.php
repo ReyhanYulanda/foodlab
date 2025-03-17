@@ -17,37 +17,42 @@ class PesananController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-
+    
         if(!$user->can('read pengantaran')){
             return response()->json([
                 'status' => 'failed',
                 'message' => 'tidak memiliki akses',
             ], 403);
         }
-
+    
         $validator = Validator::make($request->all(), [
             'status' => 'required|in:diantar,selesai,siap_diantar',
             'gedung' => 'nullable',
         ]);
-
+    
         if ($validator->fails()) {
             return response()->json([
                 "status" => "Bad Request",
                 "message" => $validator->errors()->all()
             ], 400);
         }
-
+    
         try {
-            $transaksi = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user'])->get();
-
-            if($request->has('gedung')){
-                $transaksi = $transaksi->where('gedung', $request->gedung)->values();
-            }
-
+            $transaksi = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user']);
+    
             if($request->has('status')){
-                $transaksi = ($transaksi)->where('status', $request->status)->values();
+                if (in_array($request->status, ['diantar', 'selesai'])) {
+                    $transaksi = $transaksi->where('driver_id', $user->id);
+                }
+                $transaksi = $transaksi->where('status', $request->status);
             }
-
+    
+            if($request->has('gedung')){
+                $transaksi = $transaksi->where('gedung', $request->gedung);
+            }
+    
+            $transaksi = $transaksi->get();
+    
             return response()->json([
                 "status" => "success",
                 "message" => "Berhasil mengambil data",
@@ -67,26 +72,25 @@ class PesananController extends Controller
     public function update(Request $request, $transaksiId, Firebases $firebases)
     {
         $user = $request->user();
-
+    
         if(!$user->can('update pengantaran')){
             return response()->json([
                 'status' => 'failed',
                 'message' => 'tidak memiliki akses',
             ], 403);
         }
-
+    
         $validator = Validator::make($request->all(), [
             'status' => 'required|in:diantar,selesai,siap_diantar',
-            // 'status' => 'required'
         ]);
-
+    
         if ($validator->fails()) {
             return response()->json([
                 "status" => "Bad Request",
                 "message" => $validator->errors()
             ], 400);
         }
-
+    
         try {
             $transaksi = Transaksi::find($transaksiId);
             if (!$transaksi) {
@@ -96,10 +100,10 @@ class PesananController extends Controller
                 ], 404);
             } else {
                 $transaksi->status = $request->status;
+                $transaksi->driver_id = $user->id; // Tambahkan ID driver
                 $transaksi->save();
                 $status = str_replace('_', ' ', $transaksi->status);
-                // $firebases->withNotification("Pesanan {$status}", "Pesanan {$transaksi->id} {$status}")
-                // ->sendMessages($transaksi->user->fcm_token);
+                
                 if($transaksi->metode_pembayaran != 'transfer'){
                     $transaksi->listTransaksiDetail()->update(['status' => $transaksi->status]);
                 }
@@ -107,7 +111,7 @@ class PesananController extends Controller
                     $firebases->withNotification('Pesanan Sedang Diantar', "Pesanan {$transaksi->id} sedang diantar")
                         ->sendMessages($transaksi->user->fcm_token);
                 }
-
+    
                 if ($transaksi->status == 'selesai') {
                     $firebases->withNotification('Pesanan Sudah Sampai', "Pesanan {$transaksi->id} sudah sampai. Selamat Menikmati 😋")
                         ->sendMessages($transaksi->user->fcm_token);

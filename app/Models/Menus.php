@@ -44,4 +44,8 @@ class Menus extends Model
     {
         return $this->gambar != '' ? (asset($this->gambar)) : asset('assets/images/default-image.jpg');
     }
+    public function transaksiDetail()
+    {
+        return $this->hasMany(TransaksiDetail::class);
+    }
 }

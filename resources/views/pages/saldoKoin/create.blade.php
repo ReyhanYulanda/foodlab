@@ -17,11 +17,12 @@
                             <select name="user_id" class="form-control" required>
                                 <option value="">-- Pilih User --</option>
                                 @foreach($users as $user)
-                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                    <option value="{{ $user->id }}">
+                                        {{ $user->name }} - {{ $user->email }} (ID: {{ $user->id }})
+                                    </option>
                                 @endforeach
                             </select>
                         </div>
-
                         <div class="mb-3">
                             <label for="jumlah" class="form-label">Jumlah Saldo</label>
                             <input type="number" name="jumlah" class="form-control" required min="0">

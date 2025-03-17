@@ -57,7 +57,7 @@ class User extends Authenticatable
     }
 
     public function transaksiKoin()
-{
-    return $this->hasMany(TransaksiSaldoKoin::class);
-}
+    {
+        return $this->hasMany(TransaksiSaldoKoin::class);
+    }
 }
