@@ -60,4 +60,18 @@ class User extends Authenticatable
     {
         return $this->hasMany(TransaksiSaldoKoin::class);
     }
+
+    // untuk sementara melakukan testing, jika sudah ditesting hapus saja
+    // tujuanya untuk setiap user langsung mendapatkan saldo sebesar rp 100.0000
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::created(function ($user) {
+            SaldoKoin::create([
+                'user_id' => $user->id,
+                'jumlah' => 100000, // Saldo awal
+            ]);
+        });
+    }
 }
