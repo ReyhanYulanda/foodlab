@@ -104,24 +104,29 @@ class TransaksiController extends Controller
             ], 500);
         }
     }
+
     public function orderMasbro(Request $request)
     {
         $user = $request->user();
         $permission = $user->can('read order tenant');
-        $permission = true;
-
+        $permission = true; // Ini seharusnya tidak perlu jika permission dicek
+    
         if (!$permission) {
             return response()->json([
                 'status' => 'failed',
                 'message' => 'tidak memiliki akses',
             ], 403);
         }
+    
         try {
-            $transaksi = Transaksi::where('isAntar', 1)->with(['listTransaksiDetail.menus.tenants', 'user'])
-                // ->where('user_id', $user->id)
+            // Filter hanya transaksi dengan driver_id sesuai user yang login
+            $transaksi = Transaksi::where('isAntar', 1)
+                ->where('driver_id', $user->id) // Hanya transaksi milik driver yang login
                 ->whereIn('status', ['siap_diantar', 'diantar', 'selesai'])
+                ->with(['listTransaksiDetail.menus.tenants', 'user'])
                 ->orderByDesc('created_at')
                 ->get();
+    
             return response()->json([
                 "status" => "success",
                 "message" => "Berhasil mengambil data",
@@ -137,7 +142,7 @@ class TransaksiController extends Controller
             ], 500);
         }
     }
-
+    
     public function store(Request $request, Firebases $firebases)
     {
         $user = $request->user();
