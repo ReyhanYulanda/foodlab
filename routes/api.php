@@ -61,14 +61,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/saldo/riwayat', [SaldoKoinController::class, 'riwayatTransaksi']);
 
     // TENANT
+    // MENU
     Route::prefix('tenant')->middleware(['role:tenant'])->name('api.tenant.')->group(function () {
         Route::get('/', [KelolaTenantController::class, 'index']);
         Route::post('/menu', [KelolaTenantController::class, 'storeMenu']);
         Route::post('/menu/{id}', [KelolaTenantController::class, 'updateMenu']);
         Route::delete('/menu/{id}', [KelolaTenantController::class, 'destroyMenu']);
 
+        // TENANT ORDER
         Route::get('/order', [TenantOrderController::class, 'index']);
         Route::put('/order/{id}', [TenantOrderController::class, 'update']);
+
+        // SHOWTRANSAKSI
+        Route::get('/history-transaksi-tenant', [KelolaTenantController::class, 'showHistoryTransaksiTenant']);
     });
 
     // MASBRO

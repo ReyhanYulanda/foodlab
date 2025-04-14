@@ -199,6 +199,7 @@ class TransaksiController extends Controller
                     $kelola->where('id', $menu_id);
                 });
             })->first();
+            // dd($tenantUser->fcm_token);
 
             $status = @$request->status ?? ($request->metode_pembayaran == 'cod' || $request->metode_pembayaran == 'koin' ? "pesanan_masuk" : "pending");
 
@@ -218,7 +219,7 @@ class TransaksiController extends Controller
 
             if ($success) {
                 DB::commit();
-                // $firebases->withNotification('Pesanan Masuk', 'Ada Pesanan Masuk di Tenant Kamu')->sendMessages($tenantUser->fcm_token);
+                $firebases->withNotification('Pesanan Masuk', 'Ada Pesanan Masuk di Tenant Kamu')->sendMessages($tenantUser->fcm_token);
                 if($status == 'selesai'){
                     return response()->json([
                         "status" => 'success',

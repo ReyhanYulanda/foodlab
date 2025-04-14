@@ -15,48 +15,43 @@ class TransaksiTenantController extends Controller
     public function transaksiTenant(Request $request)
     {
         $this->authorize('read transaksi_tenant');
-    
+
+        $filterDate = $request->input('filter_date');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
-    
+
         $query = TransaksiDetail::selectRaw("
                 tenants.nama_tenant,
                 tenants.id,
-                SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_1,
-                SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_2,
-                (
-                    SELECT SUM(t.ongkos_kirim) 
-                    FROM transaksi t 
-                    WHERE t.id IN (
-                        SELECT DISTINCT td.transaksi_id
-                        FROM transaksi_detail td
-                        JOIN menus m ON td.menu_id = m.id
-                        WHERE m.tenant_id = tenants.id
-                    )
-                ) as total_ongkir,
-                (SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) - (0.1 * SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_1,
-                (SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) - (0.1 * SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_2
+                SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga * transaksi_detail.jumlah ELSE 0 END) as pendapatan_kotor_1,
+                SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga * transaksi_detail.jumlah ELSE 0 END) as pendapatan_kotor_2,
+                (SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga * transaksi_detail.jumlah ELSE 0 END) - 
+                (0.1 * SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga * transaksi_detail.jumlah ELSE 0 END))) as pendapatan_bersih_1,
+                (SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga * transaksi_detail.jumlah ELSE 0 END) - 
+                (0.1 * SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga * transaksi_detail.jumlah ELSE 0 END))) as pendapatan_bersih_2
             ")
             ->join('menus', 'transaksi_detail.menu_id', '=', 'menus.id')
             ->join('tenants', 'menus.tenant_id', '=', 'tenants.id')
-            ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id');
-    
-        if ($startDate && $endDate) {
+            ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id')
+            ->where('transaksi.status', 'selesai');
+
+        if ($filterDate) {
+            $query->whereDate('transaksi.created_at', $filterDate);
+        } elseif ($startDate && $endDate) {
             $query->whereBetween('transaksi.created_at', [$startDate, $endDate]);
         }
-    
-        $transaksiTenant = $query->groupBy('tenants.id', 'tenants.nama_tenant')->paginate(1);
-    
+
+        $transaksiTenant = $query->groupBy('tenants.id', 'tenants.nama_tenant')->paginate(10);
+
         return view('pages.transaksi.tenant.index', compact('transaksiTenant'));
     }
-    
 
     function detailTransaksiTenant($id)
     {
         $this->authorize('read transaksi_tenant');
         $transaksiDetails = TransaksiDetail::whereHas('menus', function ($query) use ($id) {
             $query->where('tenant_id', $id);
-        })->with(['transaksi.user', 'menus'])->get();
+        })->with(['transaksi.user', 'menus'])->paginate(10);
     
         return view('pages.transaksi.rincianTransaksi.index', compact('transaksiDetails'));
     }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Kelola;
 use App\Http\Controllers\Controller;
 use App\Models\Menus;
 use App\Models\Tenants;
+use App\Models\TransaksiDetail;
 use App\Response\ResponseApi;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -181,5 +182,55 @@ class TenantController extends Controller
         } catch (\Throwable $th) {
             return ResponseApi::serverError();
         }
+    }
+
+    public function showHistoryTransaksiTenant(Request $request)
+    {
+        // Ambil user login
+        $user = auth()->user();
+
+        // Asumsikan user hanya boleh melihat data tenant miliknya
+        // dan user punya relasi ke tenant, misal: $user->tenant->id
+        $tenantId = optional($user->tenant)->id;
+
+        if (!$tenantId) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'User tidak memiliki tenant terkait.'
+            ], 403);
+        }
+
+        $filterDate = $request->input('filter_date');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        $query = TransaksiDetail::selectRaw("
+                tenants.nama_tenant,
+                tenants.id,
+                SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga * transaksi_detail.jumlah ELSE 0 END) as pendapatan_kotor_1,
+                SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga * transaksi_detail.jumlah ELSE 0 END) as pendapatan_kotor_2,
+                (SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga * transaksi_detail.jumlah ELSE 0 END) - 
+                (0.1 * SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga * transaksi_detail.jumlah ELSE 0 END))) as pendapatan_bersih_1,
+                (SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga * transaksi_detail.jumlah ELSE 0 END) - 
+                (0.1 * SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga * transaksi_detail.jumlah ELSE 0 END))) as pendapatan_bersih_2
+            ")
+            ->join('menus', 'transaksi_detail.menu_id', '=', 'menus.id')
+            ->join('tenants', 'menus.tenant_id', '=', 'tenants.id')
+            ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id')
+            ->where('transaksi.status', 'selesai')
+            ->where('tenants.id', $tenantId); // Filter berdasarkan tenant milik user
+
+        if ($filterDate) {
+            $query->whereDate('transaksi.created_at', $filterDate);
+        } elseif ($startDate && $endDate) {
+            $query->whereBetween('transaksi.created_at', [$startDate, $endDate]);
+        }
+
+        $transaksiTenant = $query->groupBy('tenants.id', 'tenants.nama_tenant')->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $transaksiTenant
+        ]);
     }
 }

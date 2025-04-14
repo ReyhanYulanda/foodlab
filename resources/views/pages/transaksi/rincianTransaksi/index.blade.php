@@ -12,7 +12,7 @@
                     @if(session('success'))
                         <div class="alert alert-success">{{ session('success') }}</div>
                     @endif
-                    <table class="table table-responsive w-full">
+                    <table class="table table-responsive w-full table-striped">
                         <thead>
                             <tr>
                                 <th>No</th>
@@ -48,6 +48,7 @@
                             @endforeach
                         </tbody>
                     </table>
+                    {{ $transaksiDetails->links() }}
                 </div>
             </div>
         </div>

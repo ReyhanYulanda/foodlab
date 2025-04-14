@@ -18,6 +18,10 @@
                     <form method="GET" action="{{ route('transaksi.tenant') }}" class="mb-3">
                         <div class="row">
                             <div class="col-md-4">
+                                <label for="filter_date">Pilih Tanggal (Per Hari):</label>
+                                <input type="date" id="filter_date" name="filter_date" class="form-control" value="{{ request('filter_date') }}">
+                            </div>
+                            <div class="col-md-4">
                                 <label for="start_date">Dari Tanggal:</label>
                                 <input type="date" id="start_date" name="start_date" class="form-control" value="{{ request('start_date') }}">
                             </div>
@@ -25,25 +29,28 @@
                                 <label for="end_date">Sampai Tanggal:</label>
                                 <input type="date" id="end_date" name="end_date" class="form-control" value="{{ request('end_date') }}">
                             </div>
-                            <div class="col-md-4 d-flex align-items-end">
+                            <div class="col-md-12 d-flex justify-content-start mt-3">
                                 <button type="submit" class="btn btn-primary">Cari</button>
-                                <a href="{{ route('export.transaksi.tenant', ['start_date' => request('start_date'), 'end_date' => request('end_date')]) }}" class="btn btn-success ms-2">Export CSV</a>
+                                <a href="{{ route('export.transaksi.tenant', [
+                                    'filter_date' => request('filter_date'),
+                                    'start_date' => request('start_date'),
+                                    'end_date' => request('end_date')
+                                ]) }}" class="btn btn-success ms-2">Export CSV</a>
                             </div>
                         </div>
-                    </form>
+                    </form>                    
                     
-                    <table class="table table-bordered text-center">
-                        <thead>
+                    <table class="table table-bordered text-center table-striped">
+                        <thead class="bg-white">
                             <tr>
                                 <th class="align-middle" rowspan="2">No</th>
                                 <th class="align-middle" rowspan="2">Nama Tenant</th>
-                                <th colspan="3">Transaksi Pesan Antar</th>
+                                <th colspan="2">Transaksi Pesan Antar</th>
                                 <th colspan="2">Transaksi Ambil Sendiri</th>
                                 <th class="align-middle" rowspan="2">Rincian Penjualan</th>
                             </tr>
                             <tr>
                                 <th>Pendapatan Kotor</th>
-                                <th>Ongkir</th>
                                 <th>Pendapatan Bersih</th>
                                 <th>Pendapatan Kotor</th>
                                 <th>Pendapatan Bersih</th>
@@ -55,7 +62,6 @@
                                 <td>{{ $transaksiTenant->firstItem() + $index }}</td> <!-- Nomor berlanjut sesuai halaman -->
                                 <td>{{ $p->nama_tenant }}</td>
                                 <td>Rp{{ number_format($p->pendapatan_kotor_1, 0, ',', '.') }}</td> 
-                                <td>Rp{{ number_format($p->total_ongkir, 0, ',', '.') }}</td> 
                                 <td>Rp{{ number_format($p->pendapatan_bersih_1, 0, ',', '.') }}</td> 
                                 <td>Rp{{ number_format($p->pendapatan_kotor_2, 0, ',', '.') }}</td> 
                                 <td>Rp{{ number_format($p->pendapatan_bersih_2, 0, ',', '.') }}</td> 
@@ -64,12 +70,7 @@
                             @endforeach
                         </tbody>
                     </table>
-
-                    <!-- Tambahkan navigasi pagination -->
-                    <div class="d-flex justify-content-center mt-3">
-                        {{ $transaksiTenant->links() }}
-                    </div>
-
+                    {{ $transaksiTenant->links() }}
                 </div>
             </div>
         </div>
