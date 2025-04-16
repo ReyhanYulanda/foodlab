@@ -8,6 +8,8 @@ use App\Models\Tenants;
 use App\Models\Transaksi;
 use App\Models\TransaksiDetail;
 use App\Models\User;
+use App\Models\SaldoKoin;
+use App\Models\TransaksiSaldoKoin;
 use App\Response\ResponseApi;
 use App\Services\Firebases;
 use App\Services\Midtrans;
@@ -218,8 +220,8 @@ class TransaksiController extends Controller
             $success = $this->storeTransakasiDetail($request, $transaksi);
 
             if ($success) {
-                DB::commit();
-                $firebases->withNotification('Pesanan Masuk', 'Ada Pesanan Masuk di Tenant Kamu')->sendMessages($tenantUser->fcm_token);
+                Log::info('FCM Token:', ['token' => $tenantUser->fcm_token]);
+                // $firebases->withNotification('Pesanan Masuk', 'Ada Pesanan Masuk di Tenant Kamu')->sendMessages($tenantUser->fcm_token);
                 if($status == 'selesai'){
                     return response()->json([
                         "status" => 'success',
@@ -236,9 +238,35 @@ class TransaksiController extends Controller
                     ], 201);
                 }
 
+                if ($transaksi->metode_pembayaran === 'koin') {
+                    $saldo = SaldoKoin::where('user_id', $user->id)->first();
+                
+                    if (!$saldo || $saldo->jumlah < $request->total) {
+                        DB::rollBack();
+                        return response()->json([
+                            'status' => 'failed',
+                            'message' => 'Saldo koin tidak cukup',
+                        ], 400);
+                    }
+                
+                    // Potong saldo
+                    $saldo->jumlah -= $request->total;
+                    $saldo->save();
+                
+                    // Simpan histori
+                    TransaksiSaldoKoin::create([
+                        'user_id' => $user->id,
+                        'jumlah' => -$request->total, // negatif karena pengurangan
+                        'tipe' => 'keluar',
+                        'deskripsi' => 'Pembayaran pesanan #' . $transaksi->id,
+                    ]);
+                }                
+
                 $transaksi = Transaksi::with(['user', 'listTransaksiDetail.menus'])->where('id', $transaksi->id)->first();
                 // $midtrans = new Midtrans();
                 // $snapMidtrans = $midtrans->createSnapTransaction($transaksi);
+
+                DB::commit();
 
                 return response()->json([
                     "status" => 'success',
@@ -248,20 +276,21 @@ class TransaksiController extends Controller
                 ], 201);
             } else {
                 return response()->json([
-                    'statu' => 'failed',
+                    'status' => 'failed',
                     'message' => 'gagal transaksi detail',
                 ], 401);
             }
 
         } catch (Throwable $th) {
             DB::rollback();
-            Log::error($th->getMessage());
-
+            Log::error('Transaksi gagal: ' . $th->getMessage());
+            Log::error('Trace: ' . $th->getTraceAsString());
+        
             return response()->json([
                 'status' => 'failed',
-                'messages' => 'transaksi gagal',
+                'messages' => 'transaksi gagal: ' . $th->getMessage(),
             ], 400);
-        }
+        }        
     }
 
     public function storeTransakasiDetail($request, $transaksi)
@@ -350,19 +379,54 @@ class TransaksiController extends Controller
         }
     }
 
-    public function cancel($id){
-        try{
-            $midtrans = new Midtrans();
+    public function cancel($id)
+    {
+        try {
+            DB::beginTransaction();
 
-            $status = $midtrans->cancelTransaction($id);
-            Log::info($status);
-            if($status == 200){
-                return ResponseApi::success(null, "Transaksi Berhasil DiBatalkan");
-            }else{
-                return ResponseApi::error("Transaksi Gagal DiBatalkan");
+            $transaksi = Transaksi::find($id);
+
+            if (!$transaksi) {
+                return ResponseApi::error("Transaksi tidak ditemukan", 404);
             }
-        }catch(Throwable $th){
+
+            // ⛔ Cek apakah sudah refund sebelumnya
+            if (in_array($transaksi->status, ['refund_selesai', 'refund_diproses'])) {
+                return ResponseApi::error("Transaksi sudah direfund sebelumnya", 400);
+            }
+
+            // 🚫 Cek kalau sudah dibatalkan & refund gagal → bisa kasih opsi retry manual
+            if ($transaksi->status === 'refund_gagal') {
+                return ResponseApi::error("Refund sebelumnya gagal. Silakan hubungi admin", 400);
+            }
+
+            // ✅ 1. Batalkan dulu
+            $transaksi->status = 'dibatalkan';
+            $transaksi->save();
+
+            try {
+                // ✅ 2. Refund koin
+                $transaksi->refundKoin();
+
+                $transaksi->status = 'refund_selesai';
+                $transaksi->save();
+                DB::commit();
+
+                return ResponseApi::success(null, "Transaksi dibatalkan dan refund berhasil");
+            } catch (\Throwable $e) {
+                $transaksi->status = 'refund_gagal';
+                $transaksi->save();
+                DB::commit();
+
+                Log::warning("Refund gagal: " . $e->getMessage());
+                return ResponseApi::error("Transaksi dibatalkan, tapi refund gagal. Silakan hubungi admin.");
+            }
+
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            Log::error("Gagal membatalkan transaksi: " . $th->getMessage());
             return ResponseApi::serverError();
         }
     }
+   
 }

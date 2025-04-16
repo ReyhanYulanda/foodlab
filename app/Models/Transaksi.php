@@ -74,4 +74,15 @@ class Transaksi extends Model
     {
         return $this->belongsTo(User::class, 'driver_id', 'id');
     }
+
+    public function refundKoin()
+    {
+        if ($this->status === 'refund_selesai') {
+            throw new \Exception("Transaksi sudah direfund sebelumnya.");
+        }
+
+        $saldo = SaldoKoin::firstOrCreate(['user_id' => $this->user_id]);
+        $saldo->jumlah += $this->total;
+        $saldo->save();
+    }
 }
