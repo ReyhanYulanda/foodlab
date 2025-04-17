@@ -8,6 +8,7 @@ use App\Models\Tenants;
 use App\Models\Transaksi;
 use App\Models\TransaksiDetail;
 use App\Models\User;
+use App\Models\Pengaturan;
 use App\Response\ResponseApi;
 use App\Services\Firebases;
 use App\Services\Midtrans;
@@ -199,9 +200,16 @@ class TransaksiController extends Controller
                     $kelola->where('id', $menu_id);
                 });
             })->first();
-            // dd($tenantUser->fcm_token);
+            
+            if (!$tenantUser) {
+                Log::warning('User tenant tidak ditemukan berdasarkan menu_id', ['menu_id' => $menu_id]);
+            }
 
             $status = @$request->status ?? ($request->metode_pembayaran == 'cod' || $request->metode_pembayaran == 'koin' ? "pesanan_masuk" : "pending");
+
+            $ongkosKirim = Pengaturan::where('nama', 'ongkos_kirim')->value('nilai');
+            $biayaLayanan = Pengaturan::where('nama', 'biaya_layanan')->value('nilai');
+
 
             $transaksi = Transaksi::create([
                 'user_id' => $user->id,
@@ -209,17 +217,24 @@ class TransaksiController extends Controller
                 'isAntar' => $request->isAntar,
                 'metode_pembayaran' => $request->metode_pembayaran,
                 'ruangan_id' => $request->ruangan_id,
-                'ongkos_kirim' => $request->ongkos_kirim ?? 0,
                 'catatan' => @$request->catatan,
-                'biaya_layanan' => @$request->biaya_layanan ?? 1000,
                 'status' => $status,
+                'ongkos_kirim' => $ongkosKirim,
+                'biaya_layanan' => $biayaLayanan,
             ]);
 
             $success = $this->storeTransakasiDetail($request, $transaksi);
 
             if ($success) {
                 DB::commit();
-                $firebases->withNotification('Pesanan Masuk', 'Ada Pesanan Masuk di Tenant Kamu')->sendMessages($tenantUser->fcm_token);
+                if ($tenantUser && $tenantUser->fcm_token) {
+                    $firebases->withNotification('Pesanan Masuk', 'Ada Pesanan Masuk di Tenant Kamu')->sendMessages($tenantUser->fcm_token);
+                } else {
+                    Log::warning('FCM gagal dikirim. Data tenantUser tidak ditemukan atau fcm_token kosong', [
+                        'menu_id' => $menu_id,
+                        'tenantUser' => $tenantUser,
+                    ]);
+                }
                 if($status == 'selesai'){
                     return response()->json([
                         "status" => 'success',
@@ -247,8 +262,9 @@ class TransaksiController extends Controller
                     // "snap" => $snapMidtrans
                 ], 201);
             } else {
+                DB::rollback();
                 return response()->json([
-                    'statu' => 'failed',
+                    'status' => 'failed',
                     'message' => 'gagal transaksi detail',
                 ], 401);
             }
