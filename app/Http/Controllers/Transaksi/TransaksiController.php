@@ -8,6 +8,7 @@ use App\Models\Tenants;
 use App\Models\Transaksi;
 use App\Models\TransaksiDetail;
 use App\Models\User;
+use App\Models\Menus;
 use App\Models\Pengaturan;
 use App\Response\ResponseApi;
 use App\Services\Firebases;
@@ -284,36 +285,43 @@ class TransaksiController extends Controller
     {
         $validator = Validator::make($request->only(['menus']), [
             'menus' => ['required', 'array'],
-            'menus.*.id' => ['required', 'numeric'],
+            'menus.*.id' => ['required', 'numeric', 'exists:menus,id'],
             'menus.*.jumlah' => ['required', 'numeric'],
-            'menus.*.harga' => ['required', 'numeric'],
             'menus.*.catatan' => ['nullable'],
-        ], [
-
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'messages' => $validator->errors()
-            ], 400);
+            return false;
         }
 
-        $dataInsert = array_map(function ($menu) use ($transaksi) {
-            return [
+        $dataInsert = [];
+
+        foreach ($request->menus as $menu) {
+            // Ambil data menu dari database berdasarkan id
+            $menuModel = Menus::withTrashed()->find($menu['id']);
+
+            if (!$menuModel) {
+                // Jika menu tidak ditemukan, skip / bisa juga throw error
+                continue;
+            }
+
+            $dataInsert[] = [
                 'transaksi_id' => $transaksi->id,
                 'menu_id' => $menu['id'],
                 'jumlah' => $menu['jumlah'],
-                'harga' => $menu['harga'],
-                'catatan' => $menu['catatan'] ?? '',
-                'status' => $transaksi->status,
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
+                'harga' => $menuModel->harga * $menu['jumlah'],
+                'catatan' => $menu['catatan'] ?? null,
+                'created_at' => now(),
+                'updated_at' => now(),
             ];
-        }, $request->menus);
+        }
 
-        $transaksiDetail = TransaksiDetail::insert($dataInsert);
+        if (!empty($dataInsert)) {
+            TransaksiDetail::insert($dataInsert);
+            return true;
+        }
 
-        return $transaksiDetail;
+        return false;
     }
 
     public function webHookMidtrans(Request $request, Firebases $firebases)
