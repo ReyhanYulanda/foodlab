@@ -47,7 +47,6 @@ class TenantOrderController extends Controller
     public function update(Request $request, Firebases $firebases, $id)
     {
         $user = $request->user();
-        $masbro = User::role('masbro')->first();
 
         if (!$user->can('update order tenant')) {
             return ResponseApi::forbidden('tidak memiliki akses');

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Masbro;
 
 use App\Http\Controllers\Controller;
-use App\Models\Tenants;
+use App\Models\TransaksiSaldoKoin;
+use App\Models\SaldoKoin;
 use App\Models\Transaksi;
+use App\Models\Pengaturan;
 use App\Services\Firebases;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -72,6 +74,7 @@ class PesananController extends Controller
     public function update(Request $request, $transaksiId, Firebases $firebases)
     {
         $user = $request->user();
+        $transaksi = Transaksi::find($transaksiId);
     
         if(!$user->can('update pengantaran')){
             return response()->json([
@@ -90,6 +93,13 @@ class PesananController extends Controller
                 "message" => $validator->errors()
             ], 400);
         }
+
+        if ($user->id !== $transaksi->driver_id) {
+            return response()->json([
+                "status" => "forbidden",
+                "message" => "Kamu bukan driver untuk transaksi ini"
+            ], 403);
+        }
     
         try {
             $transaksi = Transaksi::find($transaksiId);
@@ -100,7 +110,7 @@ class PesananController extends Controller
                 ], 404);
             } else {
                 $transaksi->status = $request->status;
-                $transaksi->driver_id = $user->id; // Tambahkan ID driver
+                $transaksi->driver_id = $user->id; 
                 $transaksi->save();
                 $status = str_replace('_', ' ', $transaksi->status);
                 
@@ -115,7 +125,34 @@ class PesananController extends Controller
                 if ($transaksi->status == 'selesai') {
                     $firebases->withNotification('Pesanan Sudah Sampai', "Pesanan {$transaksi->id} sudah sampai. Selamat Menikmati 😋")
                         ->sendMessages($transaksi->user->fcm_token);
+                    
+                    $ongkirAsli = $transaksi->ongkos_kirim;
+
+                    $pengaturanPotongan = Pengaturan::where('nama', 'biaya_ongkos_kirim')->first();
+                    $persentasePotongan = $pengaturanPotongan ? (float)$pengaturanPotongan->nilai : 0;
+
+                    $ongkirAsli = $transaksi->ongkos_kirim;
+                    $potongan = ($persentasePotongan / 100) * $ongkirAsli;
+                    $ongkirBersih = $ongkirAsli - $potongan;
+
+                    // Simpan ke histori
+                    TransaksiSaldoKoin::create([
+                        'user_id' => $user->id,
+                        'jumlah' => $ongkirBersih,
+                        'tipe' => 'masuk',
+                        'deskripsi' => "Ongkir dari pesanan #{$transaksi->id}, potongan {$persentasePotongan}% dari {$ongkirAsli}, total masuk: {$ongkirBersih}",
+                    ]);
+
+                    // Update saldo user
+                    $saldo = SaldoKoin::firstOrCreate(
+                        ['user_id' => $user->id],
+                        ['jumlah' => 0]
+                    );
+
+                    $saldo->jumlah += $ongkirBersih;
+                    $saldo->save();
                 }
+
                 return response()->json([
                     "status" => "success",
                     "message" => "Pesanan {$request->status}",

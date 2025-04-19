@@ -247,7 +247,7 @@ class TransaksiController extends Controller
                 if ($transaksi->metode_pembayaran === 'koin') {
                     $saldo = SaldoKoin::where('user_id', $user->id)->first();
                 
-                    if (!$saldo || $saldo->jumlah < $request->$totalFinal) {
+                    if (!$saldo || $saldo->jumlah < $totalFinal) {
                         DB::rollBack();
                         return response()->json([
                             'status' => 'failed',
@@ -255,12 +255,12 @@ class TransaksiController extends Controller
                         ], 400);
                     }
                 
-                    $saldo->jumlah -= $request->$totalFinal;
+                    $saldo->jumlah -= $totalFinal;
                     $saldo->save();
                 
                     TransaksiSaldoKoin::create([
                         'user_id' => $user->id,
-                        'jumlah' => -$request->$totalFinal, 
+                        'jumlah' => -$totalFinal, 
                         'tipe' => 'keluar',
                         'deskripsi' => 'Pembayaran pesanan #' . $transaksi->id,
                     ]);
