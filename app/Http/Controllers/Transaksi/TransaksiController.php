@@ -150,7 +150,6 @@ class TransaksiController extends Controller
     public function store(Request $request, Firebases $firebases)
     {
         $user = $request->user();
-        $transaksiCek = new TransaksiCek($user, $request);
         $permission = $user->can('create order');
         $permission = true;
 
@@ -161,27 +160,9 @@ class TransaksiController extends Controller
             ], 403);
         }
 
-        // sewaktu waktu dibutuhkan
-        // if (!$transaksiCek->antar()) {
-        //     return response()->json([
-        //         'status' => 'failed',
-        //         'message' => 'tidak memiliki akses antar',
-        //     ], 403);
-        // }
-        // ;
-
-        // if (!$transaksiCek->metodePembayaran()) {
-        //     return response()->json([
-        //         'status' => 'failed',
-        //         'message' => 'tidak memiliki akses transfer atau COD',
-        //     ], 403);
-        // }
-        // ;
-
         $validatator = Validator::make($request->all(), [
             'isAntar' => 'required|boolean',
-            'total' => 'required|numeric',
-            'ruangan_id' => 'required_if:isAntar,true', //kurang exists in ruangan
+            'ruangan_id' => 'required_if:isAntar,true',
             'metode_pembayaran' => 'required',
             'catatan' => 'nullable',
             'status' => 'nullable',
@@ -210,13 +191,22 @@ class TransaksiController extends Controller
 
             $status = @$request->status ?? ($request->metode_pembayaran == 'cod' || $request->metode_pembayaran == 'koin' ? "pesanan_masuk" : "pending");
 
+            $totalHargaMenu = 0;
+            foreach ($request->menus as $menu) {
+                $menuModel = Menus::withTrashed()->find($menu['id']);
+                if ($menuModel) {
+                    $totalHargaMenu += $menuModel->harga * $menu['jumlah'];
+                }
+            }
+            
             $ongkosKirim = Pengaturan::where('nama', 'ongkos_kirim')->value('nilai');
             $biayaLayanan = Pengaturan::where('nama', 'biaya_layanan')->value('nilai');
 
+            $totalFinal = $totalHargaMenu + ($request->isAntar ? $ongkosKirim : 0) + $biayaLayanan;
 
             $transaksi = Transaksi::create([
                 'user_id' => $user->id,
-                'total' => $request->total,
+                'total' => $totalFinal,
                 'isAntar' => $request->isAntar,
                 'metode_pembayaran' => $request->metode_pembayaran,
                 'ruangan_id' => $request->ruangan_id,
@@ -257,7 +247,7 @@ class TransaksiController extends Controller
                 if ($transaksi->metode_pembayaran === 'koin') {
                     $saldo = SaldoKoin::where('user_id', $user->id)->first();
                 
-                    if (!$saldo || $saldo->jumlah < $request->total) {
+                    if (!$saldo || $saldo->jumlah < $request->$totalFinal) {
                         DB::rollBack();
                         return response()->json([
                             'status' => 'failed',
@@ -265,22 +255,18 @@ class TransaksiController extends Controller
                         ], 400);
                     }
                 
-                    // Potong saldo
-                    $saldo->jumlah -= $request->total;
+                    $saldo->jumlah -= $request->$totalFinal;
                     $saldo->save();
                 
-                    // Simpan histori
                     TransaksiSaldoKoin::create([
                         'user_id' => $user->id,
-                        'jumlah' => -$request->total, // negatif karena pengurangan
+                        'jumlah' => -$request->$totalFinal, 
                         'tipe' => 'keluar',
                         'deskripsi' => 'Pembayaran pesanan #' . $transaksi->id,
                     ]);
                 }                
 
                 $transaksi = Transaksi::with(['user', 'listTransaksiDetail.menus'])->where('id', $transaksi->id)->first();
-                // $midtrans = new Midtrans();
-                // $snapMidtrans = $midtrans->createSnapTransaction($transaksi);
 
                 DB::commit();
 
@@ -288,7 +274,6 @@ class TransaksiController extends Controller
                     "status" => 'success',
                     'messages' => "transaksi berhasil dibuat",
                     "order_id" => $transaksi->id,
-                    // "snap" => $snapMidtrans
                 ], 201);
             } else {
                 DB::rollback();
