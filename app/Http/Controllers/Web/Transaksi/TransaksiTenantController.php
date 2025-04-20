@@ -53,7 +53,7 @@ class TransaksiTenantController extends Controller
             $query->where('tenant_id', $id);
         })->with(['transaksi.user', 'menus'])->paginate(10);
     
-        return view('pages.transaksi.rincianTransaksi.index', compact('transaksiDetails'));
+        return view('pages.transaksi.rincianTransaksiTenant.index', compact('transaksiDetails'));
     }
 
     public function exportCsv(Request $request)
@@ -116,6 +116,4 @@ class TransaksiTenantController extends Controller
             fclose($handle);
         }, 200, $headers);
     }
-
-
 }

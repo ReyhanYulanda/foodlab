@@ -17,6 +17,7 @@ use App\Http\Controllers\Web\RuanganController as WebRuanganController;
 use App\Http\Controllers\Web\TenantController;
 use App\Http\Controllers\Web\UserController;
 use App\Http\Controllers\Web\SaldoKoin\SaldoKoinController;
+use App\Http\Controllers\Web\Transaksi\TransaksiDriverController;
 use App\Http\Controllers\Web\Transaksi\TransaksiTenantController;
 use App\Models\Gedung;
 use Illuminate\Support\Facades\Route;
@@ -83,6 +84,10 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
     Route::get('/transaksi_tenant', [TransaksiTenantController::class, 'transaksiTenant'])->name('transaksi.tenant');
     Route::get('/transaksi_tenant/{id}', [TransaksiTenantController::class, 'detailTransaksiTenant'])->name('detail.transaksi.tenant');
     Route::get('/export-transaksi-tenant', [TransaksiTenantController::class, 'exportCsv'])->name('export.transaksi.tenant');
+
+    Route::get('/transaksi_driver', [TransaksiDriverController::class, 'transaksiDriver'])->name('transaksi.driver');
+    Route::get('/transaksi_driver/{id}', [TransaksiDriverController::class, 'detailTransaksiDriver'])->name('detail.transaksi.driver');
+    // Route::get('/export-transaksi-tenant', [TransaksiDriverController::class, 'exportCsv'])->name('export.transaksi.driver');
 
 });
 
