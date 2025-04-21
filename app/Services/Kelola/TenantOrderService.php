@@ -83,40 +83,40 @@ class TenantOrderService
             }
             $firebases->withNotification(
                 'Tenant Membatalkan Pemesanan',
-                "Mohon maaf, pesanan {$transaksi->order_id} dibatalkan, selanjutnya refund akan dikirim otomatis ke akun anda"
+                "Mohon maaf, pesanan {$transaksi->id} dibatalkan, selanjutnya refund akan dikirim otomatis ke akun anda"
             )->sendMessages($transaksi->user->fcm_token);
         }
 
         if ($transaksi->status == 'pesanan_diproses') {
             $firebases->withNotification(
                 'Tenant Sedang Membuat Pesanan',
-                "Pesanan {$transaksi->order_id} Sedang dibuat"
+                "Pesanan {$transaksi->id} Sedang dibuat"
             )->sendMessages($transaksi->user->fcm_token);
         }
 
         if ($transaksi->status == 'siap_diantar') {
             $firebases->withNotification(
                 'Pesanan Sedang Diantar',
-                "Pesanan {$transaksi->order_id} siap untuk diantar"
+                "Pesanan {$transaksi->id} siap untuk diantar"
             )->sendMessages($transaksi->user->fcm_token);
 
             $firebases->withNotification(
                 'Pesanan Siap Diantar',
-                "Pesanan {$transaksi->order_id} siap untuk diantar"
+                "Pesanan {$transaksi->id} siap untuk diantar"
             )->sendMessages($masbro->fcm_token);
         }
 
         if ($transaksi->status == 'diantar') {
             $firebases->withNotification(
                 'Pesanan Sedang Diantar',
-                "Pesanan {$transaksi->order_id} sedang diantar"
+                "Pesanan {$transaksi->id} sedang diantar"
             )->sendMessages($transaksi->user->fcm_token);
         }
 
         if ($transaksi->status == 'selesai') {
             $firebases->withNotification(
                 'Pesanan Sudah Sampai',
-                "Pesanan {$transaksi->order_id} sudah sampai. Selamat Menikmat 😬"
+                "Pesanan {$transaksi->id} sudah sampai. Selamat Menikmat 😬"
             )->sendMessages($transaksi->user->fcm_token);
         }
     }

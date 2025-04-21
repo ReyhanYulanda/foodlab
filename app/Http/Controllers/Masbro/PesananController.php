@@ -93,13 +93,6 @@ class PesananController extends Controller
                 "message" => $validator->errors()
             ], 400);
         }
-
-        if ($user->id !== $transaksi->driver_id) {
-            return response()->json([
-                "status" => "forbidden",
-                "message" => "Kamu bukan driver untuk transaksi ini"
-            ], 403);
-        }
     
         try {
             $transaksi = Transaksi::find($transaksiId);
@@ -118,12 +111,20 @@ class PesananController extends Controller
                     $transaksi->listTransaksiDetail()->update(['status' => $transaksi->status]);
                 }
                 if ($transaksi->status == 'diantar') {
-                    $firebases->withNotification('Pesanan Sedang Diantar', "Pesanan {$transaksi->id} sedang diantar")
+                    
+                    if ($user->id !== $transaksi->driver_id) {
+                        return response()->json([
+                            "status" => "forbidden",
+                            "message" => "Kamu bukan driver untuk transaksi ini"
+                        ], 403);
+                    }
+
+                    $firebases->withNotification('Pesanan Sedang Diantar', "Pesanan {$transaksi->order_id} sedang diantar")
                         ->sendMessages($transaksi->user->fcm_token);
                 }
     
                 if ($transaksi->status == 'selesai') {
-                    $firebases->withNotification('Pesanan Sudah Sampai', "Pesanan {$transaksi->id} sudah sampai. Selamat Menikmati 😋")
+                    $firebases->withNotification('Pesanan Sudah Sampai', "Pesanan {$transaksi->order_id} sudah sampai. Selamat Menikmati 😋")
                         ->sendMessages($transaksi->user->fcm_token);
                     
                     $ongkirAsli = $transaksi->ongkos_kirim;
