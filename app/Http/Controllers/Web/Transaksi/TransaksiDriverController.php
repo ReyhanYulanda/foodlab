@@ -35,18 +35,18 @@ class TransaksiDriverController extends Controller
     }
 
     public function detailTransaksiDriver($driver_id)
-{
-    $driver = Transaksi::find($driver_id);
+    {
+        $driver = Transaksi::find($driver_id);
 
-    if (!$driver) {
-        return redirect()->back()->with('error', 'Driver tidak ditemukan.');
+        if (!$driver) {
+            return redirect()->back()->with('error', 'Driver tidak ditemukan.');
+        }
+
+        $transaksi = Transaksi::where('driver_id', $driver_id)
+            ->where('status', 'selesai')
+            ->get();
+
+        return view('pages.transaksi.rincianTransaksiDriver.index', compact('driver', 'transaksi'));
     }
-
-    $transaksi = Transaksi::where('driver_id', $driver_id)
-        ->where('status', 'selesai')
-        ->get();
-
-    return view('pages.transaksi.rincianTransaksiDriver.index', compact('driver', 'transaksi'));
-}
 
 }

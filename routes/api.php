@@ -56,8 +56,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // dari rei
     // saldo
     Route::get('/saldo', [SaldoKoinController::class, 'cekSaldo']);
-    Route::post('/saldo/tambah', [SaldoKoinController::class, 'tambahSaldo']);
-    Route::post('/saldo/kurang', [SaldoKoinController::class, 'kurangiSaldo']);
+    // Route::post('/saldo/tambah', [SaldoKoinController::class, 'tambahSaldo']);   
+    // Route::post('/saldo/kurang', [SaldoKoinController::class, 'kurangiSaldo']);
     Route::get('/saldo/riwayat', [SaldoKoinController::class, 'riwayatTransaksi']);
 
     // TENANT

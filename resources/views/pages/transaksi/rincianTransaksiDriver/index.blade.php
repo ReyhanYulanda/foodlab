@@ -23,7 +23,7 @@
                             @forelse($transaksi as $index => $trx)
                                 <tr>
                                     <td>{{ $index + 1 }}</td>
-                                    <td>ORDER{{ $trx->id }}</td>
+                                    <td>{{ $trx->order_id }}</td>
                                     <td>{{ $trx->created_at->format('d-m-Y H:i') }}</td>
                                     <td>Rp {{ number_format($trx->ongkos_kirim, 0, ',', '.') }}</td>
 
