@@ -21,6 +21,7 @@
                             <th>No</th>
                             <th>Nama User</th>
                             <th>Email</th>
+                            <th>No Telefon</th>
                             <th>Role</th>
                             <th>Action</th>
                         </thead>
@@ -30,6 +31,7 @@
                                     <td>{{ $loop->iteration }}</td>
                                     <td>{{ $user->name }}</td>
                                     <td>{{ $user->email ?? '-' }}</td>
+                                    <td>{{ $user->phone ?? '-' }}</td>
                                     <td class="">
                                         @foreach ($user->roles as $role)
                                             <span class="text-white bg-primary d-inline-block px-2 rounded-pill">{{$role->name}}</span>

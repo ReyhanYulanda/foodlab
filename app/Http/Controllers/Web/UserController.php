@@ -43,6 +43,7 @@ class UserController extends Controller
             'nama_user' => 'required',
             'email' => 'required',
             'roles' => 'nullable',
+            'phone' => 'nullable',
         ]);
 
         $password = bcrypt('12345678');
@@ -99,6 +100,7 @@ class UserController extends Controller
             'nama_user' => 'required',
             'email' => 'required',
             'roles' => 'nullable',
+            'phone' => 'nullable',
         ]);
 
         // $password = bcrypt('12345678');
@@ -107,7 +109,7 @@ class UserController extends Controller
         $user->update([
             'name' => $request->nama_user,
             'email' => $request->email,
-            // 'password' => $password,
+            'phone' => $request->phone,
         ]);
 
         if($request->roles){
