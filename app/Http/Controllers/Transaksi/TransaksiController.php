@@ -51,6 +51,15 @@ class TransaksiController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
+            foreach ($transaksi as $t) {
+                echo "Transaksi ID: {$t->id}\n";
+                foreach ($t->listTransaksiDetail as $d) {
+                    echo "- Menu: {$d->nama_menu}, Jumlah: {$d->jumlah}, Harga: {$d->harga}, Total: " . ($d->harga * $d->jumlah) . "\n";
+                }
+                echo "Subtotal (dari accessor): {$t->sub_total}\n\n";
+            }
+            exit;
+            
         return response()->json([
             'status' => 'success',
             'message' => 'data berhasil didapatkan',
@@ -58,8 +67,8 @@ class TransaksiController extends Controller
                 'transaksi' => $transaksi
             ],
         ]);
-
     }
+
     public function orderTenant(Request $request)
     {
         $user = $request->user();
