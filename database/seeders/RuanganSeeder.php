@@ -14,9 +14,10 @@ class RuanganSeeder extends Seeder
         $gedungD3 = Gedung::where('nama', 'D3')->first();
         $gedungPASCA = Gedung::where('nama', 'PASCA')->first();
         $gedungSAW = Gedung::where('nama', 'SAW')->first();
+        $gedungTC = Gedung::where('nama', 'TC')->first();
 
-        if (!$gedungD4 || !$gedungD3 || !$gedungPASCA) {
-            $this->command->error('Gedung D3 atau D4 tidak ditemukan. Pastikan seed Gedung dijalankan terlebih dahulu.');
+        if (!$gedungD4 || !$gedungD3 || !$gedungPASCA || !$gedungSAW || !$gedungTC) {
+            $this->command->error('Gedung D3, D4, PASCA, SAW, atau TC tidak ditemukan. Pastikan seed Gedung dijalankan terlebih dahulu.');
             return;
         }
 
@@ -190,6 +191,13 @@ class RuanganSeeder extends Seeder
             "SAW 11.07-Lab. Radio & Satellite Communication",
         ];
 
+        $ruanganTC = [
+            "TC 201-R.Lab Bahasa Inggris lt.2 TC",
+            "TC 202-Ruang Persiapan Dosen",
+            "TC 208-Maintenance and Repair",
+            "TC-301-R. Robotic Rocket",
+        ];
+
         foreach ($ruanganD4 as $fullName) {
             [$kodeRuangan, $nama] = explode('-', $fullName, 2);
             Ruangan::create([
@@ -226,9 +234,19 @@ class RuanganSeeder extends Seeder
             ]);
         }
 
+        foreach ($ruanganTC as $fullName) {
+            [$kodeRuangan, $nama] = explode('-', $fullName, 2);
+            Ruangan::create([
+                'kode_ruangan' => trim($kodeRuangan),
+                'nama' => trim($nama),
+                'gedung_id' => $gedungTC->id,
+            ]);
+        }
+
         $this->command->info(count($ruanganD4) . " ruangan berhasil ditambahkan ke gedung D4.");
         $this->command->info(count($ruanganD3) . " ruangan berhasil ditambahkan ke gedung D3.");
         $this->command->info(count($ruanganPASCA) . " ruangan berhasil ditambahkan ke gedung PASCA.");
         $this->command->info(count($ruanganSAW) . " ruangan berhasil ditambahkan ke gedung SAW.");
+        $this->command->info(count($ruanganTC) . " ruangan berhasil ditambahkan ke gedung TC.");
     }
 }
