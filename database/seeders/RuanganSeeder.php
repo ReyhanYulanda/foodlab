@@ -195,7 +195,7 @@ class RuanganSeeder extends Seeder
             "TC 201-R.Lab Bahasa Inggris lt.2 TC",
             "TC 202-Ruang Persiapan Dosen",
             "TC 208-Maintenance and Repair",
-            "TC-301-R. Robotic Rocket",
+            "TC 301-R. Robotic Rocket",
         ];
 
         foreach ($ruanganD4 as $fullName) {

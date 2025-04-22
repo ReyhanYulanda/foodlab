@@ -16,6 +16,13 @@
                     </div>
                 </div>
                 <div class="card-body">
+                    <form action="{{ route('ruangan.index') }}" method="GET" class="mb-3">
+                        <div class="input-group">
+                            <input type="text" name="search" class="form-control" placeholder="Cari ruangan, kode, atau gedung"
+                                value="{{ request('search') }}">
+                            <button class="btn btn-primary" type="submit">Cari</button>
+                        </div>
+                    </form>
                     <table class="table">
                         <thead>
                             <th>No</th>
@@ -27,7 +34,7 @@
                         <tbody>
                             @foreach ($ruangan as $ruang)
                                 <tr>
-                                    <td>{{ $loop->iteration }}</td>
+                                    <td>{{ ($ruangan->currentPage() - 1) * $ruangan->perPage() + $loop->iteration }}</td>
                                     <td>{{ $ruang->nama }}</td>
                                     <td>{{ $ruang->kode_ruangan }}</td>
                                     <td>{{ $ruang->gedung->nama ?? '-' }}</td>
@@ -45,6 +52,9 @@
                             @endforeach
                         </tbody>
                     </table>
+                    <div class="d-flex justify-content-end mt-3">
+                        {{ $ruangan->withQueryString()->links() }}
+                    </div>
                 </div>
             </div>
         </div>

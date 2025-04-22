@@ -9,35 +9,31 @@ use Illuminate\Http\Request;
 
 class RuanganController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function index()
+    public function index(Request $request)
     {
         $this->authorize('read ruangan');
-        $ruangan = Ruangan::all();
+    
+        $query = Ruangan::with('gedung');
+    
+        if ($search = $request->input('search')) {
+            $query->where('nama', 'like', "%$search%")
+                ->orWhere('kode_ruangan', 'like', "%$search%")
+                ->orWhereHas('gedung', function ($q) use ($search) {
+                    $q->where('nama', 'like', "%$search%");
+                });
+        }
+    
+        $ruangan = $query->paginate(10);
+    
         return view('pages.konfigurasi.ruangan.index', compact('ruangan'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
     public function create()
     {
         $gedung = Gedung::all();
         return view('pages.konfigurasi.ruangan.create', compact('gedung'));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
     public function store(Request $request)
     {
         $request->validate([
@@ -55,23 +51,6 @@ class RuanganController extends Controller
         return redirect()->route('ruangan.index')->with(["status" => "success", 'message' => "Data Berhasil Diinputkan"]);
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function show($id)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function edit($id)
     {
         $gedung = Gedung::all();
@@ -79,13 +58,6 @@ class RuanganController extends Controller
         return view('pages.konfigurasi.ruangan.edit', compact('gedung', 'ruangan'));
     }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function update(Request $request, $id)
     {
         $request->validate([
@@ -103,12 +75,6 @@ class RuanganController extends Controller
         return redirect()->route('ruangan.index')->with(["status" => "success", 'message' => "Ruangan berhasil diupdate"]);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function destroy($id)
     {
         Ruangan::find($id)->delete();
