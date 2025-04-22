@@ -15,6 +15,10 @@ class GedungSeeder extends Seeder
      */
     public function run()
     {
-        Gedung::factory(3)->has(Ruangan::factory(5), 'listRuangan')->create();
+        $gedungList = ['D4', 'D3', 'PASCA', 'SAW'];
+
+        foreach ($gedungList as $nama) {
+            Gedung::create(['nama' => $nama]);
+        }
     }
 }
