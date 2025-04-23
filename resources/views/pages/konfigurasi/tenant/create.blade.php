@@ -61,6 +61,24 @@
                         <div class="row">
                             <div class="col">
                                 <div class="mb-3">
+                                    <label for="basicInput" class="form-label">No Rekening Toko</label>
+                                    <input type="number" placeholder="Input Here" class="form-control" id="basicInput"
+                                        name="no_rekening_toko">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col">
+                                <div class="mb-3">
+                                    <label for="basicInput" class="form-label">No Rekening Pribadi</label>
+                                    <input type="number" placeholder="Input Here" class="form-control" id="basicInput"
+                                        name="no_rekening_pribadi">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col">
+                                <div class="mb-3">
                                     <label for="basicInput" class="form-label">Gambar</label>
                                     <input type="file" class="form-control" id="basicInput" name="gambar">
                                 </div>

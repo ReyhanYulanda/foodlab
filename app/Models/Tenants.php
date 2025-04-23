@@ -19,6 +19,8 @@ class Tenants extends Model
         'jam_buka',
         'jam_tutup',
         'user_id',
+        'no_rekening_toko',
+        'no_rekening_pribadi',
     ];
 
     public $appends = ['gambar', 'range'];
@@ -64,6 +66,11 @@ class Tenants extends Model
     public function pemilik()
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
+    }
+
+    public function getNoTeleponAttribute()
+    {
+        return $this->pemilik->phone;
     }
 
     public function calculateMinPriceMenu(){

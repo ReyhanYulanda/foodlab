@@ -27,7 +27,7 @@ class Transaksi extends Model
         'driver_id'
     ];
 
-    public $appends = ['sub_total', 'gedung', 'nama_ruangan', "nama_pembeli", "order_id"];
+    protected $appends = ['sub_total', 'gedung', 'nama_ruangan', 'nama_pembeli', 'order_id'];
 
     protected function serializeDate(DateTimeInterface $date)
     {
@@ -43,14 +43,17 @@ class Transaksi extends Model
     {
         return (int)$this->listTransaksiDetail()->sum(DB::raw('harga'));
     }
+
     public function getGedungAttribute()
     {
         return @$this->ruangan->gedung->nama;
     }
+
     public function getNamaPembeliAttribute()
     {
         return @$this->user()->first()->name;
     }
+
     public function getNamaRuanganAttribute()
     {
         return @$this->ruangan->nama_ruangan;

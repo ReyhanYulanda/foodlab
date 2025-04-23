@@ -24,6 +24,9 @@
                             <th>Jam Buka</th>
                             <th>Jam Tutup</th>
                             <th>Pemilik</th>
+                            <th>No. Telepon</th> 
+                            <th>No. Rekening Toko</th> 
+                            <th>No. Rekening Pribadi</th> 
                             <th>Gambar</th>
                             <th>Status Toko</th>
                             <th>Action</th>
@@ -37,6 +40,9 @@
                                     <td>{{ $tenant->jam_buka }}</td>
                                     <td>{{ $tenant->jam_tutup }}</td>
                                     <td>{{ @$tenant->pemilik->name }}</td>
+                                    <td>{{ @$tenant->pemilik->phone ?? '-' }}</td> 
+                                    <td>{{ $tenant->no_rekening_toko ?? '-' }}</td> 
+                                    <td>{{ $tenant->no_rekening_pribadi ?? '-' }}</td> 
                                     <td>
                                         <a href="#" data-bs-toggle="modal" data-bs-target="#imageModal{{ $loop->index }}">
                                             <img src="{{ $tenant->gambar }}" alt="Gambar Tenant" class="img-fluid" width="200px">
