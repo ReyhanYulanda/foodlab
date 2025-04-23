@@ -46,15 +46,38 @@ class TransaksiTenantController extends Controller
         return view('pages.transaksi.tenant.index', compact('transaksiTenant'));
     }
 
-    function detailTransaksiTenant($id)
+    public function detailTransaksiTenant($id)
     {
         $this->authorize('read transaksi_tenant');
-        $transaksiDetails = TransaksiDetail::whereHas('menus', function ($query) use ($id) {
-            $query->where('tenant_id', $id);
-        })->with(['transaksi.user', 'menus'])->paginate(10);
+        
+        $transaksiDetails = Transaksi::whereHas('listTransaksiDetail.menus', function ($query) use ($id) {
+            $query->where('tenant_id', $id)
+            ->where('transaksi.status', 'selesai');;
+        })
+        ->with([
+            'user',
+            'driver',
+        ])
+        ->paginate(10);
     
         return view('pages.transaksi.rincianTransaksiTenant.index', compact('transaksiDetails'));
+    } 
+    
+    public function getPesananByTransaksi($id)
+    {
+        $transaksi = Transaksi::with('listTransaksiDetail.menus')->findOrFail($id);
+
+        $pesanan = $transaksi->listTransaksiDetail->map(function ($detail) {
+            return [
+                'nama_menu' => $detail->menus->nama ?? 'Menu Tidak Ditemukan',
+                'jumlah' => $detail->jumlah,
+                'harga' => $detail->harga,
+            ];
+        });
+
+        return response()->json($pesanan);
     }
+
 
     public function exportCsv(Request $request)
     {
