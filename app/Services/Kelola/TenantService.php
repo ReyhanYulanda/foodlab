@@ -11,7 +11,7 @@ class TenantService
 {
     public function getTenantData($user)
     {
-        return Tenants::where('user_id', $user->id)->with('listMenu')->first();
+        return Tenants::where('user_id', $user->id)->with('listMenu')->with('pemilik')->first();
     }
 
     public function storeMenu(Request $request, $user)
