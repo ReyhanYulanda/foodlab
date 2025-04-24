@@ -73,6 +73,11 @@ class Tenants extends Model
         return $this->pemilik->phone;
     }
 
+    public function getIsOnlineAttribute()
+    {
+        return $this->pemilik->isOnline;
+    }
+
     public function calculateMinPriceMenu(){
         return $this->listMenu()->min('harga');
     }

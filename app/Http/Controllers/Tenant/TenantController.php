@@ -19,7 +19,13 @@ class TenantController extends Controller
             ], 403);
         }
 
-        $tenants = Tenants::with(['listMenu'])->where('user_id', '!=', $request->user()->id)->get();
+        $tenants = Tenants::with(['listMenu', 'pemilik'])
+            ->where('user_id', '!=', $request->user()->id)
+            ->get()
+            ->filter(function ($tenant) {
+                return $tenant->pemilik;
+            })
+            ->values();
 
         return ResponseApi::success(compact('tenants'), 'berhasil mendapatkan data');
     }
