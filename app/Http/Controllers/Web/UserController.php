@@ -28,14 +28,21 @@ class UserController extends Controller
             'email' => 'required',
             'roles' => 'nullable',
             'phone' => 'nullable',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
         $password = bcrypt('12345678');
+
+        $gambarPath = null;
+        if ($request->hasFile('image')) {
+            $gambarPath = $request->file('image')->store('images/user', 'public');
+        }
 
         $user = User::create([
             'name' => $request->nama_user,
             'email' => $request->email,
             'password' => $password,
+            'image' => $gambarPath,
         ]);
 
         if($request->roles){
@@ -61,13 +68,21 @@ class UserController extends Controller
             'email' => 'required',
             'roles' => 'nullable',
             'phone' => 'nullable',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
         $user = User::find($id);
+
+        if ($request->hasFile('image')) {
+            $gambarPath = $request->file('image')->store('images/user', 'public');
+            $user->image = $gambarPath;
+        }
+
         $user->update([
             'name' => $request->nama_user,
             'email' => $request->email,
             'phone' => $request->phone,
+            'image' => $user->image,
         ]);
 
         if($request->roles){

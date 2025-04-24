@@ -29,8 +29,8 @@ class TenantController extends Controller
         $request->validate([
             'nama_tenant' => 'required',
             'nama_kavling' => 'required',
-            'jam_buka' => 'required',
-            'jam_tutup' => 'required',
+            'jam_buka' => 'nullable',
+            'jam_tutup' => 'nullable',
             'pemilik' => 'required',
             'gambar' => 'nullable',
             'no_rekening_toko' => 'nullable',

@@ -47,6 +47,7 @@ class UserController extends Controller
             'token_type' => 'Bearer',
             'isOnline' => $user->isOnline,
             'phone' => $user->phone,
+            'gambar' => $user->gambar,
             'role' => $user->getRoleNames(),
             'menu' => $menu,
             'permission' => $permission,
@@ -113,7 +114,8 @@ class UserController extends Controller
             'email'=> ['unique:users,email', 'nullable'],
             'password'=> 'nullable',
             'phone'=> 'nullable',
-            'isOnline' => ['nullable']
+            'isOnline' => ['nullable'],
+            'image' => ['required', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
         ]);
 
         if($valdidator->fails()){
@@ -121,26 +123,36 @@ class UserController extends Controller
         }
 
         try{
-            $updated = $user->update([
-                "name" => @$request->name ?? $user->name,
-                "email" => @$request->email ?? $user->email,
-                "password" => @$request->password ?? $user->password,
-                "phone" => @$request->phone ?? $user->phone,
-                "isOnline" => @$request->isOnline ?? $user->isOnline,
-            ]);
+            $data = [
+                "name" => $request->name ?? $user->name,
+                "email" => $request->email ?? $user->email,
+                "password" => $request->password ? Hash::make($request->password) : $user->password,
+                "phone" => $request->phone ?? $user->phone,
+                "isOnline" => $request->isOnline ?? $user->isOnline,
+            ];
+    
+            if ($request->hasFile('image')) {
+                $image = $request->file('image');
+                $imageName = 'user_' . $user->id . '_' . time() . '.' . $image->getClientOriginalExtension();
+                $image->move(public_path('storage/images/user'), $imageName);
+                $data['image'] = 'images/user/' . $imageName;
+            }
+    
+            $user->update($data);  
 
-            if(!$updated){
+            if(!$user){
                 return response()->json(['messages' => 'Update Gagal']);
             }else{
                 return response()->json([
                     'messages' => 'Update Berhasil',
-                    'data' => $updated
+                    'data' => $user
                 ]);
             }
         }catch(Exception $e){
             return ResponseApi::serverError();
         }
     }
+    
     public function updateFcmToken(Request $request, Firebases $firebases)
     {
         $user = $request->user();

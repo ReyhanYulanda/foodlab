@@ -12,6 +12,7 @@ use App\Http\Controllers\Transaksi\TransaksiController;
 use App\Http\Controllers\User\UserController;
 use App\Http\Controllers\Api\SaldoKoin\SaldoKoinController;
 use App\Models\Transaksi;
+use App\Http\Controllers\Kelola\Tenant\ProfileTenantController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -35,8 +36,8 @@ Route::post('menu/{id}', [KelolaTenantController::class, 'updateMenuWeb']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth', [UserController::class, 'index']);
-    Route::put('/update-user', [UserController::class, 'update']);
-    // USER
+    Route::post('/update-user', [UserController::class, 'update']);
+    // USER 
     Route::get('/katalog/tenants', [TenantController::class, 'getAll']);
     Route::get('/katalog/tenants/{TenantId}', [TenantController::class, 'getSpecificTenant']);
     // Route::post('/order', [TransaksiController::class, 'store']);
@@ -74,6 +75,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // SHOWTRANSAKSI
         Route::get('/history-transaksi-tenant', [KelolaTenantController::class, 'showHistoryTransaksiTenant']);
+
+        // PROFILE TENANT
+        Route::get('/profile-tenant', [ProfileTenantController::class, 'show']);
+        Route::post('/profile-tenant', [ProfileTenantController::class, 'update']);
     });
 
     // MASBRO

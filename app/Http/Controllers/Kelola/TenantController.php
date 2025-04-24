@@ -186,11 +186,8 @@ class TenantController extends Controller
 
     public function showHistoryTransaksiTenant(Request $request)
     {
-        // Ambil user login
         $user = auth()->user();
 
-        // Asumsikan user hanya boleh melihat data tenant miliknya
-        // dan user punya relasi ke tenant, misal: $user->tenant->id
         $tenantId = optional($user->tenant)->id;
 
         if (!$tenantId) {
@@ -218,7 +215,7 @@ class TenantController extends Controller
             ->join('tenants', 'menus.tenant_id', '=', 'tenants.id')
             ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id')
             ->where('transaksi.status', 'selesai')
-            ->where('tenants.id', $tenantId); // Filter berdasarkan tenant milik user
+            ->where('tenants.id', $tenantId); 
 
         if ($filterDate) {
             $query->whereDate('transaksi.created_at', $filterDate);

@@ -22,7 +22,8 @@ class User extends Authenticatable
         'password',
         'fcm_token',
         'isOnline',
-        "phone"
+        "phone",
+        "image"
     ];
 
     protected $hidden = [
