@@ -204,15 +204,18 @@ class TransaksiController extends Controller
 
             $totalFinal = $totalHargaMenu + ($request->isAntar ? $ongkosKirim : 0) + $biayaLayanan;
 
+            $ruanganId = $request->isAntar ? $request->ruangan_id : null;
+            $ongkosKirimFix = $request->isAntar ? $ongkosKirim : 0;
+
             $transaksi = Transaksi::create([
                 'user_id' => $user->id,
                 'total' => $totalFinal,
                 'isAntar' => $request->isAntar,
                 'metode_pembayaran' => $request->metode_pembayaran,
-                'ruangan_id' => $request->ruangan_id,
+                'ruangan_id' => $ruanganId,
                 'catatan' => @$request->catatan,
                 'status' => $status,
-                'ongkos_kirim' => $ongkosKirim,
+                'ongkos_kirim' => $ongkosKirimFix,
                 'biaya_layanan' => $biayaLayanan,
             ]);
 

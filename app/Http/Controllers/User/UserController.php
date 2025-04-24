@@ -115,7 +115,7 @@ class UserController extends Controller
             'password'=> 'nullable',
             'phone'=> 'nullable',
             'isOnline' => ['nullable'],
-            'image' => ['required', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
         ]);
 
         if($valdidator->fails()){
