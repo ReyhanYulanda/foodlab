@@ -37,7 +37,14 @@ class TenantController extends Controller
             ResponseApi::error('tidak memiliki akses', 403);
         }
 
-        $tenant = Tenants::with(['listMenu'])->find($TenantId);
+        $tenant = Tenants::with(['listMenu', 'pemilik'])->find($TenantId);
+
+        if (!$tenant || !$tenant->pemilik) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Tenant tidak ditemukan atau tidak memiliki pemilik.',
+            ], 404);
+        }
 
         return ResponseApi::success(compact('tenant'), 'berhasil mendapatkan data');
     }
