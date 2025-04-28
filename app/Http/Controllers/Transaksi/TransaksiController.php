@@ -80,24 +80,12 @@ class TransaksiController extends Controller
             with(['listTransaksiDetail.menus.tenants' => function($tenants)use($tenant){
                 $tenants->where('id', $tenant->id);
             }, 'user'])->orderByDesc('created_at')->get();
-            // $baseQuery = DB::table('transaksi_detail')
-            //     ->join('transaksi', 'transaksi.id', 'transaksi_detail.transaksi_id')
-            //     ->join('menus_kelola', 'menus_kelola.id', 'transaksi_detail.menus_kelola_id')
-            //     ->join('menus', 'menus.id', 'menus_kelola.menu_id')
-            //     ->join('tenants', 'tenants.id', 'menus_kelola.tenant_id')
-            //     ->where('tenant_id', @$tenant->id)
-            //     // ->where('status', 'pesanan_masuk')
-            //     ->select('transaksi_detail.*', 'menus.nama as namaMenu', 'tenants.nama_tenant as tenant')
-            //     ->addSelect(DB::raw('transaksi_detail.jumlah * transaksi_detail.harga as subTotal'));
-            // // ->get();
 
-            // $dataPesananMasuk = (clone $baseQuery)->where('transaksi_detail.status', 'pesanan_masuk')->get();
-            // $dataPesanan = (clone $baseQuery)->get();
             return response()->json([
                 "status" => "success",
                 "message" => "Berhasil mengambil data",
                 "data" => [
-                    "transaksi" => $transaksi
+                    "transaksi" => array_values($transaksi->toArray())
                 ]
             ]);
         } catch (Throwable $th) {
