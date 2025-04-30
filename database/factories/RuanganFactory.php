@@ -2,19 +2,19 @@
 
 namespace Database\Factories;
 
+use App\Models\Gedung;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class RuanganFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array
-     */
-    public function definition()
+    public function definition(): array
     {
         return [
-            "nama" => $this->faker->lastName()
+            'nama' => $this->faker->word,
+            'gedung_id' => Gedung::factory(),
+            'kode_ruangan' => $this->faker->unique()->numerify('R#####'),
+            'lat' => $this->faker->latitude,
+            'lng' => $this->faker->longitude,
         ];
     }
 }
