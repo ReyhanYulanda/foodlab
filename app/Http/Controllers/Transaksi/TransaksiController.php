@@ -408,6 +408,13 @@ class TransaksiController extends Controller
                 // ✅ 2. Refund koin
                 $transaksi->refundKoin();
 
+                TransaksiSaldoKoin::create([
+                    'user_id' => $transaksi->user_id,
+                    'jumlah' => $transaksi->total, // karena refund, saldo masuk kembali (positif)
+                    'tipe' => 'masuk',
+                    'deskripsi' => 'Refund pesanan #' . $transaksi->id,
+                ]);
+
                 $transaksi->status = 'refund_selesai';
                 $transaksi->save();
                 DB::commit();
