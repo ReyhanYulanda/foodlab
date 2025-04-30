@@ -71,7 +71,7 @@ class TransaksiTenantController extends Controller
             return [
                 'nama_menu' => $detail->menus->nama ?? 'Menu Tidak Ditemukan',
                 'jumlah' => $detail->jumlah,
-                'harga' => $detail->harga,
+                'harga' => $detail->menus->harga,
             ];
         });
 

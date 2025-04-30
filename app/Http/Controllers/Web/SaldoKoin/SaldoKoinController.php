@@ -11,10 +11,23 @@ use Illuminate\Support\Facades\Auth;
 
 class SaldoKoinController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $this->authorize('read saldo_koin');
-        $saldos = SaldoKoin::with('user')->get();
+
+        $query = SaldoKoin::with('user');
+
+        // Filter berdasarkan nama user jika ada input pencarian
+        if ($request->has('search')) {
+            $search = $request->input('search');
+            $query->whereHas('user', function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%');
+            });
+        }
+
+        // Tambahkan pagination
+        $saldos = $query->paginate(10);
+
         return view('pages.saldoKoin.index', compact('saldos'));
     }
 

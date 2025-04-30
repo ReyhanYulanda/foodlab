@@ -16,6 +16,13 @@
                     </div>
                 </div>
                 <div class="card-body">
+                    <form method="GET" action="{{ route('saldoKoin.index') }}" class="mb-3">
+                        <div class="input-group">
+                            <input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="Cari nama user">
+                            <button class="btn btn-primary" type="submit">Cari</button>
+                        </div>
+                    </form>
+
                     @if(session('success'))
                         <div class="alert alert-success">{{ session('success') }}</div>
                     @endif
@@ -29,7 +36,7 @@
                         <tbody>
                             @foreach ($saldos as $index => $saldo)
                                 <tr>
-                                    <td>{{ $index + 1 }}</td>
+                                    <td>{{ $saldos->firstItem() + $index }}</td>
                                     <td>{{ $saldo->user->name }}</td>
                                     <td>{{ number_format($saldo->jumlah) }}</td>
                                     <td>
@@ -39,6 +46,10 @@
                             @endforeach
                         </tbody>
                     </table>
+                    <div class="mt-3">
+                        {{ $saldos->withQueryString()->links() }}
+                    </div>
+                    
                 </div>
             </div>
         </div>
