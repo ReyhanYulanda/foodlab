@@ -212,7 +212,7 @@ class TransaksiController extends Controller
             if ($success) {
                 DB::commit();
                 if ($tenantUser && $tenantUser->fcm_token) {
-                    $firebases->withNotification('Pesanan Masuk', 'Ada Pesanan Masuk di Tenant Kamu')->sendMessages($tenantUser->fcm_token);
+                    $firebases->withNotification('Pesanan Masuk', 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!')->sendMessages($tenantUser->fcm_token);
                 } else {
                     Log::warning('FCM gagal dikirim. Data tenantUser tidak ditemukan atau fcm_token kosong', [
                         'menu_id' => $menu_id,

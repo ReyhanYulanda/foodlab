@@ -57,7 +57,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($transaksiTenant as $index => $p)
+                            @forelse  ($transaksiTenant as $index => $p)
                             <tr>
                                 <td>{{ $transaksiTenant->firstItem() + $index }}</td> <!-- Nomor berlanjut sesuai halaman -->
                                 <td>{{ $p->nama_tenant }}</td>
@@ -67,7 +67,11 @@
                                 <td>Rp{{ number_format($p->pendapatan_bersih_2, 0, ',', '.') }}</td> 
                                 <td><a href="{{ route('detail.transaksi.tenant', $p->id) }}" class="btn btn-info ms-2">Lihat</a></td>
                             </tr>
-                            @endforeach
+                            @empty
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted">Data tidak tersedia untuk hari ini.</td>
+                                </tr>
+                            @endforelse
                         </tbody>
                     </table>
                     {{ $transaksiTenant->links() }}

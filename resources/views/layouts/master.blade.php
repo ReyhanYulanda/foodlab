@@ -112,6 +112,24 @@
             showMessage('success', '{{Session::get("message") ?? ''}}');
         @endisset
     </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Cari semua form dengan method POST dan yang punya _method DELETE
+            document.querySelectorAll('form').forEach(function (form) {
+                const methodInput = form.querySelector('input[name="_method"]');
+                if (methodInput && methodInput.value === 'DELETE') {
+                    form.addEventListener('submit', function (e) {
+                        const confirmed = confirm('Apakah Anda yakin ingin menghapus data ini?');
+                        if (!confirmed) {
+                            e.preventDefault(); // Batalkan submit
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+    
     @stack('js')
 </body>
 

@@ -119,12 +119,13 @@ class PesananController extends Controller
                         ], 403);
                     }
 
-                    $firebases->withNotification('Pesanan Sedang Diantar', "Pesanan {$transaksi->order_id} sedang diantar")
+                    $firebases->withNotification('Pesanan Sedang Diantar', "Pesanan {$transaksi->id} sudah mendapat driver dan akan segera diantar ke lokasimu")
                         ->sendMessages($transaksi->user->fcm_token);
                 }
     
                 if ($transaksi->status == 'selesai') {
-                    $firebases->withNotification('Pesanan Sudah Sampai', "Pesanan {$transaksi->order_id} sudah sampai. Selamat Menikmati 😋")
+                    $firebases->withNotification('Pesanan Sudah Sampai', "Pesanan {$transaksi->id} telah selesai. Ambil dan terima pesananmu. Selamat menikmati! 🍽
+")
                         ->sendMessages($transaksi->user->fcm_token);
                     
                     $ongkirAsli = $transaksi->ongkos_kirim;

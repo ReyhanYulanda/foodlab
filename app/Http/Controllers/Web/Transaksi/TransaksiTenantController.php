@@ -5,10 +5,8 @@ namespace App\Http\Controllers\Web\Transaksi;
 use App\Http\Controllers\Controller;
 use App\Models\Transaksi;
 use App\Models\TransaksiDetail;
-use Illuminate\Support\Facades\Auth;
-use App\Models\Tenants;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class TransaksiTenantController extends Controller
 {
@@ -20,10 +18,15 @@ class TransaksiTenantController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
+        // Jika tidak ada filter apapun, set default ke hari ini
+        if (!$filterDate && !$startDate && !$endDate) {
+            $filterDate = Carbon::today()->toDateString();
+        }
+
         $query = TransaksiDetail::selectRaw("
                 tenants.nama_tenant,
                 tenants.id,
-                SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga  ELSE 0 END) as pendapatan_kotor_1,
+                SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_1,
                 SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_2,
                 (SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) - 
                 (0.1 * SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_1,
@@ -35,6 +38,7 @@ class TransaksiTenantController extends Controller
             ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id')
             ->where('transaksi.status', 'selesai');
 
+        // Terapkan filter
         if ($filterDate) {
             $query->whereDate('transaksi.created_at', $filterDate);
         } elseif ($startDate && $endDate) {
@@ -58,6 +62,7 @@ class TransaksiTenantController extends Controller
             'user',
             'driver',
         ])
+        ->orderBy('created_at', 'desc')
         ->paginate(10);
     
         return view('pages.transaksi.rincianTransaksiTenant.index', compact('transaksiDetails'));
