@@ -47,7 +47,7 @@ class UserController extends Controller
             'token_type' => 'Bearer',
             'isOnline' => $user->isOnline,
             'phone' => $user->phone,
-            'gambar' => $user->gambar,
+            'gambar' => $user->image,
             'role' => $user->getRoleNames(),
             'menu' => $menu,
             'permission' => $permission,
