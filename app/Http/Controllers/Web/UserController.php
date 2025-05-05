@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
 {
@@ -33,16 +34,20 @@ class UserController extends Controller
 
         $password = bcrypt('12345678');
 
-        $gambarPath = null;
+        $url = null;
         if ($request->hasFile('image')) {
-            $gambarPath = $request->file('image')->store('images/user', 'public');
+            $image = $request->file('image');
+
+            $path = $image->store('public/images');
+
+            $url = Storage::url($path);
         }
 
         $user = User::create([
             'name' => $request->nama_user,
             'email' => $request->email,
             'password' => $password,
-            'image' => $gambarPath,
+            'image' => $url,
         ]);
 
         if($request->roles){
@@ -73,16 +78,20 @@ class UserController extends Controller
 
         $user = User::find($id);
 
+        $url = $user->image;
         if ($request->hasFile('image')) {
-            $gambarPath = $request->file('image')->store('images/user', 'public');
-            $user->image = $gambarPath;
+            $image = $request->file('image');
+
+            $path = $image->store('public/images');
+
+            $url = Storage::url($path);
         }
 
         $user->update([
             'name' => $request->nama_user,
             'email' => $request->email,
             'phone' => $request->phone,
-            'image' => $user->image,
+            'image' => $url,
         ]);
 
         if($request->roles){

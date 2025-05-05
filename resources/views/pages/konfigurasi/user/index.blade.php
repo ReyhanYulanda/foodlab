@@ -34,7 +34,7 @@
                                     <td>{{ $user->email ?? '-' }}</td>
                                     <td>{{ $user->phone ?? '-' }}</td>
                                     <td>
-                                        <img src="{{ asset('storage/' . $user->image) }}" width="100" />
+                                        <img src="{{ $user->image }}" width="100" />
                                     </td>
                                     <td class="">
                                         @foreach ($user->roles as $role)

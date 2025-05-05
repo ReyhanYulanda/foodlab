@@ -9,6 +9,7 @@ use App\Response\ResponseApi;
 use App\Services\Firebases;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
@@ -122,6 +123,15 @@ class UserController extends Controller
             return response()->json($valdidator->errors());
         }
 
+        $url = $user->image;
+        if ($request->hasFile('image')) {
+            $image = $request->file('image');
+
+            $path = $image->store('public/images');
+
+            $url = Storage::url($path);
+        }
+
         try{
             $data = [
                 "name" => $request->name ?? $user->name,
@@ -129,14 +139,8 @@ class UserController extends Controller
                 "password" => $request->password ? Hash::make($request->password) : $user->password,
                 "phone" => $request->phone ?? $user->phone,
                 "isOnline" => $request->isOnline ?? $user->isOnline,
+                "image" => @$url ?? $user->image,
             ];
-    
-            if ($request->hasFile('image')) {
-                $image = $request->file('image');
-                $imageName = 'user_' . $user->id . '_' . time() . '.' . $image->getClientOriginalExtension();
-                $image->move(public_path('storage/images/user'), $imageName);
-                $data['image'] = 'images/user/' . $imageName;
-            }
     
             $user->update($data);  
 
