@@ -86,7 +86,7 @@ class TenantController extends Controller
             'harga' => 'nullable|numeric|gt:0',
             'gambar' => 'nullable|mimes:png,jpg|max:2048',
             'nama_menu' => 'nullable',
-            'deskripsi_menu' => 'nullable',
+            'deskripsi' => 'nullable',
             'kategori_id' => 'nullable',
             'isReady' => 'nullable'
         ]);
@@ -95,8 +95,25 @@ class TenantController extends Controller
             return $validationError;
         }
 
+        $url = $menu->gambar;
+        if ($request->hasFile('gambar')) {
+            $gambar = $request->file('gambar');
+
+            $path = $gambar->store('public/images');
+
+            $url = Storage::url($path);
+        }
+
         try {
-            $menus = $this->tenantService->updateMenu($menu, $tenant, $request);
+            $menu->update([
+                "tenant_id" => @$tenant->id ?? $menu->tenant_id,
+                "kategori_id" => @$request->kategori_id ?? $menu->kategori_id,
+                "harga" => @$request->harga ?? $menu->harga,
+                "gambar" => @$url ?? $menu->gambar,
+                "nama" => @$request->nama_menu ?? $menu->nama,
+                "deskripsi" => @$request->deskripsi,
+                "isReady" => @$request->isReady ?? $menu->isReady
+            ]);
 
             return ResponseApi::success(compact('menu'), 'menu makanan berhasil diupdate');
         } catch (\Throwable $th) {
