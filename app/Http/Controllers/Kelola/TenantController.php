@@ -111,7 +111,7 @@ class TenantController extends Controller
                 "harga" => @$request->harga ?? $menu->harga,
                 "gambar" => @$url ?? $menu->gambar,
                 "nama" => @$request->nama_menu ?? $menu->nama,
-                "deskripsi" => @$request->deskripsi,
+                "deskripsi" => @$request->deskripsi ?? $menu->deskripsi,
                 "isReady" => @$request->isReady ?? $menu->isReady
             ]);
 
