@@ -124,8 +124,7 @@ class PesananController extends Controller
                 }
     
                 if ($transaksi->status == 'selesai') {
-                    $firebases->withNotification('Pesanan Sudah Sampai', "Pesanan {$transaksi->id} telah selesai. Ambil dan terima pesananmu. Selamat menikmati! 🍽
-")
+                    $firebases->withNotification('Pesanan Sudah Sampai', "Pesanan {$transaksi->id} telah selesai. Ambil dan terima pesananmu. Selamat menikmati! 🍽")
                         ->sendMessages($transaksi->user->fcm_token);
                     
                     $ongkirAsli = $transaksi->ongkos_kirim;

@@ -49,7 +49,7 @@ class TenantOrderService
         }
 
         $validation = ValidationHelper::validate($request->all(), [
-            'status' => 'required|in:pesanan_ditolak,pesanan_diproses,siap_diantar,diantar,selesai'
+            'status' => 'required|in:pesanan_ditolak,pesanan_diproses,siap_diantar,siap_diambil,diantar,selesai'
         ]);
 
         if ($validation) {

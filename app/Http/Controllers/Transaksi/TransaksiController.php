@@ -26,11 +26,6 @@ use Throwable;
 
 class TransaksiController extends Controller
 {
-    public function index()
-    {
-
-    }
-
     public function orderUser(Request $request)
     {
         $user = $request->user();
@@ -151,7 +146,7 @@ class TransaksiController extends Controller
         $validatator = Validator::make($request->all(), [
             'isAntar' => 'required|boolean',
             'ruangan_id' => 'required_if:isAntar,true',
-            'metode_pembayaran' => 'required',
+            'metode_pembayaran' => 'required|in:koin',
             'catatan' => 'nullable',
             'status' => 'nullable',
             'menus' => 'required|array',
@@ -331,11 +326,8 @@ class TransaksiController extends Controller
 
     public function webHookMidtrans(Request $request, Firebases $firebases)
     {
-        // $payload = $request->getContent();
         $midtrans = new Midtrans();
         $notif = $midtrans->notification();
-
-        // $signatureKey = env('MIDTRANS_SERVER_KEY');
 
         try {
             $transaction = $notif->transaction_status;
@@ -359,9 +351,6 @@ class TransaksiController extends Controller
         } catch (Throwable $th) {
             dd($transaksi);
         }
-        // finally {
-        //     return response()->json(['message' => 'Webhook received']);
-        // }
     }
 
     public function refund(Transaksi $transaksi){
@@ -390,27 +379,23 @@ class TransaksiController extends Controller
                 return ResponseApi::error("Transaksi tidak ditemukan", 404);
             }
 
-            // ⛔ Cek apakah sudah refund sebelumnya
             if (in_array($transaksi->status, ['refund_selesai', 'refund_diproses'])) {
                 return ResponseApi::error("Transaksi sudah direfund sebelumnya", 400);
             }
 
-            // 🚫 Cek kalau sudah dibatalkan & refund gagal → bisa kasih opsi retry manual
             if ($transaksi->status === 'refund_gagal') {
                 return ResponseApi::error("Refund sebelumnya gagal. Silakan hubungi admin", 400);
             }
 
-            // ✅ 1. Batalkan dulu
             $transaksi->status = 'dibatalkan';
             $transaksi->save();
 
             try {
-                // ✅ 2. Refund koin
                 $transaksi->refundKoin();
 
                 TransaksiSaldoKoin::create([
                     'user_id' => $transaksi->user_id,
-                    'jumlah' => $transaksi->total, // karena refund, saldo masuk kembali (positif)
+                    'jumlah' => $transaksi->total, 
                     'tipe' => 'masuk',
                     'deskripsi' => 'Refund pesanan #' . $transaksi->id,
                 ]);

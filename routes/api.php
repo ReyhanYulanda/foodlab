@@ -13,26 +13,10 @@ use App\Http\Controllers\User\UserController;
 use App\Http\Controllers\Api\SaldoKoin\SaldoKoinController;
 use App\Models\Transaksi;
 use App\Http\Controllers\Kelola\Tenant\ProfileTenantController;
-use Illuminate\Http\Request;
+use App\Http\Controllers\User\TransaksiUserController;
 use Illuminate\Support\Facades\Route;
 
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| is assigned the "api" middleware group. Enjoy building your API!
-|
-*/
-
-// Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-//     return $request->user();
-// });
-
 Route::post('menu/{id}', [KelolaTenantController::class, 'updateMenuWeb']);
-
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth', [UserController::class, 'index']);
@@ -40,28 +24,24 @@ Route::middleware('auth:sanctum')->group(function () {
     // USER 
     Route::get('/katalog/tenants', [TenantController::class, 'getAll']);
     Route::get('/katalog/tenants/{TenantId}', [TenantController::class, 'getSpecificTenant']);
-    // Route::post('/order', [TransaksiController::class, 'store']);
-    // Route::post('/order/detail', [TransaksiController::class, 'store'])->name('');
-    // Route::get('/ruangan', [RuanganController::class, 'index']);
     Route::get('/tenants', [TenantController::class, 'getAll']);
     Route::get('/tenants/{TenantId}', [TenantController::class, 'getSpecificTenant']);
     Route::get('/order/user', [TransaksiController::class, 'orderUser']);
     Route::post('/order', [TransaksiController::class, 'store']);
+    Route::put('/order/{id}', [TransaksiUserController::class, 'updateStatusTransaksi']);
     Route::post('/order/cancel/{id}', [TransaksiController::class, 'cancel']);
     Route::get('/order/tenant', [TransaksiController::class, 'orderTenant']);
     Route::get('/order/masbro', [TransaksiController::class, 'orderMasbro']);
-    // Route::get('/order/riwayat/2', [TransaksiController::class, 'orderUser']);
     Route::post('/order/detail', [TransaksiController::class, 'store'])->name('');
     Route::get('/ruangan', [RuanganController::class, 'index']);
 
-    // dari rei
-    // saldo
+    // SALDO KOIN USER
     Route::get('/saldo', [SaldoKoinController::class, 'cekSaldo']);
     Route::get('/saldo/riwayat', [SaldoKoinController::class, 'riwayatTransaksi']);
 
     // TENANT
-    // MENU
     Route::prefix('tenant')->middleware(['role:tenant'])->name('api.tenant.')->group(function () {
+        // MENU
         Route::get('/', [KelolaTenantController::class, 'index']);
         Route::post('/menu', [KelolaTenantController::class, 'storeMenu']);
         Route::post('/menu/{id}', [KelolaTenantController::class, 'updateMenu']);
@@ -100,30 +80,3 @@ Route::get('/test-web-socket', function(){
     $transaksi = Transaksi::first();
     broadcast(new NotifyUserWhenTransaksiUpdated($transaksi));
 });
-
-// Route::resource('user', UserController::class);
-
-// Midtrans
-// Route::post('/getSnapToken', function () {
-//     // Set your Merchant Server Key
-//     \Midtrans\Config::$serverKey = 'SB-Mid-server-VVST_NSHtMMRxUO6Wm768Ejv';
-//     // Set to Development/Sandbox Environment (default). Set to true for Production Environment (accept real transaction).
-//     \Midtrans\Config::$isProduction = false;
-
-//     $params = array(
-//         'transaction_details' => array(
-//             'order_id' => rand(),
-//             'gross_amount' => 10000,
-//         ),
-//         'customer_details' => array(
-//             'first_name' => 'budi',
-//             'last_name' => 'pratama',
-//             'email' => 'budi.pra@example.com',
-//             'phone' => '08111222333',
-//         ),
-//     );
-
-//     $response = \Midtrans\Snap::createTransaction($params);
-
-//     return response()->json($response);
-// });
