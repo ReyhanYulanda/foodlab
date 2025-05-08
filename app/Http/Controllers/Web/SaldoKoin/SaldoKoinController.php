@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\SaldoKoin;
 use App\Models\TransaksiSaldoKoin;
 use App\Models\User;
-use Illuminate\Support\Facades\Auth;
+use App\Services\Firebases;
 
 class SaldoKoinController extends Controller
 {
@@ -38,7 +38,7 @@ class SaldoKoinController extends Controller
     }
     
 
-    public function store(Request $request)
+    public function store(Request $request, Firebases $firebases)
     {
         $request->validate([
             'user_id' => 'required|exists:users,id',
@@ -46,25 +46,28 @@ class SaldoKoinController extends Controller
             'deskripsi' => 'nullable|string|max:255'
         ]);
     
-        // Cek apakah user sudah memiliki saldo
         $saldo = SaldoKoin::firstOrCreate(['user_id' => $request->user_id]);
     
-        // Tambah saldo
         $saldo->jumlah += $request->jumlah;
         $saldo->save();
     
-        // Simpan transaksi
         TransaksiSaldoKoin::create([
             'user_id' => $request->user_id,
             'jumlah' => $request->jumlah,
             'tipe' => 'masuk',
             'deskripsi' => $request->deskripsi ?? 'Penambahan Saldo Koin'
         ]);
+
+        $user = User::find($request->user_id);
+        if ($user && $user->fcm_token) {
+            $firebases->withNotification(
+                'Top-up Berhasil',
+                'Saldo sebesar Rp ' . number_format($request->jumlah, 0, ',', '.' . 'berhasil ditambahkan ke akunmu.')
+            )->sendMessages($user->fcm_token);
+        }
     
         return redirect()->route('saldoKoin.index')->with('success', 'Saldo koin berhasil diperbarui.');
     }
-    
-    
 
     public function edit($id)
     {

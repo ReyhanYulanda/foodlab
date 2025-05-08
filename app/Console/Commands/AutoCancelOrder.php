@@ -28,14 +28,12 @@ class AutoCancelOrder extends Command
         foreach ($transaksis as $transaksi) {
             DB::beginTransaction();
             try {
-                // Ubah status menjadi dibatalkan
-                $transaksi->status = 'dibatalkan';
+                $transaksi->status = 'pesanan_ditolak';
                 $transaksi->save();
 
-                // Proses refund koin
                 $this->refundKoin($transaksi);
 
-                $transaksi->status = 'refund_selesai'; // Set status refund
+                $transaksi->status = 'refund_selesai'; 
                 $transaksi->save();
 
                 DB::commit();
@@ -50,25 +48,16 @@ class AutoCancelOrder extends Command
         $this->info("Auto cancel executed with timeout $timeout minutes.");
     }
 
-    /**
-     * Fungsi untuk melakukan refund koin
-     *
-     * @param Transaksi $transaksi
-     * @return void
-     */
     private function refundKoin(Transaksi $transaksi)
     {
-        // Cek jika status sudah 'refund_selesai'
         if ($transaksi->status === 'refund_selesai') {
             throw new \Exception("Transaksi sudah direfund sebelumnya.");
         }
 
-        // Cek apakah ada saldo koin untuk user
         $saldo = \App\Models\SaldoKoin::firstOrCreate(['user_id' => $transaksi->user_id]);
         $saldo->jumlah += $transaksi->total;
         $saldo->save();
 
-        // Log refund
         \App\Models\TransaksiSaldoKoin::create([
             'user_id' => $transaksi->user_id,
             'jumlah' => $transaksi->total,

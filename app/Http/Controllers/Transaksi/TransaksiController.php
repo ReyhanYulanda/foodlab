@@ -208,12 +208,8 @@ class TransaksiController extends Controller
                 DB::commit();
                 if ($tenantUser && $tenantUser->fcm_token) {
                     $firebases->withNotification('Pesanan Masuk', 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!')->sendMessages($tenantUser->fcm_token);
-                } else {
-                    Log::warning('FCM gagal dikirim. Data tenantUser tidak ditemukan atau fcm_token kosong', [
-                        'menu_id' => $menu_id,
-                        'tenantUser' => $tenantUser,
-                    ]);
-                }
+                } 
+
                 if($status == 'selesai'){
                     return response()->json([
                         "status" => 'success',
@@ -387,7 +383,7 @@ class TransaksiController extends Controller
                 return ResponseApi::error("Refund sebelumnya gagal. Silakan hubungi admin", 400);
             }
 
-            $transaksi->status = 'dibatalkan';
+            $transaksi->status = 'pesanan_ditolak';
             $transaksi->save();
 
             try {
