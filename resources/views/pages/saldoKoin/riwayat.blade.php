@@ -27,7 +27,7 @@
                                 <td>{{ number_format($t->jumlah) }}</td>
                                 <td>{{ ucfirst($t->tipe) }}</td>
                                 <td>{{ $t->deskripsi }}</td>
-                                <td>{{ $t->created_at->format('d-m-Y H:i') }}</td>
+                                <td>{{ $t->created_at }}</td>
                             </tr>
                             @endforeach
                         </tbody>

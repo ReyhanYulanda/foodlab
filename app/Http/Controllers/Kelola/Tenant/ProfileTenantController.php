@@ -35,8 +35,8 @@ class ProfileTenantController extends Controller
         }
 
         $validationError = ValidationHelper::validate($request->all(), [
-            'nama_tenant' => 'required|string|max:255',
-            'nama_kavling' => 'required|string|max:255',
+            'nama_tenant' => 'nullable|string|max:255',
+            'nama_kavling' => 'nullable|string|max:255',
             'jam_buka' => 'nullable',
             'jam_tutup' => 'nullable',
             'no_rekening_toko' => 'nullable|string|max:255',
