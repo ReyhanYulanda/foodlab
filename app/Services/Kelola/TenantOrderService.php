@@ -77,10 +77,10 @@ class TenantOrderService
     {
         $masbro = User::role('masbro')->first();
 
-        if ($transaksi->status == 'refund_selesai') {
+        if ($transaksi->status == 'pesanan_masuk') {
             $firebases->withNotification(
-                'Refund Selesai',
-                "Refund pesanan {$transaksi->order_id} selesai"
+                'Pesanan Masuk',
+                "Ada Pesanan Masuk!. Yuk!, Segera Prodes!"
             )->sendMessages($transaksi->user->fcm_token);
         }
 

@@ -405,6 +405,10 @@ class TransaksiController extends Controller
                 $transaksi->save();
                 DB::commit();
 
+                if ($user && $user->fcm_token) {
+                    $firebases->withNotification('Refund Berhasil','Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.')->sendMessages($user->fcm_token);
+                }
+
                 return ResponseApi::success(null, "Transaksi dibatalkan dan refund berhasil");
             } catch (\Throwable $e) {
                 $transaksi->status = 'refund_gagal';

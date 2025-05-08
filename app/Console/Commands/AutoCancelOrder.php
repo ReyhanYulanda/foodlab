@@ -8,13 +8,14 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Pengaturan;
+use App\Services\Firebases;
 
 class AutoCancelOrder extends Command
 {
     protected $signature = 'order:autocancel';
     protected $description = 'Batalkan otomatis pesanan_masuk setelah waktu tertentu dari pengaturan';
 
-    public function handle()
+    public function handle(Firebases $firebases)
     {
         $timeout = Pengaturan::where('nama', 'timeout_pesanan')->value('nilai');
         $timeout = $timeout ?? 10;
@@ -28,8 +29,13 @@ class AutoCancelOrder extends Command
         foreach ($transaksis as $transaksi) {
             DB::beginTransaction();
             try {
+                $user = $transaksi->user;
                 $transaksi->status = 'pesanan_ditolak';
                 $transaksi->save();
+
+                if ($user && $user->fcm_token) {
+                    $firebases->withNotification('Pesanan Dibatalkan','Pesanan #' . $transaksi->id . ' tidak direspond tenant.')->sendMessages($user->fcm_token);
+                }
 
                 $this->refundKoin($transaksi);
 
@@ -37,6 +43,10 @@ class AutoCancelOrder extends Command
                 $transaksi->save();
 
                 DB::commit();
+
+                if ($user && $user->fcm_token) {
+                    $firebases->withNotification('Refund Berhasil','Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.')->sendMessages($user->fcm_token);
+                }
 
                 Log::info("Transaksi #{$transaksi->id} dibatalkan otomatis setelah $timeout menit dan refund berhasil.");
             } catch (\Throwable $e) {
