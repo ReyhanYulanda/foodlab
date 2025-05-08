@@ -77,10 +77,10 @@ class TenantOrderService
     {
         $masbro = User::role('masbro')->first();
 
-        if ($transaksi->status == 'pesanan_ditolak') {
+        if ($transaksi->status == 'refund_selesai') {
             $firebases->withNotification(
-                'Pesanan Dibatalkan',
-                "Maaf, pesanan {$transaksi->order_id} dibatalkan oleh tenant. Saldo koinmu sudah dikembalikan, ya~"
+                'Refund Selesai',
+                "Refund pesanan {$transaksi->order_id} selesai"
             )->sendMessages($transaksi->user->fcm_token);
         }
 

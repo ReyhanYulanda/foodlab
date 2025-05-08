@@ -17,7 +17,6 @@ class SaldoKoinController extends Controller
 
         $query = SaldoKoin::with('user');
 
-        // Filter berdasarkan nama user jika ada input pencarian
         if ($request->has('search')) {
             $search = $request->input('search');
             $query->whereHas('user', function ($q) use ($search) {
@@ -25,7 +24,6 @@ class SaldoKoinController extends Controller
             });
         }
 
-        // Tambahkan pagination
         $saldos = $query->paginate(10);
 
         return view('pages.saldoKoin.index', compact('saldos'));
@@ -62,7 +60,7 @@ class SaldoKoinController extends Controller
         if ($user && $user->fcm_token) {
             $firebases->withNotification(
                 'Top-up Berhasil',
-                'Saldo sebesar Rp ' . number_format($request->jumlah, 0, ',', '.' . 'berhasil ditambahkan ke akunmu.')
+                'Saldo sebesar Rp ' . number_format($request->jumlah, 0, ',', '.'). ' telah ditambahkan ke akun Anda.'
             )->sendMessages($user->fcm_token);
         }
     

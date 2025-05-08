@@ -364,7 +364,7 @@ class TransaksiController extends Controller
         }
     }
 
-    public function cancel($id)
+    public function cancel($id, Firebases $firebases)
     {
         try {
             DB::beginTransaction();
@@ -385,6 +385,11 @@ class TransaksiController extends Controller
 
             $transaksi->status = 'pesanan_ditolak';
             $transaksi->save();
+
+            $user = $transaksi->user;
+            if ($user && $user->fcm_token) {
+                $firebases->withNotification('Pesanan Dibatalkan', "Maaf, pesanan {$transaksi->order_id} dibatalkan oleh tenant. Saldo koinmu sudah dikembalikan, ya~")->sendMessages($user->fcm_token);
+            } 
 
             try {
                 $transaksi->refundKoin();
