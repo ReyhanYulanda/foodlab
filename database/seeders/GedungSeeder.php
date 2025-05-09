@@ -8,11 +8,6 @@ use Illuminate\Database\Seeder;
 
 class GedungSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     *
-     * @return void
-     */
     public function run()
     {
         $gedungList = ['D4', 'D3', 'PASCA', 'SAW', 'TC'];
