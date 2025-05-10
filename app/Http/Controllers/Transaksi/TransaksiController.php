@@ -187,6 +187,18 @@ class TransaksiController extends Controller
 
             $totalFinal = $totalHargaMenu + ($request->isAntar ? $ongkosKirim : 0) + $biayaLayanan;
 
+            if ($request->metode_pembayaran === 'koin') {
+                $saldo = SaldoKoin::where('user_id', $user->id)->first();
+
+                if (!$saldo || $saldo->jumlah < $totalFinal) {
+                    DB::rollBack();
+                    return response()->json([
+                        'status' => 'failed',
+                        'message' => 'Saldo koin tidak cukup',
+                    ], 400);
+                }
+            }
+
             $ruanganId = $request->isAntar ? $request->ruangan_id : null;
             $ongkosKirimFix = $request->isAntar ? $ongkosKirim : 0;
 
@@ -227,16 +239,6 @@ class TransaksiController extends Controller
                 }
 
                 if ($transaksi->metode_pembayaran === 'koin') {
-                    $saldo = SaldoKoin::where('user_id', $user->id)->first();
-                
-                    if (!$saldo || $saldo->jumlah < $totalFinal) {
-                        DB::rollBack();
-                        return response()->json([
-                            'status' => 'failed',
-                            'message' => 'Saldo koin tidak cukup',
-                        ], 400);
-                    }
-                
                     $saldo->jumlah -= $totalFinal;
                     $saldo->save();
                 
