@@ -77,13 +77,6 @@ class TenantOrderService
     {
         $masbro = User::role('masbro')->first();
 
-        if ($transaksi->status == 'refund_selesai') {
-            $firebases->withNotification(
-                'Pesanan Dibatalkan Otomatis',
-                'Pesanan #' . $transaksi->id . ' dibatalkan karena tidak direspons dalam batas waktu.'
-            )->sendMessages($transaksi->user->fcm_token);
-        }
-
         if ($transaksi->status == 'pesanan_masuk') {
             $firebases->withNotification(
                 'Pesanan Masuk',
