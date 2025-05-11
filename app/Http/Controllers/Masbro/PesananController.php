@@ -112,10 +112,10 @@ class PesananController extends Controller
                 }
                 if ($transaksi->status == 'diantar') {
                     
-                    if ($user->id !== $transaksi->driver_id) {
+                    if (!is_null($transaksi->driver_id) && $transaksi->driver_id !== $user->id) {
                         return response()->json([
                             "status" => "forbidden",
-                            "message" => "Kamu bukan driver untuk transaksi ini"
+                            "message" => "Transaksi ini sudah memiliki driver"
                         ], 403);
                     }
 
