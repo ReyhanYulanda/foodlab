@@ -31,18 +31,27 @@ class Firebases
         $this->message = $data;
         return $this;
     }
-    public function sendMessages(?string $token)
+    public function sendMessages($tokens)
     {
-        try{
-            $fcmToken = $token ?? '';
-            if($fcmToken == ''){
-                return false;
+        try {
+            if (is_string($tokens)) {
+                $tokens = [$tokens]; // ubah jadi array agar bisa di-loop
             }
-            $cloudMessage = CloudMessage::withTarget('token', $fcmToken)
-                ->withNotification($this->notification)
-                ->withData($this->message);
-            $this->messaging->send($cloudMessage);
-        }catch(Throwable $th){
+
+            foreach ($tokens as $token) {
+                if (empty($token)) {
+                    continue;
+                }
+
+                $cloudMessage = CloudMessage::withTarget('token', $token)
+                    ->withNotification($this->notification)
+                    ->withData($this->message);
+
+                $this->messaging->send($cloudMessage);
+            }
+
+            return true;
+        } catch (Throwable $th) {
             return false;
         }
     }
