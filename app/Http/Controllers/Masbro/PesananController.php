@@ -102,6 +102,7 @@ class PesananController extends Controller
                     "message" => "Transaksi tidak ditemukan"
                 ], 404);
 
+            } else {
                 if ($request->status == 'diantar') {
                     if ($transaksi->driver_id !== null && $transaksi->driver_id !== $user->id) {
                         return response()->json([
@@ -122,7 +123,6 @@ class PesananController extends Controller
                     }
                 }
 
-            } else {
                 $transaksi->status = $request->status;
                 $transaksi->driver_id = $user->id; 
                 $transaksi->save();
