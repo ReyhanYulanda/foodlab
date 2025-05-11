@@ -177,7 +177,6 @@ class TenantController extends Controller
                 'status' => 'gagal',
                 "messages" => "Terjadi Kesalahan Pada Server"
             ], 500);
-            //throw $th;
         }
     }
 

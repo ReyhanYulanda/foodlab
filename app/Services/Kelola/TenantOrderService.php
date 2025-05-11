@@ -87,33 +87,33 @@ class TenantOrderService
         if ($transaksi->status == 'pesanan_diproses') {
             $firebases->withNotification(
                 'Pesanan Sedang Diproses',
-                "Pesanan {$transaksi->order_id} sedang dibuat oleh tenant. Mohon ditunggu, ya!"
+                "Pesanan {$transaksi->id} sedang dibuat oleh tenant. Mohon ditunggu, ya!"
             )->sendMessages($transaksi->user->fcm_token);
         }
 
         if ($transaksi->status == 'siap_diantar') {
             $firebases->withNotification(
                 'Pesanan Sudah Siap',
-                "Pesanan {$transaksi->order_id} selesai dibuat. Kami sedang mencari driver untuk mengantar pesananmu"
+                "Pesanan {$transaksi->id} selesai dibuat. Kami sedang mencari driver untuk mengantar pesananmu"
             )->sendMessages($transaksi->user->fcm_token);
 
             $firebases->withNotification(
                 'Ada Pesanan Siap Diantar',
-                "Pesanan {$transaksi->order_id} sudah siap. Yuk, ambil dan antar sekarang!"
+                "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!"
             )->sendMessages($masbro->fcm_token);
         }
 
         if ($transaksi->status == 'diantar') {
             $firebases->withNotification(
                 'Pesanan Segera Diantar',
-                "Pesanan {$transaksi->order_id} sudah mendapat driver dan akan segera diantar ke lokasimu"
+                "Pesanan {$transaksi->id} sudah mendapat driver dan akan segera diantar ke lokasimu"
             )->sendMessages($transaksi->user->fcm_token);
         }
 
         if ($transaksi->status == 'selesai') {
             $firebases->withNotification(
                 'Pesanan Selesai',
-                "Pesanan {$transaksi->order_id} telah selesai. Ambil dan terima pesananmu. Selamat menikmati! 🍽"
+                "Pesanan {$transaksi->id} telah selesai. Ambil dan terima pesananmu. Selamat menikmati! 🍽"
             )->sendMessages($transaksi->user->fcm_token);
         }
     }
