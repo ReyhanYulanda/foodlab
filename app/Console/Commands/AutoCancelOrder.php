@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Pengaturan;
 use App\Services\Firebases;
-use App\Models\User;
 
 class AutoCancelOrder extends Command
 {
@@ -32,21 +31,11 @@ class AutoCancelOrder extends Command
             try {
                 $user = $transaksi->user;
 
-                $tenantUser = User::whereHas('tenant', function ($tenant) use ($transaksi) {
-                    $tenant->whereHas('listMenu', function ($kelola) use ($transaksi) {
-                        $kelola->whereIn('id', $transaksi->menus->pluck('id')->toArray()); // Menyesuaikan dengan menu di transaksi
-                    });
-                })->first();
-
                 $transaksi->status = 'pesanan_ditolak';
                 $transaksi->save();
 
                 if ($user && $user->fcm_token) {
                     $firebases->withNotification('Pesanan Dibatalkan','Pesanan #' . $transaksi->id . ' tidak direspond tenant.')->sendMessages($user->fcm_token);
-                }
-
-                if ($tenantUser && $tenantUser->fcm_token) {
-                    $firebases->withNotification('Pesanan Dibatalkan','Pesanan #' . $transaksi->id . ' telah dibatalkan karena tidak direspond dalam waktu yang ditentukan.')->sendMessages($tenantUser->fcm_token);
                 }
 
                 $this->refundKoin($transaksi);
