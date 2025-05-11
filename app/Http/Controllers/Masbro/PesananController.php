@@ -103,24 +103,22 @@ class PesananController extends Controller
                 ], 404);
 
             } else {
-                if ($request->status == 'diantar') {
-                    if ($transaksi->driver_id !== null && $transaksi->driver_id !== $user->id) {
-                        return response()->json([
-                            "status" => "forbidden",
-                            "message" => "Transaksi ini sudah memiliki driver"
-                        ], 403);
-                    }
+                if ($transaksi->driver_id !== null && $transaksi->driver_id !== $user->id) {
+                    return response()->json([
+                        "status" => "forbidden",
+                        "message" => "Transaksi ini sudah memiliki driver"
+                    ], 403);
+                }
 
-                    if ($transaksi->driver_id === null) {
-                        $transaksi->driver_id = $user->id;
-                    }
+                if ($transaksi->driver_id === null) {
+                    $transaksi->driver_id = $user->id;
+                }
 
-                    if ($transaksi->driver_id !== $user->id) {
-                        return response()->json([
-                            "status" => "forbidden",
-                            "message" => "Kamu bukan driver untuk transaksi ini"
-                        ], 403);
-                    }
+                if ($transaksi->driver_id !== $user->id) {
+                    return response()->json([
+                        "status" => "forbidden",
+                        "message" => "Kamu bukan driver untuk transaksi ini"
+                    ], 403);
                 }
 
                 $transaksi->status = $request->status;
