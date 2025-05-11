@@ -75,7 +75,10 @@ class TenantOrderService
 
     private function sendNotifications($transaksi, $firebases)
     {
-        $masbro = User::role('masbro')->first();
+        $masbroTokens = User::role('masbro')
+            ->whereNotNull('fcm_token')
+            ->pluck('fcm_token')
+            ->toArray();
 
         if ($transaksi->status == 'pesanan_masuk') {
             $firebases->withNotification(
@@ -100,7 +103,7 @@ class TenantOrderService
             $firebases->withNotification(
                 'Ada Pesanan Siap Diantar',
                 "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!"
-            )->sendMessages($masbro->fcm_token);
+            )->sendMessages($masbroTokens);
         }
 
         if ($transaksi->status == 'diantar') {
