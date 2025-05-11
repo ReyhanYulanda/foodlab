@@ -39,12 +39,8 @@ class AutoCancelOrder extends Command
                     $firebases->withNotification('Pesanan Dibatalkan','Pesanan #' . $transaksi->id . ' tidak direspond tenant.')->sendMessages($user->fcm_token);
                 }
 
-                Log::info("Tenant ID: {$tenant->id}, FCM Token: {$tenant->fcm_token}");
                 if ($tenant && $tenant->fcm_token) {
-                    $firebases->withNotification(
-                        'Pesanan Dibatalkan Otomatis',
-                        'Pesanan #' . $transaksi->id . ' dibatalkan karena tidak direspons dalam batas waktu.'
-                        )->sendMessages($tenant->fcm_token);
+                    $firebases->withNotification('Pesanan Dibatalkan Otomatis','Pesanan #' . $transaksi->id . ' dibatalkan karena tidak direspons dalam batas waktu.')->sendMessages($tenant->fcm_token);
                 }
 
                 $this->refundKoin($transaksi);

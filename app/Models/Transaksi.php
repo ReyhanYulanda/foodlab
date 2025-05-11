@@ -88,9 +88,4 @@ class Transaksi extends Model
         $saldo->jumlah += $this->total;
         $saldo->save();
     }
-
-    public function tenant()
-    {
-        return $this->belongsTo(Tenants::class, 'tenant_id');
-    }
 }
