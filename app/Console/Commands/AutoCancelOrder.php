@@ -30,7 +30,7 @@ class AutoCancelOrder extends Command
             DB::beginTransaction();
             try {
                 $user = $transaksi->user;
-                $tenant = $transaksi->tenant;
+                $tenant = $transaksi->pemilik;
 
                 $transaksi->status = 'pesanan_ditolak';
                 $transaksi->save();
