@@ -101,6 +101,27 @@ class PesananController extends Controller
                     "status" => "Not Found",
                     "message" => "Transaksi tidak ditemukan"
                 ], 404);
+
+                if ($request->status == 'diantar') {
+                    if ($transaksi->driver_id !== null && $transaksi->driver_id !== $user->id) {
+                        return response()->json([
+                            "status" => "forbidden",
+                            "message" => "Transaksi ini sudah memiliki driver"
+                        ], 403);
+                    }
+
+                    if ($transaksi->driver_id === null) {
+                        $transaksi->driver_id = $user->id;
+                    }
+
+                    if ($transaksi->driver_id !== $user->id) {
+                        return response()->json([
+                            "status" => "forbidden",
+                            "message" => "Kamu bukan driver untuk transaksi ini"
+                        ], 403);
+                    }
+                }
+
             } else {
                 $transaksi->status = $request->status;
                 $transaksi->driver_id = $user->id; 
@@ -111,14 +132,6 @@ class PesananController extends Controller
                     $transaksi->listTransaksiDetail()->update(['status' => $transaksi->status]);
                 }
                 if ($transaksi->status == 'diantar') {
-                    
-                    if (!is_null($transaksi->driver_id) && $transaksi->driver_id !== $user->id) {
-                        return response()->json([
-                            "status" => "forbidden",
-                            "message" => "Transaksi ini sudah memiliki driver"
-                        ], 403);
-                    }
-
                     $firebases->withNotification('Pesanan Sedang Diantar', "Pesanan {$transaksi->id} sudah mendapat driver dan akan segera diantar ke lokasimu")
                         ->sendMessages($transaksi->user->fcm_token);
                 }
