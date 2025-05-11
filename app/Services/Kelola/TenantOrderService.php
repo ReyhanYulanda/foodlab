@@ -75,7 +75,7 @@ class TenantOrderService
 
     private function sendNotifications($transaksi, $firebases)
     {
-        $masbro = User::role('masbro')->get();
+        $masbro = User::role('masbro')->first();
 
         if ($transaksi->status == 'pesanan_masuk') {
             $firebases->withNotification(
