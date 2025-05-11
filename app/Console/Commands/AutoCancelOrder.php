@@ -30,7 +30,7 @@ class AutoCancelOrder extends Command
             DB::beginTransaction();
             try {
                 $user = $transaksi->user;
-                $tenantUser = $transaksi->user->tenant;
+                // $tenantUser = $transaksi->user->tenant;
 
                 $transaksi->status = 'pesanan_ditolak';
                 $transaksi->save();
@@ -39,11 +39,19 @@ class AutoCancelOrder extends Command
                     $firebases->withNotification('Pesanan Dibatalkan','Pesanan #' . $transaksi->id . ' tidak direspond tenant.')->sendMessages($user->fcm_token);
                 }
 
-                if ($tenantUser && $tenantUser->fcm_token) {
-                    $firebases->withNotification(
-                        'Pesanan Dibatalkan saja',
-                        'Pesanan #' . $transaksi->id . ' tidak direspond tenant.')
-                        ->sendMessages($user->fcm_token);
+                $tenants = $transaksi->listTransaksiDetail()
+                    ->with('menus.tenants.pemilik') // pastikan eager loading pemilik tenant
+                    ->get()
+                    ->pluck('menus.tenants') // ambil tenant
+                    ->unique('id'); // pastikan tidak dobel
+
+                foreach ($tenants as $tenant) {
+                    if ($tenant && $tenant->pemilik && $tenant->pemilik->fcm_token) {
+                        $firebases->withNotification(
+                            'Pesanan Dibatalkan Otomatis',
+                            'Pesanan #' . $transaksi->id . ' dibatalkan karena tidak direspons tepat waktu.'
+                        )->sendMessages($tenant->pemilik->fcm_token);
+                    }
                 }
 
                 $this->refundKoin($transaksi);
