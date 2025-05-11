@@ -114,13 +114,6 @@ class PesananController extends Controller
                     $transaksi->driver_id = $user->id;
                 }
 
-                if ($transaksi->driver_id !== $user->id) {
-                    return response()->json([
-                        "status" => "forbidden",
-                        "message" => "Kamu bukan driver untuk transaksi ini"
-                    ], 403);
-                }
-
                 $transaksi->status = $request->status;
                 $transaksi->driver_id = $user->id; 
                 $transaksi->save();
