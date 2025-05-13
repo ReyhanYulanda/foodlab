@@ -390,7 +390,7 @@ class TransaksiController extends Controller
 
             $user = $transaksi->user;
             if ($user && $user->fcm_token) {
-                $firebases->withNotification('Pesanan Dibatalkan', "Maaf, pesanan {$transaksi->order_id} dibatalkan oleh tenant. Saldo koinmu sudah dikembalikan, ya~")->sendMessages($user->fcm_token);
+                $firebases->withNotification('Pesanan Dibatalkan', "Maaf, pesanan {$transaksi->id} dibatalkan oleh tenant.")->sendMessages($user->fcm_token);
             } 
 
             try {

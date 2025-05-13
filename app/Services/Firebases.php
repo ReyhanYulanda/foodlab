@@ -35,7 +35,7 @@ class Firebases
     {
         try {
             if (is_string($tokens)) {
-                $tokens = [$tokens]; // ubah jadi array agar bisa di-loop
+                $tokens = [$tokens]; 
             }
 
             foreach ($tokens as $token) {
