@@ -9,14 +9,27 @@ class UserSeeder extends Seeder
 {
     public function run()
     {
-        $user = ['admin'];
+        $users = [
+            [
+                'name' => 'admin',
+                'email' => 'admin@gmail.com',
+                'password' => bcrypt('As3!xL9@uQ1%vR8#'),
+                'role' => 'admin'
+            ],
+            [
+                'name' => 'ubisma',
+                'email' => 'ubisma@gmail.com',
+                'password' => bcrypt('Ubisma#2025!'),
+                'role' => 'ubisma'
+            ]
+        ];
 
-        foreach($user as $value){
+        foreach ($users as $user) {
             User::create([
-                'name' =>  $value,
-                'email' => $value.'@gmail.com',
-                'password'=> bcrypt('As3!xL9@uQ1%vR8#'),
-            ])->assignRole($value);
+                'name' => $user['name'],
+                'email' => $user['email'],
+                'password' => $user['password'],
+            ])->assignRole($user['role']);
         }
     }
 }

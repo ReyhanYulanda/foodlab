@@ -76,9 +76,6 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
     Route::get('/saldo_koin', [SaldoKoinController::class, 'index'])->name('saldoKoin.index');
     Route::get('/saldo_koin/create', [SaldoKoinController::class, 'create'])->name('saldoKoin.create');
     Route::post('/saldo_koin', [SaldoKoinController::class, 'store'])->name('saldoKoin.store');
-    Route::get('/saldo_koin/{id}/edit', [SaldoKoinController::class, 'edit'])->name('saldoKoin.edit');
-    Route::put('/saldo_koin/{id}', [SaldoKoinController::class, 'update'])->name('saldoKoin.update');
-    Route::delete('/saldo_koin/{id}', [SaldoKoinController::class, 'destroy'])->name('saldoKoin.destroy');
     Route::get('/saldo_koin/riwayat/{user_id}', [SaldoKoinController::class, 'riwayatTransaksi'])->name('saldoKoin.riwayat');
 
     Route::get('/transaksi_tenant', [TransaksiTenantController::class, 'transaksiTenant'])->name('transaksi.tenant');
