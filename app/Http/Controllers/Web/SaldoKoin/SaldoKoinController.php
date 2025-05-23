@@ -40,7 +40,7 @@ class SaldoKoinController extends Controller
 
     public function store(Request $request, Firebases $firebases)
     {
-        $this->authorize('create saldos_koin');
+        $this->authorize('create saldo_koin');
 
         $request->validate([
             'user_id' => 'required|exists:users,id',
