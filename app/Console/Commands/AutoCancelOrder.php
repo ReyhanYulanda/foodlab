@@ -30,27 +30,29 @@ class AutoCancelOrder extends Command
             DB::beginTransaction();
             try {
                 $user = $transaksi->user;
-                // $tenantUser = $transaksi->user->tenant;
 
                 $transaksi->status = 'pesanan_ditolak';
                 $transaksi->save();
 
                 if ($user && $user->fcm_token) {
-                    $firebases->withNotification('Pesanan Dibatalkan','Pesanan #' . $transaksi->id . ' tidak direspond tenant.')->sendMessages($user->fcm_token);
+                    $firebases->withData([
+                        'title' => 'Pesanan Dibatalkan',
+                        'body' => 'Pesanan #' . $transaksi->id . ' tidak direspond tenant.'
+                    ])->sendMessages($user->fcm_token);
                 }
 
                 $tenants = $transaksi->listTransaksiDetail()
-                    ->with('menus.tenants.pemilik') // pastikan eager loading pemilik tenant
+                    ->with('menus.tenants.pemilik') 
                     ->get()
-                    ->pluck('menus.tenants') // ambil tenant
-                    ->unique('id'); // pastikan tidak dobel
+                    ->pluck('menus.tenants')
+                    ->unique('id');
 
                 foreach ($tenants as $tenant) {
                     if ($tenant && $tenant->pemilik && $tenant->pemilik->fcm_token) {
-                        $firebases->withNotification(
-                            'Pesanan Dibatalkan Otomatis',
-                            'Pesanan #' . $transaksi->id . ' dibatalkan karena tidak direspons tepat waktu.'
-                        )->sendMessages($tenant->pemilik->fcm_token);
+                        $firebases->withData([
+                            'title' => 'Pesanan Dibatalkan Otomatis',
+                            'body' => 'Pesanan #' . $transaksi->id . ' dibatalkan karena tidak direspons tepat waktu.'
+                        ])->sendMessages($tenant->pemilik->fcm_token);
                     }
                 }
 
@@ -62,7 +64,10 @@ class AutoCancelOrder extends Command
                 DB::commit();
 
                 if ($user && $user->fcm_token) {
-                    $firebases->withNotification('Refund Berhasil','Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.')->sendMessages($user->fcm_token);
+                    $firebases->withData([
+                        'title' => 'Refund Berhasil',
+                        'body' => 'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.'
+                    ])->sendMessages($user->fcm_token);
                 }
 
                 Log::info("Transaksi #{$transaksi->id} dibatalkan otomatis setelah $timeout menit dan refund berhasil.");

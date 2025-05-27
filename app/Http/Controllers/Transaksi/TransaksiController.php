@@ -394,7 +394,10 @@ class TransaksiController extends Controller
 
             $user = $transaksi->user;
             if ($user && $user->fcm_token) {
-                $firebases->withNotification('Pesanan Dibatalkan', "Maaf, pesanan {$transaksi->id} dibatalkan oleh tenant.")->sendMessages($user->fcm_token);
+                $firebases->withData([
+                    'title' => 'Pesanan Dibatalkan', 
+                    'body' => "Maaf, pesanan {$transaksi->id} dibatalkan oleh tenant."
+                ])->sendMessages($user->fcm_token);
             } 
 
             try {
@@ -412,7 +415,10 @@ class TransaksiController extends Controller
                 DB::commit();
 
                 if ($user && $user->fcm_token) {
-                    $firebases->withNotification('Refund Berhasil','Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.')->sendMessages($user->fcm_token);
+                    $firebases->withData([
+                        'title' => 'Refund Berhasil',
+                        'body' => 'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.'
+                    ])->sendMessages($user->fcm_token);
                 }
 
                 return ResponseApi::success(null, "Transaksi dibatalkan dan refund berhasil");

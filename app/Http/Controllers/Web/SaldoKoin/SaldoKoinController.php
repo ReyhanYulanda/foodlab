@@ -61,11 +61,12 @@ class SaldoKoinController extends Controller
         ]);
 
         $user = User::find($request->user_id);
+
         if ($user && $user->fcm_token) {
-            $firebases->withNotification(
-                'Top-up Berhasil',
-                'Saldo sebesar Rp ' . number_format($request->jumlah, 0, ',', '.'). ' telah ditambahkan ke akun Anda.'
-            )->sendMessages($user->fcm_token);
+            $firebases->withData([
+                'title' => 'Top-up Berhasil',
+                'body' => 'Saldo sebesar Rp ' . number_format($request->jumlah, 0, ',', '.'). ' telah ditambahkan ke akun Anda.'
+            ])->sendMessages($user->fcm_token);
         }
     
         return redirect()->route('saldoKoin.index')->with('success', 'Saldo koin berhasil diperbarui.');
