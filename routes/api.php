@@ -11,6 +11,8 @@ use App\Http\Controllers\Tenant\TenantController;
 use App\Http\Controllers\Transaksi\TransaksiController;
 use App\Http\Controllers\User\UserController;
 use App\Http\Controllers\Api\SaldoKoin\SaldoKoinController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\NewPasswordController;
 use App\Models\Transaksi;
 use App\Http\Controllers\Kelola\Tenant\ProfileTenantController;
 use App\Http\Controllers\User\TransaksiUserController;
@@ -80,3 +82,6 @@ Route::get('/test-web-socket', function(){
     $transaksi = Transaksi::first();
     broadcast(new NotifyUserWhenTransaksiUpdated($transaksi));
 });
+
+Route::post('/forgot-password', [PasswordResetLinkController::class, 'passwordResetAPI']);
+Route::post('/reset-password', [NewPasswordController::class, 'newPasswordAPI']);
