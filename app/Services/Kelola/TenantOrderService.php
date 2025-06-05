@@ -87,6 +87,7 @@ class TenantOrderService
             ])->sendMessages($transaksi->user->fcm_token);
         }
 
+        Log::info($masbroTokens);
         if ($transaksi->status == 'siap_diantar') {
             $firebases->withData([
                 'title' => 'Pesanan Sudah Siap',

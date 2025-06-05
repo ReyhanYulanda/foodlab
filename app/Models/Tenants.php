@@ -27,7 +27,6 @@ class Tenants extends Model
 
     public function getRangeAttribute()
     {
-        // $minPrice = $this->calculateMinPriceMenu();
         $minPrice = $this->listMenu()->min('harga');
         return $minPrice;
     }
@@ -36,9 +35,9 @@ class Tenants extends Model
         $currentTime = now()->format('H:i:s');
 
         if ($this->jam_buka <= $currentTime && $this->jam_tutup >= $currentTime) {
-            return 1; // Tenant sedang buka
+            return 1;
         } else {
-            return 0; // Tenant sedang tutup
+            return 0;
         }
     }
 
@@ -49,19 +48,12 @@ class Tenants extends Model
 
     public function kelola()
     {
-        // tenant dapat mengrlola banyak makanan
         return $this->hasMany(MenusKelola::class, 'tenant_id');
     }  
     public function listMenu()
     {
-        // tenant memiliki banyak menu
         return $this->hasMany(Menus::class, 'tenant_id')->orderByDesc('isReady');
     }
-    // public function listMenu()
-    // {
-    //     // tenant memiliki banyak menu
-    //     return $this->belongsToMany(Menus::class, 'menus_kelola', 'tenant_id', 'menu_id')->withPivot(['harga', 'gambar', 'id', 'isReady', 'nama', 'deskripsi'])->orderByPivot('isReady', 'desc')->wherePivot('deleted_at', null)->as('detail_menu');
-    // }
 
     public function pemilik()
     {
