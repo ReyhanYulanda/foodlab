@@ -87,7 +87,6 @@ class TenantOrderService
             ])->sendMessages($transaksi->user->fcm_token);
         }
 
-        Log::info($masbroTokens);
         if ($transaksi->status == 'siap_diantar') {
             $firebases->withData([
                 'title' => 'Pesanan Sudah Siap',
@@ -98,6 +97,13 @@ class TenantOrderService
                 'title' => 'Ada Pesanan Siap Diantar',
                 'body' => "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!"
             ])->sendMessages($masbroTokens);
+        }
+
+        if ($transaksi->status == 'siap_diambil') {
+            $firebases->withData([
+                'title' => 'Pesanan Sudah Siap',
+                'body' => "Pesanan {$transaksi->id} selesai dibuat. Yuk ambil pesanananmu sekarang"
+            ])->sendMessages($transaksi->user->fcm_token);
         }
 
         if ($transaksi->status == 'diantar') {
