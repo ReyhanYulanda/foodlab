@@ -15,6 +15,7 @@ class SaldoKoinController extends Controller
     {
         $this->authorize('read saldo_koin');
 
+        $perPage = $request->input('per_page', 10); 
         $query = SaldoKoin::with('user');
 
         if ($request->has('search')) {
@@ -24,7 +25,7 @@ class SaldoKoinController extends Controller
             });
         }
 
-        $saldos = $query->paginate(10);
+        $saldos = $query->paginate($perPage);
 
         return view('pages.saldoKoin.index', compact('saldos'));
     }

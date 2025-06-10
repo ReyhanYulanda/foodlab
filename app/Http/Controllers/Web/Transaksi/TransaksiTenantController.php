@@ -50,46 +50,82 @@ class TransaksiTenantController extends Controller
         return view('pages.transaksi.tenant.index', compact('transaksiTenant'));
     }
 
-    public function detailTransaksiTenant($id)
+    public function detailTransaksiTenant(Request $request, $id)
     {
         $this->authorize('read transaksi_tenant');
-        
-        $transaksiDetails = Transaksi::whereHas('listTransaksiDetail.menus', function ($query) use ($id) {
-            $query->where('tenant_id', $id)
-            ->where('transaksi.status', 'selesai');;
-        })
-        ->with([
-            'user',
-            'driver',
-        ])
-        ->orderBy('created_at', 'desc')
-        ->paginate(10);
-    
+
+        $perPage = $request->input('per_page', 10);
+        $searchTanggal = $request->input('search_tanggal');
+        $searchWaktu = $request->input('search_waktu');
+        $searchKeyword = $request->input('search_keyword');
+        $statusPemesan = $request->input('status_pemesan');
+
+        $query = Transaksi::with(['user', 'driver']);
+
+        $query->whereHas('listTransaksiDetail.menus', function ($qMenu) use ($id) {
+            $qMenu->where('tenant_id', $id);
+        });
+
+        $query->where('status', 'selesai');
+
+        if ($searchTanggal) {
+            $query->whereDate('created_at', $searchTanggal);
+        }
+
+        if ($searchWaktu) {
+            $query->whereTime('created_at', $searchWaktu);
+        }
+
+        if ($searchKeyword) {
+            $query->where(function ($q) use ($searchKeyword) {
+                $q->where('id', 'like', "%{$searchKeyword}%")
+                    ->orWhereHas('user', function ($qUser) use ($searchKeyword) {
+                        $qUser->where('name', 'like', "%{$searchKeyword}%");
+                    })
+                    ->orWhereHas('driver', function ($qDriver) use ($searchKeyword) {
+                        $qDriver->where('name', 'like', "%{$searchKeyword}%");
+                    });
+            });
+        }
+
+        if ($statusPemesan) {
+            if ($statusPemesan === 'antar') {
+                $query->where('isAntar', 1);
+            } elseif ($statusPemesan === 'sendiri') {
+                $query->where('isAntar', 0);
+            }
+        }
+
+        $transaksiDetails = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
         return view('pages.transaksi.rincianTransaksiTenant.index', compact('transaksiDetails'));
-    } 
-    
+    }
+
     public function getPesananByTransaksi($id)
     {
         $transaksi = Transaksi::with('listTransaksiDetail.menus')->findOrFail($id);
 
         $pesanan = $transaksi->listTransaksiDetail->map(function ($detail) {
+            $menuNama = $detail->menus->nama ?? 'Menu Tidak Ditemukan';
+            $menuHarga = $detail->menus->harga ?? 0;
+            $quantity = $detail->qty ?? 0; 
+            $totalHargaItem = $menuHarga * $quantity;
+
             return [
-                'nama_menu' => $detail->menus->nama ?? 'Menu Tidak Ditemukan',
-                'jumlah' => $detail->jumlah,
-                'harga' => $detail->menus->harga,
+                'nama_menu' => $menuNama,
+                'jumlah' => $quantity,
+                'harga' => $totalHargaItem,
             ];
         });
 
         return response()->json($pesanan);
     }
 
-
     public function exportCsv(Request $request)
     {
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
-        // Query data transaksi
         $query = TransaksiDetail::selectRaw("
                 tenants.nama_tenant,
                 tenants.id,
@@ -103,20 +139,16 @@ class TransaksiTenantController extends Controller
             ->join('tenants', 'menus.tenant_id', '=', 'tenants.id')
             ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id');
 
-        // Tambahkan filter tanggal jika ada
         if ($startDate && $endDate) {
             $query->whereBetween('transaksi.created_at', [$startDate, $endDate]);
         }
 
         $transaksiTenant = $query->groupBy('menus.tenant_id', 'tenants.nama_tenant')->get();
 
-        // Nama file CSV
         $fileName = "transaksi_tenant_" . date('YmdHis') . ".csv";
 
-        // Membuka output stream untuk CSV
         $handle = fopen('php://output', 'w');
 
-        // Set header untuk CSV
         $headers = [
             "Content-type" => "text/csv",
             "Content-Disposition" => "attachment; filename=$fileName",
@@ -125,10 +157,8 @@ class TransaksiTenantController extends Controller
         ];
 
         return response()->stream(function () use ($transaksiTenant, $handle) {
-            // Tulis header CSV
             fputcsv($handle, ["No", "Nama Tenant", "Pendapatan Kotor (Pesan Antar)", "Ongkir", "Pendapatan Bersih (Pesan Antar)", "Pendapatan Kotor (Ambil Sendiri)", "Pendapatan Bersih (Ambil Sendiri)"]);
 
-            // Tulis data transaksi ke CSV
             foreach ($transaksiTenant as $index => $p) {
                 fputcsv($handle, [
                     $index + 1,

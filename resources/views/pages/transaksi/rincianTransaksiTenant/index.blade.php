@@ -12,6 +12,37 @@
                     @if(session('success'))
                         <div class="alert alert-success">{{ session('success') }}</div>
                     @endif
+
+                    <form action="{{ route('detail.transaksi.tenant', ['id' => request()->route('id')]) }}" method="GET" class="mb-3">
+                        <div class="row g-2">
+                            <div class="col-md-2">
+                                <label for="search_tanggal" class="form-label visually-hidden">Tanggal</label>
+                                <input type="date" name="search_tanggal" id="search_tanggal" class="form-control" placeholder="Tanggal" value="{{ request('search_tanggal') }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="search_waktu" class="form-label visually-hidden">Waktu</label>
+                                <input type="time" name="search_waktu" id="search_waktu" class="form-control" placeholder="Waktu" value="{{ request('search_waktu') }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="search_keyword" class="form-label visually-hidden">Keyword</label>
+                                <input type="text" name="search_keyword" id="search_keyword" class="form-control" placeholder="No. Pesanan, Nama Pemesan/Pengantar"
+                                    value="{{ request('search_keyword') }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="status_pemesan" class="form-label visually-hidden">Status Pemesan</label>
+                                <select name="status_pemesan" id="status_pemesan" class="form-control">
+                                    <option value="">Semua Status Pemesan</option>
+                                    <option value="antar" {{ (request('status_pemesan') == 'antar') ? 'selected' : '' }}>Pesan Antar</option>
+                                    <option value="sendiri" {{ (request('status_pemesan') == 'sendiri') ? 'selected' : '' }}>Ambil Sendiri</option>
+                                </select>
+                            </div>
+                            <div class="col-md-1">
+                                <button class="btn btn-primary w-100" type="submit">Cari</button>
+                            </div>
+                        </div>
+                        <input type="hidden" name="per_page" value="{{ request('per_page', 10) }}">
+                    </form>
+
                     <table class="table table-responsive w-full table-striped">
                         <thead>
                             <tr>
@@ -28,10 +59,10 @@
                         <tbody>
                             @foreach ($transaksiDetails as $key => $detail)
                                 <tr>
-                                    <td>{{ $key + 1 }}</td>
+                                    <td>{{ ($transaksiDetails->currentPage() - 1) * $transaksiDetails->perPage() + $loop->iteration }}</td>
                                     <td>{{ $detail->created_at->format('d-m-Y') }}</td>
                                     <td>{{ $detail->created_at->format('H:i:s') }}</td> 
-                                    <td>{{ $detail->order_id }}</td>
+                                    <td>{{ $detail->id }}</td>
                                     <td>{{ $detail->user->name ?? '-' }}</td> 
                                     <td>{{ $detail->driver->name ?? '-' }}</td> 
                                     <td>
@@ -51,13 +82,28 @@
                             @endforeach
                         </tbody>
                     </table>
-                    {{ $transaksiDetails->links() }}
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div class="form-group mb-0 d-flex align-items-center">
+                            <label for="perPage" class="mr-2 mb-0">Tampilkan:</label>
+                            <select class="form-control d-inline-block w-auto" id="perPage" onchange="window.location.href = this.value;">
+                                @foreach ([10, 25, 50, 100] as $perPageOption)
+                                    <option value="{{ request()->fullUrlWithQuery(['per_page' => $perPageOption]) }}" {{ (request('per_page', 10) == $perPageOption) ? 'selected' : '' }}>
+                                        {{ $perPageOption }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <span class="ml-2">data per halaman</span>
+                        </div>
+
+                        <div>
+                            {{ $transaksiDetails->appends(request()->except('page'))->links() }}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
         
-    <!-- Modal -->
     <div class="modal fade" id="pesananModal" tabindex="-1" aria-labelledby="pesananModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -75,7 +121,6 @@
                             </tr>
                         </thead>
                         <tbody id="tablePesananBody">
-                            <!-- Data diisi oleh JavaScript -->
                         </tbody>
                     </table>
                 </div>

@@ -16,6 +16,15 @@
                     </div>
                 </div>
                 <div class="card-body">
+                    <form action="{{ route('gedung.index') }}" method="GET" class="mb-3">
+                        <div class="input-group">
+                            <input type="text" name="search" class="form-control" placeholder="Cari nama gedung"
+                                value="{{ request('search') }}">
+                            <input type="hidden" name="per_page" value="{{ request('per_page', 10) }}">
+                            <button class="btn btn-primary" type="submit">Cari</button>
+                        </div>
+                    </form>
+
                     <table class="table">
                         <thead>
                             <th>No</th>
@@ -25,7 +34,7 @@
                         <tbody>
                             @foreach ($gedung as $gdg)
                                 <tr>
-                                    <td>{{ $loop->iteration }}</td>
+                                    <td>{{ ($gedung->currentPage() - 1) * $gedung->perPage() + $loop->iteration }}</td>
                                     <td>{{ $gdg->nama }}</td>
                                     <td>
                                         <a href="{{ route('gedung.edit', $gdg->id) }}"
@@ -41,6 +50,23 @@
                             @endforeach
                         </tbody>
                     </table>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div class="form-group mb-0 d-flex align-items-center">
+                            <label for="perPage" class="mr-2 mb-0">Tampilkan:</label>
+                            <select class="form-control d-inline-block w-auto" id="perPage" onchange="window.location.href = this.value;">
+                                @foreach ([10, 25, 50, 100] as $perPageOption)
+                                    <option value="{{ request()->fullUrlWithQuery(['per_page' => $perPageOption]) }}" {{ (request('per_page', 10) == $perPageOption) ? 'selected' : '' }}>
+                                        {{ $perPageOption }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <span class="ml-2">data per halaman</span>
+                        </div>
+
+                        <div>
+                            {{ $gedung->appends(request()->except('page'))->links() }}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -53,51 +79,6 @@
                 toastr.error('{{ $error }}', 'Error');
             @endforeach
         @endif
-        {{-- {!! $dataTable->scripts() !!}
-
-        <script>
-            $('.add').on('click', function(e){
-                e.preventDefault();
-
-                $.ajax({
-                    url: this.href,
-                    method: 'get',
-                    success: function (response) {
-                        const modal = $('#modal_action').html(response);
-                        modal.modal('show');
-
-                        $('#form_action').on('submit', function(e){
-                            e.preventDefault();
-                            console.log(this);
-
-                            $.ajax({
-                                url: this.action,
-                                method: this.method,
-                                data: new FormData(this),
-                                contentType: false,
-                                processData: false,
-                                success: function(response){
-                                    $('#modal_action').modal('hide');
-                                    window.location.reload();
-                                },
-                                error: function(err){
-                                    const errors = err.responseJSON?.errors;
-
-                                    if (errors){
-                                        for(let [key, message] of Object.entries(errors)){
-                                            $(`[name=${key}]`).addClass('is-invalid').parent().append(`<div class="invalid-feedback"> ${message} </div>`);
-                                        }
-                                    }
-                                }
-                            })
-                        })
-                    },
-                    error: function(){
-
-                    }
-                })
-            });
-        </script> --}}
     @endpush
 
 </x-master-layout>

@@ -36,7 +36,7 @@
                         <tbody>
                             @foreach ($saldos as $index => $saldo)
                                 <tr>
-                                    <td>{{ $saldos->firstItem() + $index }}</td>
+                                    <td>{{ ($saldos->currentPage() - 1) * $saldos->perPage() + $loop->iteration }}</td>
                                     <td>{{ $saldo->user->name }}</td>
                                     <td>{{ number_format($saldo->jumlah) }}</td>
                                     <td>
@@ -46,10 +46,23 @@
                             @endforeach
                         </tbody>
                     </table>
-                    <div class="mt-3">
-                        {{ $saldos->withQueryString()->links() }}
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div class="form-group mb-0 d-flex align-items-center">
+                            <label for="perPage" class="mr-2 mb-0">Tampilkan:</label>
+                            <select class="form-control d-inline-block w-auto" id="perPage" onchange="window.location.href = this.value;">
+                                @foreach ([10, 25, 50, 100] as $perPageOption)
+                                    <option value="{{ request()->fullUrlWithQuery(['per_page' => $perPageOption]) }}" {{ (request('per_page', 10) == $perPageOption) ? 'selected' : '' }}>
+                                        {{ $perPageOption }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <span class="ml-2">data per halaman</span>
+                        </div>
+
+                        <div>
+                            {{ $saldos->appends(request()->except('page'))->links() }}
+                        </div>
                     </div>
-                    
                 </div>
             </div>
         </div>
