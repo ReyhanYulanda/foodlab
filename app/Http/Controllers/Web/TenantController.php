@@ -11,10 +11,28 @@ use Illuminate\Support\Facades\Storage;
 
 class TenantController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $this->authorize('read tenant');
-        $tenants = Tenants::with('pemilik')->get();
+        $perPage = $request->input('per_page', 10); 
+        $search = $request->input('search'); 
+
+        $query = Tenants::with('pemilik');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('nama_tenant', 'like', "%{$search}%")
+                ->orWhere('nama_kavling', 'like', "%{$search}%")
+                ->orWhere('no_rekening_toko', 'like', "%{$search}%")
+                ->orWhere('no_rekening_pribadi', 'like', "%{$search}%")
+                ->orWhereHas('pemilik', function ($qPemilik) use ($search) {
+                    $qPemilik->where('name', 'like', "%{$search}%");
+                });
+            });
+        }
+
+        $tenants = $query->paginate($perPage);
+
         return view('pages.konfigurasi.tenant.index', compact('tenants'));
     }
 

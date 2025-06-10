@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Admin\RuanganController;
 use App\Http\Controllers\Kelola\TenantController as KelolaTenantController;
 use App\Http\Controllers\MenuKategori;
 use App\Http\Controllers\Web\DataController;
@@ -19,19 +18,7 @@ use App\Http\Controllers\Web\UserController;
 use App\Http\Controllers\Web\SaldoKoin\SaldoKoinController;
 use App\Http\Controllers\Web\Transaksi\TransaksiDriverController;
 use App\Http\Controllers\Web\Transaksi\TransaksiTenantController;
-use App\Models\Gedung;
 use Illuminate\Support\Facades\Route;
-
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| contains the "web" middleware group. Now create something great!
-|
-*/
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -67,12 +54,8 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
     Route::get('/keuangan', [KeuanganController::class, 'index']);
     Route::get('/katalog', [KatalogController::class, 'index']);
 
-    // Route::group(['prefix' => 'konfigurasi', 'as' => 'konfigurasi.'], function(){
-    //     Route::resource('menu', MenuController::class);
-    // });
     Route::post('menu/{id}', [KelolaTenantController::class, 'updateMenuWeb']);
 
-    // dari rei
     Route::get('/saldo_koin', [SaldoKoinController::class, 'index'])->name('saldoKoin.index');
     Route::get('/saldo_koin/create', [SaldoKoinController::class, 'create'])->name('saldoKoin.create');
     Route::post('/saldo_koin', [SaldoKoinController::class, 'store'])->name('saldoKoin.store');
