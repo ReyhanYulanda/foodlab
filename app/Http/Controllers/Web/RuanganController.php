@@ -13,6 +13,7 @@ class RuanganController extends Controller
     {
         $this->authorize('read ruangan');
     
+        $perPage = $request->input('per_page', 10);
         $query = Ruangan::with('gedung');
     
         if ($search = $request->input('search')) {
@@ -23,7 +24,7 @@ class RuanganController extends Controller
                 });
         }
     
-        $ruangan = $query->paginate(10);
+        $ruangan = $query->paginate($perPage);
     
         return view('pages.konfigurasi.ruangan.index', compact('ruangan'));
     }
