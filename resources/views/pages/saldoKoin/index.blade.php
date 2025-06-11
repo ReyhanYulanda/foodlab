@@ -18,7 +18,7 @@
                 <div class="card-body">
                     <form method="GET" action="{{ route('saldoKoin.index') }}" class="mb-3">
                         <div class="input-group">
-                            <input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="Cari nama user">
+                            <input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="Cari nama user atau email user">
                             <button class="btn btn-primary" type="submit">Cari</button>
                         </div>
                     </form>
@@ -30,6 +30,7 @@
                         <thead>
                             <th>No</th>
                             <th>Nama User</th>
+                            <th>Email</th>
                             <th>Jumlah Saldo</th>
                             <th>Action</th>
                         </thead>
@@ -38,6 +39,7 @@
                                 <tr>
                                     <td>{{ ($saldos->currentPage() - 1) * $saldos->perPage() + $loop->iteration }}</td>
                                     <td>{{ $saldo->user->name }}</td>
+                                    <td>{{ $saldo->user->email }}</td>
                                     <td>{{ number_format($saldo->jumlah) }}</td>
                                     <td>
                                         <a href="{{ route('saldoKoin.riwayat', $saldo->user_id) }}" class="btn btn-info">Lihat Riwayat</a>
