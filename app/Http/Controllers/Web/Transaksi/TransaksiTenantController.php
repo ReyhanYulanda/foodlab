@@ -101,14 +101,13 @@ class TransaksiTenantController extends Controller
 
         $pesanan = $transaksi->listTransaksiDetail->map(function ($detail) {
             $menuNama = $detail->menus->nama ?? 'Menu Tidak Ditemukan';
-            $menuHarga = $detail->menus->harga ?? 0;
-            $quantity = $detail->qty ?? 0; 
-            $totalHargaItem = $menuHarga * $quantity;
+            $menuHarga = $detail->harga ?? 0; 
+            $quantity = $detail->jumlah ?? 0;  
 
             return [
                 'nama_menu' => $menuNama,
                 'jumlah' => $quantity,
-                'harga' => $totalHargaItem,
+                'harga' => $menuHarga,
             ];
         });
 
