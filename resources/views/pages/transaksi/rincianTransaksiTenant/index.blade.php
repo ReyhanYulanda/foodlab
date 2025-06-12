@@ -19,10 +19,6 @@
                                 <label for="search_tanggal" class="form-label visually-hidden">Tanggal</label>
                                 <input type="date" name="search_tanggal" id="search_tanggal" class="form-control" placeholder="Tanggal" value="{{ request('search_tanggal') }}">
                             </div>
-                            <div class="col-md-2">
-                                <label for="search_waktu" class="form-label visually-hidden">Waktu</label>
-                                <input type="time" name="search_waktu" id="search_waktu" class="form-control" placeholder="Waktu" value="{{ request('search_waktu') }}">
-                            </div>
                             <div class="col-md-3">
                                 <label for="search_keyword" class="form-label visually-hidden">Keyword</label>
                                 <input type="text" name="search_keyword" id="search_keyword" class="form-control" placeholder="No. Pesanan, Nama Pemesan/Pengantar"

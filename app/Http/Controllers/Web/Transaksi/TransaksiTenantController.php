@@ -18,7 +18,6 @@ class TransaksiTenantController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
-        // Jika tidak ada filter apapun, set default ke hari ini
         if (!$filterDate && !$startDate && !$endDate) {
             $filterDate = Carbon::today()->toDateString();
         }
@@ -55,8 +54,7 @@ class TransaksiTenantController extends Controller
         $this->authorize('read transaksi_tenant');
 
         $perPage = $request->input('per_page', 10);
-        $searchTanggal = $request->input('search_tanggal');
-        $searchWaktu = $request->input('search_waktu');
+        $searchTanggal = $request->input('search_tanggal');;
         $searchKeyword = $request->input('search_keyword');
         $statusPemesan = $request->input('status_pemesan');
 
@@ -70,10 +68,6 @@ class TransaksiTenantController extends Controller
 
         if ($searchTanggal) {
             $query->whereDate('created_at', $searchTanggal);
-        }
-
-        if ($searchWaktu) {
-            $query->whereTime('created_at', $searchWaktu);
         }
 
         if ($searchKeyword) {
