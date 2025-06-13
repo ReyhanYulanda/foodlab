@@ -17,6 +17,7 @@ class TransaksiTenantController extends Controller
         $filterDate = $request->input('filter_date');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
+        $perPage = $request->input('per_page', 10);
 
         if (!$filterDate && !$startDate && !$endDate) {
             $filterDate = Carbon::today()->toDateString();
@@ -37,14 +38,13 @@ class TransaksiTenantController extends Controller
             ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id')
             ->where('transaksi.status', 'selesai');
 
-        // Terapkan filter
         if ($filterDate) {
             $query->whereDate('transaksi.created_at', $filterDate);
         } elseif ($startDate && $endDate) {
             $query->whereBetween('transaksi.created_at', [$startDate, $endDate]);
         }
 
-        $transaksiTenant = $query->groupBy('tenants.id', 'tenants.nama_tenant')->paginate(10);
+        $transaksiTenant = $query->groupBy('tenants.id', 'tenants.nama_tenant')->paginate($perPage);
 
         return view('pages.transaksi.tenant.index', compact('transaksiTenant'));
     }

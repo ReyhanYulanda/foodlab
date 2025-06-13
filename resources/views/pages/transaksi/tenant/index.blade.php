@@ -59,7 +59,7 @@
                         <tbody>
                             @forelse  ($transaksiTenant as $index => $p)
                             <tr>
-                                <td>{{ $transaksiTenant->firstItem() + $index }}</td> <!-- Nomor berlanjut sesuai halaman -->
+                                <td>{{ $transaksiTenant->firstItem() + $index }}</td>
                                 <td>{{ $p->nama_tenant }}</td>
                                 <td>Rp{{ number_format($p->pendapatan_kotor_1, 0, ',', '.') }}</td> 
                                 <td>Rp{{ number_format($p->pendapatan_bersih_1, 0, ',', '.') }}</td> 
@@ -74,7 +74,23 @@
                             @endforelse
                         </tbody>
                     </table>
-                    {{ $transaksiTenant->links() }}
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div class="form-group mb-0 d-flex align-items-center">
+                            <label for="perPage" class="mr-2 mb-0">Tampilkan:</label>
+                            <select class="form-control d-inline-block w-auto" id="perPage" onchange="window.location.href = this.value;">
+                                @foreach ([10, 25, 50, 100] as $perPageOption)
+                                    <option value="{{ request()->fullUrlWithQuery(['per_page' => $perPageOption]) }}" {{ (request('per_page', 10) == $perPageOption) ? 'selected' : '' }}>
+                                        {{ $perPageOption }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <span class="ml-2">data per halaman</span>
+                        </div>
+
+                        <div>
+                            {{ $transaksiTenant->appends(request()->except('page'))->links() }}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
