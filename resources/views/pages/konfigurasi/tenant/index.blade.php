@@ -57,7 +57,7 @@
                                         </a>
                                     </td>
                                     <td>
-                                        @if ($tenant->is_open)
+                                        @if ($tenant->pemilik->isOnline)
                                             <span class="badge bg-success">Buka</span>
                                         @else
                                             <span class="badge bg-danger">Tutup</span>

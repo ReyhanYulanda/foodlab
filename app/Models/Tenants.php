@@ -30,16 +30,6 @@ class Tenants extends Model
         $minPrice = $this->listMenu()->min('harga');
         return $minPrice;
     }
-    public function getIsOpenAttribute()
-    {
-        $currentTime = now()->format('H:i:s');
-
-        if ($this->jam_buka <= $currentTime && $this->jam_tutup >= $currentTime) {
-            return 1;
-        } else {
-            return 0;
-        }
-    }
 
     public function getGambarAttribute()
     {
