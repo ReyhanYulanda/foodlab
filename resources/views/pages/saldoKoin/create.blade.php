@@ -14,7 +14,7 @@
                         @csrf
                         <div class="mb-3">
                             <label for="user_id" class="form-label">Pilih User</label>
-                            <select name="user_id" class="form-control" required>
+                            <select name="user_id" class="form-control select2" required>
                                 <option value="">-- Pilih User --</option>
                                 @foreach($users as $user)
                                     <option value="{{ $user->id }}">
@@ -34,4 +34,15 @@
             </div>
         </div>
     </div>
+
+    @push('js')
+    <script>
+        $(document).ready(function () {
+            $('.select2').select2({
+                placeholder: 'Cari nama atau email user...',
+                allowClear: true
+            });
+        });
+    </script>
+    @endpush
 </x-master-layout>

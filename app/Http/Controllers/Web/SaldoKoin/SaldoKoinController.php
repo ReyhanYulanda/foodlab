@@ -41,7 +41,6 @@ class SaldoKoinController extends Controller
         return view('pages.saldoKoin.create', compact('users'));
     }
     
-
     public function store(Request $request, Firebases $firebases)
     {
         $this->authorize('create saldo_koin');

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+js<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -72,7 +72,7 @@
     <script src="{{ asset('') }}vendor/bootstrap/js/bootstrap.bundle.js"></script>
     <script src="{{ asset('') }}vendor/perfect-scrollbar/perfect-scrollbar.min.js"></script>
 
-    <script src="{{ asset('') }}vendor/jquery/jquery.min.js"></script>
+    {{-- <script src="{{ asset('') }}vendor/jquery/jquery.min.js"></script> --}}
     <script src="{{ asset('') }}vendor/datatables.net/js/jquery.dataTables.min.js"></script>
     <script src="{{ asset('') }}vendor/datatables.net-bs5/js/dataTables.bootstrap5.min.js"></script>
     <script src="{{ asset('') }}vendor/datatables.net-responsive/js/dataTables.responsive.min.js"></script>
