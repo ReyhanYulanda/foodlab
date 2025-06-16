@@ -22,11 +22,6 @@ class Menus extends Model
 
     protected $appends = ["link_gambar"];
 
-    // menus dikelolah oleh banyak tenants
-    // public function listTenant()
-    // {
-    //     return $this->belongsToMany(Tenants::class, 'menus_kelola', 'tenant_id', 'menu_id')->withPivot(['harga', 'gambar']);
-    // }
     public function kategori()
     {
         return $this->belongsTo(Kategori::class, 'kategori_id', 'id');

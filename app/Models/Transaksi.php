@@ -28,7 +28,7 @@ class Transaksi extends Model
         'kode_pemesanan',
     ];
 
-    protected $appends = ['sub_total', 'gedung', 'nama_ruangan', 'nama_pembeli', 'order_id'];
+    protected $appends = ['sub_total', 'gedung', 'nama_ruangan', 'nama_pembeli', 'nama_tenant','order_id'];
 
     protected function serializeDate(DateTimeInterface $date)
     {
@@ -48,6 +48,19 @@ class Transaksi extends Model
     public function getGedungAttribute()
     {
         return @$this->ruangan->gedung->nama;
+    }
+
+    public function getNamaTenantAttribute()
+    {
+        $firstTenant = $this->listTransaksiDetail
+            ->map(function ($detail) {
+                return optional($detail->menus->tenants)->nama_tenant;
+            })
+            ->filter()
+            ->unique()
+            ->first();
+
+        return $firstTenant ?? '-';
     }
 
     public function getNamaPembeliAttribute()
