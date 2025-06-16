@@ -24,7 +24,8 @@ class Transaksi extends Model
         'isAntar',
         'metode_pembayaran',
         'catatan',
-        'driver_id'
+        'driver_id',
+        'kode_pemesanan',
     ];
 
     protected $appends = ['sub_total', 'gedung', 'nama_ruangan', 'nama_pembeli', 'order_id'];

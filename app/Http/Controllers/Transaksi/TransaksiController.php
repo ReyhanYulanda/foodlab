@@ -39,13 +39,13 @@ class TransaksiController extends Controller
             ], 403);
         }
         $transaksi = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user'])
-            ->whereHas('listTransaksiDetail.menus.tenants', function($tenant) use($user){
+            ->whereHas('listTransaksiDetail.menus.tenants', function ($tenant) use ($user) {
                 $tenant->where('user_id', '!=', $user->id);
             })
             ->where('user_id', $user->id)
             ->orderByDesc('created_at')
             ->get();
-            
+
         return response()->json([
             'status' => 'success',
             'message' => 'data berhasil didapatkan',
@@ -69,10 +69,9 @@ class TransaksiController extends Controller
         }
         try {
             $tenant = Tenants::where("user_id", $request->user()->id)->first();
-            $transaksi = Transaksi::whereHas('listTransaksiDetail.menus', function($menus)use($tenant){
+            $transaksi = Transaksi::whereHas('listTransaksiDetail.menus', function ($menus) use ($tenant) {
                 return $menus->where('tenant_id', $tenant->id);
-            })->
-            with(['listTransaksiDetail.menus.tenants' => function($tenants)use($tenant){
+            })->with(['listTransaksiDetail.menus.tenants' => function ($tenants) use ($tenant) {
                 $tenants->where('id', $tenant->id);
             }, 'user'])->orderByDesc('created_at')->get();
 
@@ -97,14 +96,14 @@ class TransaksiController extends Controller
         $user = $request->user();
         $permission = $user->can('read order tenant');
         $permission = true; // Ini seharusnya tidak perlu jika permission dicek
-    
+
         if (!$permission) {
             return response()->json([
                 'status' => 'failed',
                 'message' => 'tidak memiliki akses',
             ], 403);
         }
-    
+
         try {
             // Filter hanya transaksi dengan driver_id sesuai user yang login
             $transaksi = Transaksi::where('isAntar', 1)
@@ -113,7 +112,7 @@ class TransaksiController extends Controller
                 ->with(['listTransaksiDetail.menus.tenants', 'user'])
                 ->orderByDesc('created_at')
                 ->get();
-    
+
             return response()->json([
                 "status" => "success",
                 "message" => "Berhasil mengambil data",
@@ -129,7 +128,7 @@ class TransaksiController extends Controller
             ], 500);
         }
     }
-    
+
     public function store(Request $request, Firebases $firebases)
     {
         $user = $request->user();
@@ -167,7 +166,7 @@ class TransaksiController extends Controller
                     $kelola->where('id', $menu_id);
                 });
             })->first();
-            
+
             if (!$tenantUser) {
                 Log::warning('User tenant tidak ditemukan berdasarkan menu_id', ['menu_id' => $menu_id]);
             }
@@ -181,7 +180,7 @@ class TransaksiController extends Controller
                     $totalHargaMenu += $menuModel->harga * $menu['jumlah'];
                 }
             }
-            
+
             $ongkosKirim = Pengaturan::where('nama', 'ongkos_kirim')->value('nilai');
             $biayaLayanan = Pengaturan::where('nama', 'biaya_layanan')->value('nilai');
 
@@ -214,6 +213,14 @@ class TransaksiController extends Controller
                 'biaya_layanan' => $biayaLayanan,
             ]);
 
+            do {
+                $kodePemesanan = TransaksiCek::generateKodePemesanan($transaksi->id);
+            } while (Transaksi::where('kode_pemesanan', $kodePemesanan)->exists());
+
+            // SIMPAN ke database
+            $transaksi->kode_pemesanan = $kodePemesanan;
+            $transaksi->save();
+
             $success = $this->storeTransakasiDetail($request, $transaksi);
 
             if ($success) {
@@ -226,7 +233,7 @@ class TransaksiController extends Controller
                     ])->sendMessages($tenantUser->fcm_token);
                 }
 
-                if($status == 'selesai'){
+                if ($status == 'selesai') {
                     return response()->json([
                         "status" => 'success',
                         'messages' => "transaksi berhasil dibuat",
@@ -245,14 +252,14 @@ class TransaksiController extends Controller
                 if ($transaksi->metode_pembayaran === 'koin') {
                     $saldo->jumlah -= $totalFinal;
                     $saldo->save();
-                
+
                     TransaksiSaldoKoin::create([
                         'user_id' => $user->id,
-                        'jumlah' => -$totalFinal, 
+                        'jumlah' => -$totalFinal,
                         'tipe' => 'keluar',
                         'deskripsi' => 'Pembayaran pesanan #' . $transaksi->id,
                     ]);
-                }                
+                }
 
                 $transaksi = Transaksi::with(['user', 'listTransaksiDetail.menus'])->where('id', $transaksi->id)->first();
 
@@ -270,17 +277,16 @@ class TransaksiController extends Controller
                     'message' => 'gagal transaksi detail',
                 ], 401);
             }
-
         } catch (Throwable $th) {
             DB::rollback();
             Log::error('Transaksi gagal: ' . $th->getMessage());
             Log::error('Trace: ' . $th->getTraceAsString());
-        
+
             return response()->json([
                 'status' => 'failed',
                 'messages' => 'transaksi gagal: ' . $th->getMessage(),
             ], 400);
-        }        
+        }
     }
 
     public function storeTransakasiDetail($request, $transaksi)
@@ -355,14 +361,15 @@ class TransaksiController extends Controller
         }
     }
 
-    public function refund(Transaksi $transaksi){
-        try{
+    public function refund(Transaksi $transaksi)
+    {
+        try {
             $midtrans = new Midtrans();
 
             $refund = $midtrans->refundTransaction($transaksi);
 
             return ResponseApi::success(null, $refund["status_message"]);
-        }catch(Exception $e){
+        } catch (Exception $e) {
             return response()->json([
                 "status" => "failed",
                 "message" => "Refund Gagal, Silahkan Coba Lagi Nanti",
@@ -395,17 +402,17 @@ class TransaksiController extends Controller
             $user = $transaksi->user;
             if ($user && $user->fcm_token) {
                 $firebases->withData([
-                    'title' => 'Pesanan Dibatalkan', 
+                    'title' => 'Pesanan Dibatalkan',
                     'body' => "Maaf, pesanan {$transaksi->id} dibatalkan oleh tenant."
                 ])->sendMessages($user->fcm_token);
-            } 
+            }
 
             try {
                 $transaksi->refundKoin();
 
                 TransaksiSaldoKoin::create([
                     'user_id' => $transaksi->user_id,
-                    'jumlah' => $transaksi->total, 
+                    'jumlah' => $transaksi->total,
                     'tipe' => 'masuk',
                     'deskripsi' => 'Refund pesanan #' . $transaksi->id,
                 ]);
@@ -430,11 +437,25 @@ class TransaksiController extends Controller
                 Log::warning("Refund gagal: " . $e->getMessage());
                 return ResponseApi::error("Transaksi dibatalkan, tapi refund gagal. Silakan hubungi admin.");
             }
-
         } catch (\Throwable $th) {
             DB::rollBack();
             Log::error("Gagal membatalkan transaksi: " . $th->getMessage());
             return ResponseApi::serverError();
+        }
+    }
+
+    public function generateKodePemesanan(Transaksi $transaksi)
+    {
+        try {
+            $kodePemesanan = TransaksiCek::generateKodePemesanan($transaksi->id);
+            Log::info("Kode generated: " . $kodePemesanan);
+
+            $transaksi->kode_pemesanan = $kodePemesanan;
+            $transaksi->save();
+
+            Log::info("Transaksi setelah save: ", $transaksi->toArray());
+        } catch (Exception $e) {
+            Log::error("Gagal membuat kode pemesanan: " . $e->getMessage());
         }
     }
 }
