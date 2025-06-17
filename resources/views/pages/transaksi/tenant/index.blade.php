@@ -70,7 +70,11 @@
                                 <td>Rp{{ number_format($p->pendapatan_bersih_1, 0, ',', '.') }}</td> 
                                 <td>Rp{{ number_format($p->pendapatan_kotor_2, 0, ',', '.') }}</td> 
                                 <td>Rp{{ number_format($p->pendapatan_bersih_2, 0, ',', '.') }}</td> 
-                                <td><a href="{{ route('detail.transaksi.tenant', $p->id) }}" class="btn btn-info ms-2">Lihat</a></td>
+                                <td>
+                                    <a href="{{ route('detail.transaksi.tenant', ['id' => $p->id, 'filter_date' => request('filter_date')]) }}" class="btn btn-primary">
+                                        Lihat Detail
+                                    </a>
+                                </td>
                             </tr>
                             @empty
                                 <tr>

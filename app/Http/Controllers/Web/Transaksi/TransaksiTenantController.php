@@ -60,20 +60,20 @@ class TransaksiTenantController extends Controller
         $this->authorize('read transaksi_tenant');
 
         $perPage = $request->input('per_page', 10);
-        $searchTanggal = $request->input('search_tanggal');;
         $searchKeyword = $request->input('search_keyword');
         $statusPemesan = $request->input('status_pemesan');
+        $filterDate = $request->input('filter_date');
 
-        $query = Transaksi::with(['user', 'driver']);
+        $query = Transaksi::with(['user', 'driver'])
+            ->whereHas('listTransaksiDetail.menus', function ($qMenu) use ($id) {
+                $qMenu->where('tenant_id', $id);
+            })
+            ->where('status', 'selesai');
 
-        $query->whereHas('listTransaksiDetail.menus', function ($qMenu) use ($id) {
-            $qMenu->where('tenant_id', $id);
-        });
-
-        $query->where('status', 'selesai');
-
-        if ($searchTanggal) {
-            $query->whereDate('created_at', $searchTanggal);
+        if ($filterDate) {
+            $start = Carbon::parse($filterDate)->subDay()->setTime(18, 0, 0);
+            $end = Carbon::parse($filterDate)->setTime(17, 59, 59);
+            $query->whereBetween('created_at', [$start, $end]);
         }
 
         if ($searchKeyword) {
@@ -89,17 +89,14 @@ class TransaksiTenantController extends Controller
         }
 
         if ($statusPemesan) {
-            if ($statusPemesan === 'antar') {
-                $query->where('isAntar', 1);
-            } elseif ($statusPemesan === 'sendiri') {
-                $query->where('isAntar', 0);
-            }
+            $query->where('isAntar', $statusPemesan === 'antar' ? 1 : 0);
         }
 
         $transaksiDetails = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
         return view('pages.transaksi.rincianTransaksiTenant.index', compact('transaksiDetails'));
     }
+
 
     public function getPesananByTransaksi($id)
     {
