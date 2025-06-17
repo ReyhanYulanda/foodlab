@@ -15,6 +15,11 @@
                         <div class="alert alert-success">{{ session('success') }}</div>
                     @endif
 
+                    <div class="alert alert-info">
+                        <strong>Informasi:</strong> Perhitungan transaksi harian dimulai dari pukul <strong>18:00</strong> hari sebelumnya hingga <strong>17:59</strong> pada hari yang dipilih.
+                        <br>Contoh: Jika Anda memilih tanggal <strong>17 Juni</strong>, maka data yang ditampilkan berasal dari <strong>16 Juni pukul 18:00</strong> sampai <strong>17 Juni pukul 17:59</strong>.
+                    </div>
+
                     <form method="GET" action="{{ route('transaksi.tenant') }}" class="mb-3">
                         <div class="row">
                             <div class="col-md-4">
@@ -91,6 +96,25 @@
                             {{ $transaksiTenant->appends(request()->except('page'))->links() }}
                         </div>
                     </div>
+                    <script>
+                        document.addEventListener('DOMContentLoaded', () => {
+                        const filterDate = document.getElementById('filter_date');
+                        const startDate = document.getElementById('start_date');
+                        const endDate = document.getElementById('end_date');
+
+                        function toggleFilterDate() {
+                            if (startDate.value || endDate.value) {
+                                filterDate.disabled = true;
+                            } else {
+                                filterDate.disabled = false;
+                            }
+                        }
+
+                        startDate.addEventListener('input', toggleFilterDate);
+                        endDate.addEventListener('input', toggleFilterDate);
+                        toggleFilterDate(); 
+                    });
+                    </script>
                 </div>
             </div>
         </div>
