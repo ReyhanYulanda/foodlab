@@ -91,6 +91,25 @@
                             {{ $transaksiTenant->appends(request()->except('page'))->links() }}
                         </div>
                     </div>
+                    <script>
+                        document.addEventListener('DOMContentLoaded', () => {
+                        const filterDate = document.getElementById('filter_date');
+                        const startDate = document.getElementById('start_date');
+                        const endDate = document.getElementById('end_date');
+
+                        function toggleFilterDate() {
+                            if (startDate.value || endDate.value) {
+                                filterDate.disabled = true;
+                            } else {
+                                filterDate.disabled = false;
+                            }
+                        }
+
+                        startDate.addEventListener('input', toggleFilterDate);
+                        endDate.addEventListener('input', toggleFilterDate);
+                        toggleFilterDate(); 
+                    });
+                    </script>
                 </div>
             </div>
         </div>
