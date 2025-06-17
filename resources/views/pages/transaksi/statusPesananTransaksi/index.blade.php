@@ -79,7 +79,7 @@
                                 <tr>
                                     <td>{{ ($statusTransaksi->currentPage() - 1) * $statusTransaksi->perPage() + $loop->iteration }}</td>
                                     <td>{{ $key->id }}</td>
-                                    <td>{{ $key->updated_at }}</td>
+                                    <td>{{ \Carbon\Carbon::parse($key->updated_at)->format('H:i:s d-m-Y') }}</td>
                                     <td>{{ $key->status }}</td>
                                     <td>{{ $key->nama_tenant ?? '-' }}</td>
                                     <td>{{ $key->nama_pembeli ?? '-' }}</td> 
@@ -164,6 +164,23 @@
                                 console.error(error);
                             });
                     }
+                    document.addEventListener('DOMContentLoaded', () => {
+                        const filterDate = document.getElementById('filter_date');
+                        const startDate = document.getElementById('start_date');
+                        const endDate = document.getElementById('end_date');
+
+                        function toggleFilterDate() {
+                            if (startDate.value || endDate.value) {
+                                filterDate.disabled = true;
+                            } else {
+                                filterDate.disabled = false;
+                            }
+                        }
+
+                        startDate.addEventListener('input', toggleFilterDate);
+                        endDate.addEventListener('input', toggleFilterDate);
+                        toggleFilterDate(); 
+                    });
                 </script>
             </div>
         </div>
