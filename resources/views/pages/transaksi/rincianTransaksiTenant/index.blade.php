@@ -15,10 +15,6 @@
 
                     <form action="{{ route('detail.transaksi.tenant', ['id' => request()->route('id')]) }}" method="GET" class="mb-3">
                         <div class="row g-2">
-                            <div class="col-md-2">
-                                <label for="search_tanggal" class="form-label visually-hidden">Tanggal</label>
-                                <input type="date" name="search_tanggal" id="search_tanggal" class="form-control" placeholder="Tanggal" value="{{ request('search_tanggal') }}">
-                            </div>
                             <div class="col-md-3">
                                 <label for="search_keyword" class="form-label visually-hidden">Keyword</label>
                                 <input type="text" name="search_keyword" id="search_keyword" class="form-control" placeholder="No. Pesanan, Nama Pemesan/Pengantar"
@@ -38,7 +34,12 @@
                         </div>
                         <input type="hidden" name="per_page" value="{{ request('per_page', 10) }}">
                     </form>
-
+                    @if(request('filter_date'))
+                        <div class="mb-3">
+                            <strong>Data ditampilkan untuk tanggal:</strong> 
+                            {{ \Carbon\Carbon::parse(request('filter_date'))->format('d M Y') }}
+                        </div>
+                    @endif
                     <table class="table table-responsive w-full table-striped">
                         <thead>
                             <tr>
