@@ -30,6 +30,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tenants/{TenantId}', [TenantController::class, 'getSpecificTenant']);
     Route::get('/order/user', [TransaksiController::class, 'orderUser']);
     Route::post('/order', [TransaksiController::class, 'store']);
+    Route::get('/order/driver', [TransaksiController::class, 'getOnlineDriver']);
     Route::put('/order/{id}', [TransaksiUserController::class, 'updateStatusTransaksi']);
     Route::post('/order/cancel/{id}', [TransaksiController::class, 'cancel']);
     Route::get('/order/tenant', [TransaksiController::class, 'orderTenant']);
@@ -78,7 +79,7 @@ Route::post('logout', [AuthController::class, 'logout'])->middleware('auth:sanct
 
 Route::get('/pengaturan', [PengaturanController::class, 'index']);
 
-Route::get('/test-web-socket', function(){
+Route::get('/test-web-socket', function () {
     $transaksi = Transaksi::first();
     broadcast(new NotifyUserWhenTransaksiUpdated($transaksi));
 });

@@ -55,6 +55,35 @@ class TransaksiController extends Controller
         ]);
     }
 
+    public function getOnlineDriver(Request $request)
+    {
+        $user = $request->user();
+        $permission = $user->can('read online driver');
+
+        if (!$permission) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'tidak memiliki akses',
+            ], 403);
+        }
+
+        $drivers = User::where('isOnline', true)
+            ->whereHas('roles', function ($q) {
+                $q->where('name', 'masbro');
+            })
+            ->get();
+        $jumlahDriver = $drivers->count();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Berhasil mengambil data driver online',
+            'data' => [
+                'jumlah_driver' => $jumlahDriver,
+                'drivers' => $drivers
+            ],
+        ]);
+    }
+
     public function orderTenant(Request $request)
     {
         $user = $request->user();
