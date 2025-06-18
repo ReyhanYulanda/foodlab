@@ -24,11 +24,11 @@ class TenantOrderService
                 },
                 'user'
             ])
-            ->whereHas('listTransaksiDetail.menus.tenants', function ($query) use ($tenant) {
-                $query->where('id', $tenant->id ?? null);
-            })
-            ->whereNotIn('status', ['pending', 'expire', 'cancel'])
-            ->get();
+                ->whereHas('listTransaksiDetail.menus.tenants', function ($query) use ($tenant) {
+                    $query->where('id', $tenant->id ?? null);
+                })
+                ->whereNotIn('status', ['pending', 'expire', 'cancel'])
+                ->get();
 
             if ($status) {
                 $dataPesanan = $dataPesanan->where('status', $status);
@@ -80,6 +80,10 @@ class TenantOrderService
             ->pluck('fcm_token')
             ->toArray();
 
+        $cekDriverIsActive = User::where('isOnline', true)
+            ->where('role', 'masbro')
+            ->first();
+
         if ($transaksi->status == 'pesanan_diproses') {
             $firebases->withData([
                 'title' => 'Pesanan Sedang Diproses',
@@ -107,10 +111,14 @@ class TenantOrderService
         }
 
         if ($transaksi->status == 'diantar') {
-            $firebases->withData([
-                'title' => 'Pesanan Segera Diantar',
-                'body' => "Pesanan {$transaksi->id} sudah mendapat driver dan akan segera diantar ke lokasimu"
-            ])->sendMessages($transaksi->user->fcm_token);
+            if ($cekDriverIsActive) {
+                $firebases->withData([
+                    'title' => 'Pesanan Sedang Diantar',
+                    'body' => "Pesanan {$transaksi->id} sudah mendapat driver dan akan segera diantar ke lokasimu"
+                ])->sendMessages($transaksi->user->fcm_token);
+            } else {
+                return ResponseApi::error('Tidak ada driver online saat ini', 403);
+            }
         }
 
         if ($transaksi->status == 'selesai') {
