@@ -80,8 +80,8 @@ class TenantOrderService
             ->pluck('fcm_token')
             ->toArray();
 
-        $cekDriverIsActive = User::where('isOnline', true)
-            ->where('role', 'masbro')
+        $cekDriverIsActive = User::role('masbro')
+            ->where('isOnline', true)
             ->first();
 
         if ($transaksi->status == 'pesanan_diproses') {
