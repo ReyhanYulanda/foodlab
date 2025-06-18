@@ -7,6 +7,7 @@ use App\Models\TransaksiSaldoKoin;
 use App\Models\SaldoKoin;
 use App\Models\Transaksi;
 use App\Models\Pengaturan;
+use App\Models\User;
 use App\Services\Firebases;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,42 +20,42 @@ class PesananController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-    
-        if(!$user->can('read pengantaran')){
+
+        if (!$user->can('read pengantaran')) {
             return response()->json([
                 'status' => 'failed',
                 'message' => 'tidak memiliki akses',
             ], 403);
         }
-    
+
         $validator = Validator::make($request->all(), [
             'status' => 'required|in:diantar,selesai,siap_diantar',
             'gedung' => 'nullable',
         ]);
-    
+
         if ($validator->fails()) {
             return response()->json([
                 "status" => "Bad Request",
                 "message" => $validator->errors()->all()
             ], 400);
         }
-    
+
         try {
             $transaksi = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user']);
-    
-            if($request->has('status')){
+
+            if ($request->has('status')) {
                 if (in_array($request->status, ['diantar', 'selesai'])) {
                     $transaksi = $transaksi->where('driver_id', $user->id);
                 }
                 $transaksi = $transaksi->where('status', $request->status);
             }
-    
-            if($request->has('gedung')){
+
+            if ($request->has('gedung')) {
                 $transaksi = $transaksi->where('gedung', $request->gedung);
             }
-    
+
             $transaksi = $transaksi->get();
-    
+
             return response()->json([
                 "status" => "success",
                 "message" => "Berhasil mengambil data",
@@ -75,25 +76,33 @@ class PesananController extends Controller
     {
         $user = $request->user();
         $transaksi = Transaksi::find($transaksiId);
-    
-        if(!$user->can('update pengantaran')){
+        $cekDriverIsActive = User::where('id', $user->id)->where('isOnline', true)->first();
+
+        if (!$user->can('update pengantaran')) {
             return response()->json([
                 'status' => 'failed',
                 'message' => 'tidak memiliki akses',
             ], 403);
         }
-    
+
         $validator = Validator::make($request->all(), [
             'status' => 'required|in:diantar,selesai,siap_diantar',
         ]);
-    
+
         if ($validator->fails()) {
             return response()->json([
                 "status" => "Bad Request",
                 "message" => $validator->errors()
             ], 400);
         }
-    
+
+        if (!$cekDriverIsActive) {
+            return response()->json([
+                "status" => "forbidden",
+                "message" => "Kamu harus online terlebih dahulu untuk ambil status pesanan"
+            ], 403);
+        }
+
         try {
             $transaksi = Transaksi::find($transaksiId);
             if (!$transaksi) {
@@ -101,7 +110,6 @@ class PesananController extends Controller
                     "status" => "Not Found",
                     "message" => "Transaksi tidak ditemukan"
                 ], 404);
-
             } else {
                 if ($transaksi->driver_id !== null && $transaksi->driver_id !== $user->id) {
                     return response()->json([
@@ -115,22 +123,22 @@ class PesananController extends Controller
                 }
 
                 $transaksi->status = $request->status;
-                $transaksi->driver_id = $user->id; 
+                $transaksi->driver_id = $user->id;
                 $transaksi->save();
                 $status = str_replace('_', ' ', $transaksi->status);
-                
-                if($transaksi->metode_pembayaran != 'transfer'){
+
+                if ($transaksi->metode_pembayaran != 'transfer') {
                     $transaksi->listTransaksiDetail()->update(['status' => $transaksi->status]);
                 }
                 if ($transaksi->status == 'diantar') {
                     $firebases->withNotification('Pesanan Sedang Diantar', "Pesanan {$transaksi->id} sudah mendapat driver dan akan segera diantar ke lokasimu")
                         ->sendMessages($transaksi->user->fcm_token);
                 }
-    
+
                 if ($transaksi->status == 'selesai') {
                     $firebases->withNotification('Pesanan Sudah Sampai', "Pesanan {$transaksi->id} telah selesai. Ambil dan terima pesananmu. Selamat menikmati! 🍽")
                         ->sendMessages($transaksi->user->fcm_token);
-                    
+
                     $ongkirAsli = $transaksi->ongkos_kirim;
 
                     $pengaturanPotongan = Pengaturan::where('nama', 'biaya_ongkos_kirim')->first();
