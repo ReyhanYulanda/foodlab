@@ -28,6 +28,7 @@ class AuthController extends Controller
             'email' => 'required|unique:users,email|email|regex:/^\S*$/',
             'password' => ['required', Password::min(8)->letters()],
             'name' => 'required|regex:/^[a-zA-Z\s]+$/|max:25',
+            'phone' => 'required|regex:/^\+?[0-9\s]+$/',
             'role' => 'nullable'
         ]);
 
@@ -41,6 +42,7 @@ class AuthController extends Controller
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
+                'phone' => $request->phone,
             ]);
 
             // Token Management
