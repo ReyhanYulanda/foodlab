@@ -81,7 +81,7 @@ class TenantOrderService
             ->toArray();
 
         $cekDriverIsActive = User::role('masbro')
-            ->where('isOnline', true)
+            ->where('isOnline', 1)
             ->first();
 
         if ($transaksi->status == 'pesanan_diproses') {
