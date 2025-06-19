@@ -80,8 +80,17 @@ class TenantOrderService
             ->pluck('fcm_token')
             ->toArray();
 
-        $cekDriverIsActive = User::role('masbro')
-            ->where('isOnline', 1)
+        $cekDriverIsActive = User::where('isOnline', 1)
+            ->whereIn('id', function ($query) {
+                $query->select('model_id')
+                    ->from('model_has_roles')
+                    ->where('role_id', function ($q) {
+                        $q->select('id')
+                            ->from('roles')
+                            ->where('name', 'masbro')
+                            ->limit(1);
+                    });
+            })
             ->first();
 
         if ($transaksi->status == 'pesanan_diproses') {
