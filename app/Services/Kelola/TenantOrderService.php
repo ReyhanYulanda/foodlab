@@ -76,22 +76,17 @@ class TenantOrderService
     private function sendNotifications($transaksi, $firebases)
     {
         $masbroTokens = User::role('masbro')
+            ->where('isOnline', 1)
             ->whereNotNull('fcm_token')
             ->pluck('fcm_token')
             ->toArray();
 
-        $cekDriverIsActive = User::where('isOnline', 1)
-            ->whereIn('id', function ($query) {
-                $query->select('model_id')
-                    ->from('model_has_roles')
-                    ->where('role_id', function ($q) {
-                        $q->select('id')
-                            ->from('roles')
-                            ->where('name', 'masbro')
-                            ->limit(1);
-                    });
+        $cekDriverIsActive = User::where('isOnline', true)
+            ->whereHas('roles', function ($q) {
+                $q->where('name', 'masbro');
             })
-            ->first();
+            ->get();
+        $jumlahDriver = $cekDriverIsActive->count();
 
         if ($transaksi->status == 'pesanan_diproses') {
             $firebases->withData([
@@ -120,14 +115,14 @@ class TenantOrderService
         }
 
         if ($transaksi->status == 'diantar') {
-            if ($cekDriverIsActive) {
-                $firebases->withData([
-                    'title' => 'Pesanan Sedang Diantar',
-                    'body' => "Pesanan {$transaksi->id} sudah mendapat driver dan akan segera diantar ke lokasimu"
-                ])->sendMessages($transaksi->user->fcm_token);
-            } else {
-                return ResponseApi::error('Tidak ada driver online saat ini', 403);
-            }
+            $firebases->withData([
+                'title' => 'Pesanan Sedang Diantar',
+                'body' => "Pesanan {$transaksi->id} sedang diantar oleh driver. Silakan tunggu sebentar."
+            ])->sendMessages($transaksi->user->fcm_token);
+            $firebases->withData([
+                'title' => 'Ada Pesanan Baru',
+                'body' => "Pesanan {$transaksi->id} sedang diantar. Yuk, bantu antar!"
+            ])->sendMessages($masbroTokens);
         }
 
         if ($transaksi->status == 'selesai') {
