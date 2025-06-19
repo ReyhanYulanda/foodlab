@@ -81,13 +81,6 @@ class TenantOrderService
             ->pluck('fcm_token')
             ->toArray();
 
-        $cekDriverIsActive = User::where('isOnline', true)
-            ->whereHas('roles', function ($q) {
-                $q->where('name', 'masbro');
-            })
-            ->get();
-        $jumlahDriver = $cekDriverIsActive->count();
-
         if ($transaksi->status == 'pesanan_diproses') {
             $firebases->withData([
                 'title' => 'Pesanan Sedang Diproses',
