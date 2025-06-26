@@ -75,7 +75,7 @@ Route::post('/order/cancel/{id}', [TransaksiController::class, 'cancel']);
 
 Route::post('login', [AuthController::class, 'login']);
 Route::post('register', [AuthController::class, 'register']);
-// Route::post('logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+Route::post('logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 
 Route::get('/pengaturan', [PengaturanController::class, 'index']);
 
