@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('menu/{id}', [KelolaTenantController::class, 'updateMenuWeb']);
 
-// Route::middleware('auth:sanctum')->group(function () {
+Route::middleware('auth:sanctum')->group(function () {
     // Route::get('/auth', [UserController::class, 'index']);
     // Route::post('/update-user', [UserController::class, 'update']);
     // USER 
@@ -39,37 +39,37 @@ Route::post('menu/{id}', [KelolaTenantController::class, 'updateMenuWeb']);
     // Route::get('/ruangan', [RuanganController::class, 'index']);
 
 //     // SALDO KOIN USER
-    Route::get('/saldo', [SaldoKoinController::class, 'cekSaldo']);
-    Route::get('/saldo/riwayat', [SaldoKoinController::class, 'riwayatTransaksi']);
+    // Route::get('/saldo', [SaldoKoinController::class, 'cekSaldo']);
+    // Route::get('/saldo/riwayat', [SaldoKoinController::class, 'riwayatTransaksi']);
 
-//     // TENANT
-//     Route::prefix('tenant')->middleware(['role:tenant'])->name('api.tenant.')->group(function () {
-//         // MENU
-//         Route::get('/', [KelolaTenantController::class, 'index']);
-//         Route::post('/menu', [KelolaTenantController::class, 'storeMenu']);
-//         Route::post('/menu/{id}', [KelolaTenantController::class, 'updateMenu']);
-//         Route::delete('/menu/{id}', [KelolaTenantController::class, 'destroyMenu']);
+    // TENANT
+    Route::prefix('tenant')->middleware(['role:tenant'])->name('api.tenant.')->group(function () {
+        // MENU
+        Route::get('/', [KelolaTenantController::class, 'index']);
+        Route::post('/menu', [KelolaTenantController::class, 'storeMenu']);
+        Route::post('/menu/{id}', [KelolaTenantController::class, 'updateMenu']);
+        Route::delete('/menu/{id}', [KelolaTenantController::class, 'destroyMenu']);
 
-//         // TENANT ORDER
-//         Route::get('/order', [TenantOrderController::class, 'index']);
-//         Route::put('/order/{id}', [TenantOrderController::class, 'update']);
+        // TENANT ORDER
+        Route::get('/order', [TenantOrderController::class, 'index']);
+        Route::put('/order/{id}', [TenantOrderController::class, 'update']);
 
-//         // SHOWTRANSAKSI
-//         Route::get('/history-transaksi-tenant', [KelolaTenantController::class, 'showHistoryTransaksiTenant']);
+        // SHOWTRANSAKSI
+        Route::get('/history-transaksi-tenant', [KelolaTenantController::class, 'showHistoryTransaksiTenant']);
 
-//         // PROFILE TENANT
-//         Route::get('/profile-tenant', [ProfileTenantController::class, 'show']);
-//         Route::post('/profile-tenant', [ProfileTenantController::class, 'update']);
-//     });
+        // PROFILE TENANT
+        Route::get('/profile-tenant', [ProfileTenantController::class, 'show']);
+        Route::post('/profile-tenant', [ProfileTenantController::class, 'update']);
+    });
 
-//     // MASBRO
-//     Route::prefix('masbro')->middleware(['role:masbro'])->name('api.masbro.')->group(function () {
-//         Route::get('/order', [PesananController::class, 'index']);
-//         Route::put('/order/{transaksiId}', [PesananController::class, 'update']);
-//     });
+    // MASBRO
+    Route::prefix('masbro')->middleware(['role:masbro'])->name('api.masbro.')->group(function () {
+        Route::get('/order', [PesananController::class, 'index']);
+        Route::put('/order/{transaksiId}', [PesananController::class, 'update']);
+    });
 
-//     Route::put('/update-fcm-token', [UserController::class, 'updateFcmToken']);
-// });
+    Route::put('/update-fcm-token', [UserController::class, 'updateFcmToken']);
+});
 // Route::post('/order/callback', [TransaksiController::class, 'webHookMidtrans']);
 // Route::post('/order/cancel/{id}', [TransaksiController::class, 'cancel']);
 
