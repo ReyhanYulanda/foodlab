@@ -26,8 +26,8 @@ Route::post('menu/{id}', [KelolaTenantController::class, 'updateMenuWeb']);
 //     // USER 
 //     Route::get('/katalog/tenants', [TenantController::class, 'getAll']);
 //     Route::get('/katalog/tenants/{TenantId}', [TenantController::class, 'getSpecificTenant']);
-//     Route::get('/tenants', [TenantController::class, 'getAll']);
-//     Route::get('/tenants/{TenantId}', [TenantController::class, 'getSpecificTenant']);
+    Route::get('/tenants', [TenantController::class, 'getAll']);
+    Route::get('/tenants/{TenantId}', [TenantController::class, 'getSpecificTenant']);
 //     Route::get('/order/user', [TransaksiController::class, 'orderUser']);
 //     Route::post('/order', [TransaksiController::class, 'store']);
 //     Route::get('/order/driver', [TransaksiController::class, 'getOnlineDriver']);
