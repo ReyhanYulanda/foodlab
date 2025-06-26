@@ -6,17 +6,25 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenants;
 use App\Response\ResponseApi;
 use Illuminate\Http\Request;
+use App\Services\Firebases;
 
 class TenantController extends Controller
 {
-    public function getAll(Request $request){
-        $user = $request->user()->can('read beranda');
+    public function getAll(Request $request, Firebases $firebases){
+        $user = $request->user();
 
-        if(!$user){
+        if (!$user->can('read beranda')) {
             return response()->json([
                 'status' => 'failed',
                 'message' => 'tidak memiliki akses',
             ], 403);
+        }
+
+        if ($user && $user->fcm_token) {
+            $firebases->withData([
+                'title' => 'Selamat Datang!',
+                'body' => 'Terima kasih telah membuka aplikasi kami 😊',
+            ])->sendMessages($user->fcm_token);
         }
 
         $tenants = Tenants::with(['listMenu', 'pemilik'])
