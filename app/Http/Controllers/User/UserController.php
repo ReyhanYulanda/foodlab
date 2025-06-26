@@ -100,6 +100,7 @@ class UserController extends Controller
     public function update(Request $request)
     {
         $user = $request->user();
+        $this->authorize('update akun');
 
         if(!$user){
             return response()->json([
