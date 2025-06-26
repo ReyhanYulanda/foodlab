@@ -21,22 +21,22 @@ use Illuminate\Support\Facades\Route;
 Route::post('menu/{id}', [KelolaTenantController::class, 'updateMenuWeb']);
 
 // Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/auth', [UserController::class, 'index']);
-    Route::post('/update-user', [UserController::class, 'update']);
+    // Route::get('/auth', [UserController::class, 'index']);
+    // Route::post('/update-user', [UserController::class, 'update']);
     // USER 
     // Route::get('/katalog/tenants', [TenantController::class, 'getAll']);
     // Route::get('/katalog/tenants/{TenantId}', [TenantController::class, 'getSpecificTenant']);
     Route::get('/tenants', [TenantController::class, 'getAll']);
     Route::get('/tenants/{TenantId}', [TenantController::class, 'getSpecificTenant']);
-//     Route::get('/order/user', [TransaksiController::class, 'orderUser']);
-//     Route::post('/order', [TransaksiController::class, 'store']);
-//     Route::get('/order/driver', [TransaksiController::class, 'getOnlineDriver']);
-//     Route::put('/order/{id}', [TransaksiUserController::class, 'updateStatusTransaksi']);
-//     Route::post('/order/cancel/{id}', [TransaksiController::class, 'cancel']);
-//     Route::get('/order/tenant', [TransaksiController::class, 'orderTenant']);
-//     // Route::get('/order/masbro', [TransaksiController::class, 'orderMasbro']);
-//     Route::post('/order/detail', [TransaksiController::class, 'store'])->name('');
-//     Route::get('/ruangan', [RuanganController::class, 'index']);
+    Route::get('/order/user', [TransaksiController::class, 'orderUser']);
+    Route::post('/order', [TransaksiController::class, 'store']);
+    Route::get('/order/driver', [TransaksiController::class, 'getOnlineDriver']);
+    Route::put('/order/{id}', [TransaksiUserController::class, 'updateStatusTransaksi']);
+    Route::post('/order/cancel/{id}', [TransaksiController::class, 'cancel']);
+    Route::get('/order/tenant', [TransaksiController::class, 'orderTenant']);
+    // Route::get('/order/masbro', [TransaksiController::class, 'orderMasbro']);
+    Route::post('/order/detail', [TransaksiController::class, 'store'])->name('');
+    Route::get('/ruangan', [RuanganController::class, 'index']);
 
 //     // SALDO KOIN USER
 //     Route::get('/saldo', [SaldoKoinController::class, 'cekSaldo']);
