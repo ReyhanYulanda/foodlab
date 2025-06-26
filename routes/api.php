@@ -22,7 +22,7 @@ Route::post('menu/{id}', [KelolaTenantController::class, 'updateMenuWeb']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth', [UserController::class, 'index']);
-    Route::post('/update-user', [UserController::class, 'update']);
+    // Route::post('/update-user', [UserController::class, 'update']);
     // USER 
     Route::get('/katalog/tenants', [TenantController::class, 'getAll']);
     Route::get('/katalog/tenants/{TenantId}', [TenantController::class, 'getSpecificTenant']);
@@ -75,7 +75,7 @@ Route::post('/order/cancel/{id}', [TransaksiController::class, 'cancel']);
 
 Route::post('login', [AuthController::class, 'login']);
 Route::post('register', [AuthController::class, 'register']);
-Route::post('logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+// Route::post('logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 
 Route::get('/pengaturan', [PengaturanController::class, 'index']);
 
