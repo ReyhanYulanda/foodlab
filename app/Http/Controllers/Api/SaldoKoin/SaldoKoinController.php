@@ -12,6 +12,8 @@ class SaldoKoinController extends Controller
 {
     public function cekSaldo()
     {
+        $this->authorize('read saldo');
+
         $saldo = SaldoKoin::where('user_id', Auth::id())->first();
 
         return response()->json([
@@ -22,6 +24,7 @@ class SaldoKoinController extends Controller
 
     public function riwayatTransaksi()
     {
+        $this->authorize('read saldo');
         $transaksi = TransaksiSaldoKoin::where('user_id', Auth::id())
             ->orderBy('created_at', 'desc')
             ->get();
