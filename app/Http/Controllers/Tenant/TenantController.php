@@ -27,13 +27,13 @@ class TenantController extends Controller
             ])->sendMessages($user->fcm_token);
         }
 
-        // $tenants = Tenants::with(['listMenu', 'pemilik'])
-        //     ->where('user_id', '!=', $request->user()->id)
-        //     ->get()
-        //     ->filter(function ($tenant) {
-        //         return $tenant->pemilik;
-        //     })
-        //     ->values();
+        $tenants = Tenants::with(['listMenu', 'pemilik'])
+            ->where('user_id', '!=', $request->user()->id)
+            ->get()
+            ->filter(function ($tenant) {
+                return $tenant->pemilik;
+            })
+            ->values();
 
         return ResponseApi::success(compact('tenants'), 'berhasil mendapatkan data');
     }
