@@ -34,7 +34,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/order/{id}', [TransaksiUserController::class, 'updateStatusTransaksi']);
     Route::post('/order/cancel/{id}', [TransaksiController::class, 'cancel']);
     Route::get('/order/tenant', [TransaksiController::class, 'orderTenant']);
-    Route::get('/order/masbro', [TransaksiController::class, 'orderMasbro']);
+    // Route::get('/order/masbro', [TransaksiController::class, 'orderMasbro']);
     Route::post('/order/detail', [TransaksiController::class, 'store'])->name('');
     Route::get('/ruangan', [RuanganController::class, 'index']);
 
