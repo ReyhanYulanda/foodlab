@@ -39,8 +39,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/ruangan', [RuanganController::class, 'index']);
 
     // SALDO KOIN USER
-    // Route::get('/saldo', [SaldoKoinController::class, 'cekSaldo']);
-    // Route::get('/saldo/riwayat', [SaldoKoinController::class, 'riwayatTransaksi']);
+    Route::get('/saldo', [SaldoKoinController::class, 'cekSaldo']);
+    Route::get('/saldo/riwayat', [SaldoKoinController::class, 'riwayatTransaksi']);
 
     // TENANT
     Route::prefix('tenant')->middleware(['role:tenant'])->name('api.tenant.')->group(function () {
