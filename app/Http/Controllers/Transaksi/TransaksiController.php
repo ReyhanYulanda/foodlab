@@ -161,7 +161,7 @@ class TransaksiController extends Controller
     public function store(Request $request, Firebases $firebases)
     {
         $user = $request->user();
-        $permission = $user->can('create order_user');
+        $permission = $user->can('create order user');
 
         if (!$permission) {
             return response()->json([
