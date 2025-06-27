@@ -100,6 +100,7 @@ class TenantOrderService
             // log response
             foreach ($masbroTokens as $token) {
                 Log::info("Pesan terkirim ke masbro dengan token: $token");
+            }
         }
 
         if ($transaksi->status == 'siap_diambil') {
@@ -123,4 +124,6 @@ class TenantOrderService
             ])->sendMessages($transaksi->user->fcm_token);
         }
     }
+    
 }
+
