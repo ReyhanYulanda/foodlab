@@ -93,10 +93,12 @@ class TenantOrderService
                 'body' => "Pesanan {$transaksi->id} selesai dibuat. Kami sedang mencari driver untuk mengantar pesananmu"
             ])->sendMessages($transaksi->user->fcm_token);
 
-            $firebases->withData([
-                'title' => 'Ada Pesanan Siap Diantar',
-                'body' => "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!"
-            ])->sendMessages($masbroTokens);
+            foreach ($masbroTokens as $token) {
+                $firebases->withData([
+                    'title' => 'Ada Pesanan Siap Diantar',
+                    'body' => "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!"
+                ])->sendMessages([$token]); // Kirim ke satu token masbro
+            }
             // log response
             foreach ($masbroTokens as $token) {
                 Log::info("Pesan terkirim ke masbro dengan token: $token");
@@ -124,6 +126,4 @@ class TenantOrderService
             ])->sendMessages($transaksi->user->fcm_token);
         }
     }
-    
 }
-
