@@ -97,11 +97,8 @@ class TenantOrderService
                 'title' => 'Ada Pesanan Siap Diantar',
                 'body' => "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!"
             ])->sendMessages($masbroTokens);
-            // log masbro token
-            Log::debug('Masbro Tokens: ' . json_encode($masbroTokens));
-            if (!$response) {
-                Log::error('Gagal mengirim notifikasi ke masbro: ' . json_encode($masbroTokens));
-            }
+            // log response
+            Log::info('Response Firebase (FCM): ', ['response' => $response]);
         }
 
         if ($transaksi->status == 'siap_diambil') {
