@@ -24,11 +24,11 @@ class TenantOrderService
                 },
                 'user'
             ])
-            ->whereHas('listTransaksiDetail.menus.tenants', function ($query) use ($tenant) {
-                $query->where('id', $tenant->id ?? null);
-            })
-            ->whereNotIn('status', ['pending', 'expire', 'cancel'])
-            ->get();
+                ->whereHas('listTransaksiDetail.menus.tenants', function ($query) use ($tenant) {
+                    $query->where('id', $tenant->id ?? null);
+                })
+                ->whereNotIn('status', ['pending', 'expire', 'cancel'])
+                ->get();
 
             if ($status) {
                 $dataPesanan = $dataPesanan->where('status', $status);
@@ -93,10 +93,15 @@ class TenantOrderService
                 'body' => "Pesanan {$transaksi->id} selesai dibuat. Kami sedang mencari driver untuk mengantar pesananmu"
             ])->sendMessages($transaksi->user->fcm_token);
 
-            $firebases->withData([
+            $response = $firebases->withData([
                 'title' => 'Ada Pesanan Siap Diantar',
                 'body' => "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!"
             ])->sendMessages($masbroTokens);
+            // log masbro token
+            Log::debug('Masbro Tokens: ' . json_encode($masbroTokens));
+            if (!$response) {
+                Log::error('Gagal mengirim notifikasi ke masbro: ' . json_encode($masbroTokens));
+            }
         }
 
         if ($transaksi->status == 'siap_diambil') {
