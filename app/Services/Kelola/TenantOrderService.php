@@ -93,12 +93,13 @@ class TenantOrderService
                 'body' => "Pesanan {$transaksi->id} selesai dibuat. Kami sedang mencari driver untuk mengantar pesananmu"
             ])->sendMessages($transaksi->user->fcm_token);
 
-            $response = $firebases->withData([
+            $firebases->withData([
                 'title' => 'Ada Pesanan Siap Diantar',
                 'body' => "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!"
             ])->sendMessages($masbroTokens);
             // log response
-            Log::info('Response Firebase (FCM): ', ['response' => $response]);
+            foreach ($masbroTokens as $token) {
+                Log::info("Pesan terkirim ke masbro dengan token: $token");
         }
 
         if ($transaksi->status == 'siap_diambil') {
