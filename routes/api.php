@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('menu/{id}', [KelolaTenantController::class, 'updateMenuWeb']);
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware('auth:sanctum', 'verified')->group(function () {
     Route::get('/auth', [UserController::class, 'index']);
     Route::post('/update-user', [UserController::class, 'update']);
     // USER 
@@ -83,6 +83,10 @@ Route::get('/test-web-socket', function () {
     $transaksi = Transaksi::first();
     broadcast(new NotifyUserWhenTransaksiUpdated($transaksi));
 });
+
+Route::get('/verify-email/{id}/{hash}', [\App\Http\Controllers\Api\Auth\EmailVerificationController::class, 'verify'])
+    ->middleware('signed')
+    ->name('verification.verify');
 
 Route::post('/forgot-password', [PasswordResetLinkController::class, 'passwordResetAPI']);
 Route::post('/reset-password', [NewPasswordController::class, 'newPasswordAPI']);

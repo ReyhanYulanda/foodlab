@@ -45,6 +45,7 @@ class AuthController extends Controller
                 // 'phone' => $request->phone,
             ]);
 
+            $newUser->sendEmailVerificationNotification();
             // Token Management
             $token = $newUser->createToken('secret')->plainTextToken;
 
@@ -56,7 +57,6 @@ class AuthController extends Controller
             } else {
                 $newUser->assignRole('user');
             }
-            // $newUser->sendEmailVerificationNotification();
             DB::commit();
         } catch (Throwable $th) {
             DB::rollBack();
@@ -89,6 +89,12 @@ class AuthController extends Controller
         }
 
         $user = User::where('email', $request->email)->first();
+
+        if (is_null($user->email_verified_at)) {
+            return response()->json([
+                'message' => 'Silakan verifikasi email terlebih dahulu'
+            ], 403);
+        }
 
         $menu = Menu::whereHas('device', function ($device) {
             return $device->where('device_id', 1);
