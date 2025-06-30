@@ -84,5 +84,9 @@ Route::get('/test-web-socket', function () {
     broadcast(new NotifyUserWhenTransaksiUpdated($transaksi));
 });
 
+Route::get('/verify-email/{id}/{hash}', [\App\Http\Controllers\Api\Auth\EmailVerificationController::class, 'verify'])
+    ->middleware('signed')
+    ->name('verification.verify');
+
 Route::post('/forgot-password', [PasswordResetLinkController::class, 'passwordResetAPI']);
 Route::post('/reset-password', [NewPasswordController::class, 'newPasswordAPI']);

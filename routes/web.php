@@ -20,10 +20,21 @@ use App\Http\Controllers\Web\Transaksi\StatusPesananTransaksiTenantController;
 use App\Http\Controllers\Web\Transaksi\TransaksiDriverController;
 use App\Http\Controllers\Web\Transaksi\TransaksiTenantController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\Auth\EmailVerificationController;
+
+Route::get('/verify-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+    ->middleware(['signed'])
+    ->name('verification.verify');
+
+Route::get('/email-verified', function () {
+    return view('auth.email-verified');
+})->name('email.verified');
+
 
 Route::get('/', function () {
     return redirect()->route('login');
 });
+
 
 
 Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function () {
@@ -72,7 +83,6 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
     // Route::get('/export-transaksi-tenant', [TransaksiDriverController::class, 'exportCsv'])->name('export.transaksi.driver');
 
     Route::get('/status_pesanan_transaksi', [StatusPesananTransaksiTenantController::class, 'statuspesanantransaksi'])->name('status.pesanan.transaksi.tenant');
-
 });
 
 require __DIR__ . '/auth.php';
