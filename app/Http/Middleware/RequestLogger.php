@@ -21,6 +21,7 @@ class RequestLogger
         Log::info('API Request', [
             'ip'     => $request->ip(),
             'method' => $request->method(),
+            'endpoint' => $request->path(),
             'url'    => $request->fullUrl(),
             'input'  => $request->except(['password', 'password_confirmation']),
             'user_id' => optional($request->user())->id,
