@@ -101,19 +101,21 @@ class TenantOrderService
         }
 
         if ($transaksi->status == 'siap_diantar') {
-            $send(
-                $transaksi->user->fcm_token,
-                'Pesanan Sudah Siap',
-                "Pesanan {$transaksi->id} selesai dibuat. Kami sedang mencari driver untuk mengantar pesananmu",
-                'siap_diantar'
-            );
+            $firebases->withData([
+                'title' => 'Pesanan Sudah Siap',
+                'body' => "Pesanan {$transaksi->id} selesai dibuat. Kami sedang mencari driver untuk mengantar pesananmu"
+            ])->sendMessages($transaksi->user->fcm_token);
 
-            $send(
-                $masbroTokens,
-                'Ada Pesanan Siap Diantar',
-                "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!",
-                'siap_diantar_driver'
-            );
+            foreach ($masbroTokens as $token) {
+                $firebases->withData([
+                    'title' => 'Ada Pesanan Siap Diantar',
+                    'body' => "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!"
+                ])->sendMessages([$token]); // Kirim ke satu token masbro
+            }
+            // log response
+            foreach ($masbroTokens as $token) {
+                Log::info("Pesan terkirim ke masbro dengan token: $token");
+            }
         }
 
         if ($transaksi->status == 'siap_diambil') {

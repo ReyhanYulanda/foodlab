@@ -102,7 +102,6 @@ class PesananController extends Controller
                 "message" => "Kamu harus online terlebih dahulu untuk ambil status pesanan"
             ], 403);
         }
-
         try {
             $transaksi = Transaksi::find($transaksiId);
             if (!$transaksi) {
@@ -131,12 +130,17 @@ class PesananController extends Controller
                     $transaksi->listTransaksiDetail()->update(['status' => $transaksi->status]);
                 }
                 if ($transaksi->status == 'diantar') {
-                    $firebases->withNotification('Pesanan Sedang Diantar', "Pesanan {$transaksi->id} sudah mendapat driver dan akan segera diantar ke lokasimu")
-                        ->sendMessages($transaksi->user->fcm_token);
+                    $firebases->withData([
+                        'title' => 'Pesanan Sedang Diantar',
+                        'status' => "Pesanan {$transaksi->id} sedang diantar oleh driver. Mohon tunggu sebentar!",
+                    ])->sendMessages($transaksi->user->fcm_token);
                 }
 
                 if ($transaksi->status == 'selesai') {
-                    $firebases->withNotification('Pesanan Sudah Sampai', "Pesanan {$transaksi->id} telah selesai. Ambil dan terima pesananmu. Selamat menikmati! 🍽")
+                    $firebases->withData([
+                        'title' => 'Pesanan Selesai',
+                        'body' => "Pesanan {$transaksi->id} telah selesai. Ambil dan terima pesananmu. Selamat menikmati! 🍽",
+                    ])
                         ->sendMessages($transaksi->user->fcm_token);
 
                     $ongkirAsli = $transaksi->ongkos_kirim;
