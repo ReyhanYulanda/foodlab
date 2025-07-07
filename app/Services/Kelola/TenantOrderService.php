@@ -76,15 +76,28 @@ class TenantOrderService
     private function sendNotifications($transaksi, $firebases)
     {
         $masbroTokens = User::role('masbro')
+            ->where('isOnline', 1)
             ->whereNotNull('fcm_token')
             ->pluck('fcm_token')
             ->toArray();
 
+        $send = function ($tokens, $title, $body, $type) use ($firebases, $transaksi) {
+            $firebases->withNotification('', '')
+                ->withData([
+                    'title' => $title,
+                    'body' => $body,
+                    'type' => $type,
+                    'transaksi_id' => $transaksi->id
+                ])->sendMessages($tokens);
+        };
+
         if ($transaksi->status == 'pesanan_diproses') {
-            $firebases->withData([
-                'title' => 'Pesanan Sedang Diproses',
-                'body' => "Pesanan {$transaksi->id} sedang dibuat oleh tenant. Mohon ditunggu, ya!"
-            ])->sendMessages($transaksi->user->fcm_token);
+            $send(
+                $transaksi->user->fcm_token,
+                'Pesanan Sedang Diproses',
+                "Pesanan {$transaksi->id} sedang dibuat oleh tenant. Mohon ditunggu, ya!",
+                'pesanan_diproses'
+            );
         }
 
         if ($transaksi->status == 'siap_diantar') {
@@ -106,24 +119,37 @@ class TenantOrderService
         }
 
         if ($transaksi->status == 'siap_diambil') {
-            $firebases->withData([
-                'title' => 'Pesanan Sudah Siap',
-                'body' => "Pesanan {$transaksi->id} selesai dibuat. Yuk ambil pesanananmu sekarang"
-            ])->sendMessages($transaksi->user->fcm_token);
+            $send(
+                $transaksi->user->fcm_token,
+                'Pesanan Sudah Siap',
+                "Pesanan {$transaksi->id} selesai dibuat. Yuk ambil pesanananmu sekarang",
+                'siap_diambil'
+            );
         }
 
         if ($transaksi->status == 'diantar') {
-            $firebases->withData([
-                'title' => 'Pesanan Segera Diantar',
-                'body' => "Pesanan {$transaksi->id} sudah mendapat driver dan akan segera diantar ke lokasimu"
-            ])->sendMessages($transaksi->user->fcm_token);
+            $send(
+                $transaksi->user->fcm_token,
+                'Pesanan Sedang Diantar',
+                "Pesanan {$transaksi->id} sedang diantar oleh driver. Silakan tunggu sebentar.",
+                'diantar'
+            );
+
+            $send(
+                $masbroTokens,
+                'Ada Pesanan Baru',
+                "Pesanan {$transaksi->id} sedang diantar. Yuk, bantu antar!",
+                'diantar_driver'
+            );
         }
 
         if ($transaksi->status == 'selesai') {
-            $firebases->withData([
-                'title' => 'Pesanan Selesai',
-                'body' => "Pesanan {$transaksi->id} telah selesai. Ambil dan terima pesananmu. Selamat menikmati! 🍽"
-            ])->sendMessages($transaksi->user->fcm_token);
+            $send(
+                $transaksi->user->fcm_token,
+                'Pesanan Selesai',
+                "Pesanan {$transaksi->id} telah selesai. Ambil dan terima pesananmu. Selamat menikmati! 🍽",
+                'selesai'
+            );
         }
     }
 }

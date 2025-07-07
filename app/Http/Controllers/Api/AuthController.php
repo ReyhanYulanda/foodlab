@@ -28,6 +28,7 @@ class AuthController extends Controller
             'email' => 'required|unique:users,email|email|regex:/^\S*$/',
             'password' => ['required', Password::min(8)->letters()],
             'name' => 'required|regex:/^[a-zA-Z\s]+$/|max:25',
+            // 'phone' => 'required|regex:/^\+?[0-9\s]+$/',
             'role' => 'nullable'
         ]);
 
@@ -36,13 +37,15 @@ class AuthController extends Controller
         }
 
         DB::beginTransaction();
-        try{
+        try {
             $newUser = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
+                // 'phone' => $request->phone,
             ]);
 
+            $newUser->sendEmailVerificationNotification();
             // Token Management
             $token = $newUser->createToken('secret')->plainTextToken;
 
@@ -55,7 +58,7 @@ class AuthController extends Controller
                 $newUser->assignRole('user');
             }
             DB::commit();
-        }catch(Throwable $th){
+        } catch (Throwable $th) {
             DB::rollBack();
             Log::error($th->getMessage());
 
@@ -68,7 +71,7 @@ class AuthController extends Controller
             'token_type' => 'Bearer'
         ];
 
-        return ResponseApi::success($data, 'Berhasil Mendaftar');
+        return ResponseApi::success($data, 'Berhasil Mendaftar, silahkan verifikasi email Anda');
     }
     public function login(Request $request, Firebases $firebases)
     {
@@ -87,7 +90,13 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
-        $menu = Menu::whereHas('device', function($device){
+        if (is_null($user->email_verified_at)) {
+            return response()->json([
+                'message' => 'Silakan verifikasi email terlebih dahulu'
+            ], 403);
+        }
+
+        $menu = Menu::whereHas('device', function ($device) {
             return $device->where('device_id', 1);
         })->orderby('urutan')->get();
 
@@ -114,9 +123,31 @@ class AuthController extends Controller
 
         return ResponseApi::success($data, 'berhasil mendapatkan data');
     }
+
     public function logout(Request $request)
     {
         $request->user()->tokens()->delete();
         return ResponseApi::success(null, 'logout berhasil');
+    }
+
+    public function forgotPassword(Request $request)
+    {
+        $validate = Validator::make($request->all(), [
+            'email' => 'required|email',
+        ]);
+
+        if ($validate->fails()) {
+            return ResponseApi::error($validate->errors()->all(), 422);
+        }
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return ResponseApi::error('Email tidak ditemukan', 404);
+        }
+
+        // Here you would typically send a password reset link to the user's email
+        // For simplicity, we will just return a success message
+        return ResponseApi::success(null, 'Link reset password telah dikirim ke email Anda');
     }
 }

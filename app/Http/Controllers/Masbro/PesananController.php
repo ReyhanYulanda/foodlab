@@ -7,6 +7,7 @@ use App\Models\TransaksiSaldoKoin;
 use App\Models\SaldoKoin;
 use App\Models\Transaksi;
 use App\Models\Pengaturan;
+use App\Models\User;
 use App\Services\Firebases;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -75,6 +76,7 @@ class PesananController extends Controller
     {
         $user = $request->user();
         $transaksi = Transaksi::find($transaksiId);
+        $cekDriverIsActive = User::where('id', $user->id)->where('isOnline', true)->first();
 
         if (!$user->can('update pengantaran')) {
             return response()->json([
@@ -94,6 +96,12 @@ class PesananController extends Controller
             ], 400);
         }
 
+        if (!$cekDriverIsActive) {
+            return response()->json([
+                "status" => "forbidden",
+                "message" => "Kamu harus online terlebih dahulu untuk ambil status pesanan"
+            ], 403);
+        }
         try {
             $transaksi = Transaksi::find($transaksiId);
             if (!$transaksi) {
