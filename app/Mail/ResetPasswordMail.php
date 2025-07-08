@@ -21,6 +21,6 @@ class ResetPasswordMail extends Mailable
     public function build()
     {
         return $this->subject('Reset Password FoodLab')
-            ->view('emails.reset-password');
+            ->view('auth.reset-password');
     }
 }
