@@ -40,7 +40,7 @@ Route::middleware('auth:sanctum', 'verified')->group(function () {
     Route::post('/order/detail', [TransaksiController::class, 'store'])->name('');
     Route::get('/ruangan', [RuanganController::class, 'index']);
 
-//     // SALDO KOIN USER
+    // SALDO KOIN USER
     Route::get('/saldo', [SaldoKoinController::class, 'cekSaldo']);
     Route::get('/saldo/riwayat', [SaldoKoinController::class, 'riwayatTransaksi']);
 

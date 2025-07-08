@@ -30,10 +30,6 @@ Route::get('/email-verified', function () {
     return view('auth.email-verified');
 })->name('email.verified');
 
-Route::get('/password/reset/{token}', function ($token) {
-    return view('auth.reset-password', ['token' => $token]);
-})->name('password.reset');
-
 
 Route::get('/', function () {
     return redirect()->route('login');

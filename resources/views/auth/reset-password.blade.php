@@ -1,7 +1,3 @@
-@php
-    $errors = $errors ?? new \Illuminate\Support\MessageBag;
-@endphp
-
 <x-guest-layout>
     <x-auth-card>
         <x-slot name="logo">
@@ -23,12 +19,12 @@
                 @csrf
 
                 <!-- Password Reset Token -->
-                <input type="hidden" name="token" value="{{ $token }}">
+                <input type="hidden" name="token" value="{{ $request->route('token') }}">
 
                 <!-- Email Address -->
                 <div>
                     <x-label for="email" :value="__('Email')" />
-                    <x-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email', request()->email)" required autofocus />
+                    <x-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email', $request->email)" required autofocus />
                 </div>
 
                 <!-- Password -->
