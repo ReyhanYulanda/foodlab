@@ -94,6 +94,4 @@ Route::get('/verify-email/{id}/{hash}', [\App\Http\Controllers\Api\Auth\EmailVer
 
 Route::post('/forgot-password', [PasswordResetLinkController::class, 'passwordResetAPI']);
 Route::post('/reset-password', [NewPasswordController::class, 'newPasswordAPI']);
-Route::post('/send-email-verification', [EmailVerificationNotificationController::class, 'store'])
-    ->middleware('auth')
-    ->name('verification.send');
+Route::post('/send-email-verification', [EmailVerificationNotificationController::class, 'send']);
