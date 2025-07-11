@@ -1,53 +1,53 @@
-version: '1'
+version: "1"
 services:
-    app:
-        build: .
-        image: backend_masbrocanteen
-        container_name: backend_masbrocanteen
-        restart: unless-stopped
-        tty: true
-        environment:
-            SERVICE_NAME: backend_masbrocanteen
-        working_dir: /var/www/html
-        volumes:
-            - .:/var/www/html
-            - ./storage/php.ini:/usr/local/etc/php/conf.d/local.ini
-        networks:
-            - network_backend_masbrocanteen
+  app:
+    build: .
+    image: backend_masbrocanteen
+    container_name: backend_masbrocanteen
+    restart: unless-stopped
+    tty: true
+    environment:
+      SERVICE_NAME: backend_masbrocanteen
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+      - ./storage/php.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - network_backend_masbrocanteen
 
-    webserver:
-        image: nginx:alpine
-        container_name: nginx_backend_masbrocanteen
-        restart: unless-stopped
-        tty: true
-        ports:
-            - "8990:80"
-            - "443:443"
-        volumes:
-            - .:/var/www/html
-            - ./storage/:/etc/nginx/conf.d/
-        networks:
-            - network_backend_masbrocanteen
+  webserver:
+    image: nginx:alpine
+    container_name: nginx_backend_masbrocanteen
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "8990:80"
+      - "443:443"
+    volumes:
+      - .:/var/www/html
+      - ./storage/:/etc/nginx/conf.d/
+    networks:
+      - network_backend_masbrocanteen
 
-    db:
-        image: postgres:15-alpine
-        container_name: db_postgres_backend_masbrocanteen
-        restart: always
-        tty: true
-        ports:
-            - "9999:5432"
-        networks:
-            - network_backend_masbrocanteen
-        volumes:
-            - db_backend_masbrocanteen:/var/lib/postgresql/data
-        environment:
-            POSTGRES_PASSWORD: masbrocanteen1
-            POSTGRES_DB: masbrocanteen1
+  db:
+    image: postgres:15-alpine
+    container_name: db_postgres_backend_masbrocanteen
+    restart: always
+    tty: true
+    ports:
+      - "9999:5432"
+    networks:
+      - network_backend_masbrocanteen
+    volumes:
+      - db_backend_masbrocanteen:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: masbrocanteen1
+      POSTGRES_DB: masbrocanteen1
 
 networks:
-    network_backend_masbrocanteen:
-        driver: bridge
+  network_backend_masbrocanteen:
+    driver: bridge
 
 volumes:
-    db_backend_masbrocanteen:
-        driver: local
+  db_backend_masbrocanteen:
+    driver: local
