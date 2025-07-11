@@ -20,14 +20,25 @@ class PasswordResetLinkController extends Controller
             'email' => ['required', 'email'],
         ]);
 
+        $email = $request->input('email');
+        $cacheKey = 'password_reset_cooldown_' . md5($email);
+
+        if (Cache::has($cacheKey)) {
+            return response()->json([
+                'message' => 'Tunggu beberapa menit sebelum mencoba lagi.'
+            ], 429);
+        }
+
         $status = Password::sendResetLink(
             $request->only('email')
         );
 
-        return $status == Password::RESET_LINK_SENT
-            ? back()->with('status', __($status))
-            : back()->withInput($request->only('email'))
-            ->withErrors(['email' => __($status)]);
+        if ($status != Password::RESET_LINK_SENT) {
+            return response()->json(['message' => __($status)], 400);
+        }
+
+        Cache::put($cacheKey, true, now()->addMinutes(5));
+        return response()->json(['message' => 'Link reset password telah dikirim.']);
     }
 
     public function passwordResetAPI(Request $request)
