@@ -92,7 +92,7 @@ class AuthController extends Controller
 
         if (is_null($user->email_verified_at)) {
             return response()->json([
-                'message' => 'Silakan verifikasi email terlebih dahulu'
+                'message' => 'Silakan cek email untuk verifikasi akun Anda.',
             ], 403);
         }
 
