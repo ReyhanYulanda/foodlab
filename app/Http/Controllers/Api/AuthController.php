@@ -29,7 +29,6 @@ class AuthController extends Controller
             'password' => ['required', Password::min(8)->letters()],
             'name' => 'required|regex:/^[a-zA-Z\s]+$/|max:25',
             // 'phone' => 'required|regex:/^\+?[0-9\s]+$/',
-            'role' => 'nullable'
         ]);
 
         if ($validate->fails()) {
@@ -46,23 +45,19 @@ class AuthController extends Controller
             ]);
 
             $newUser->sendEmailVerificationNotification();
+
             // Token Management
             $token = $newUser->createToken('secret')->plainTextToken;
 
-            if ($request->role) {
-                // check role ada di database
-                RoleHelper::isRoleExist($request->role);
+            // Hardcode assign role 'user' tanpa cek payload
+            $newUser->assignRole('user');
 
-                $newUser->assignRole($request->role);
-            } else {
-                $newUser->assignRole('user');
-            }
             DB::commit();
         } catch (Throwable $th) {
             DB::rollBack();
             Log::error($th->getMessage());
 
-            ResponseApi::serverError();
+            return ResponseApi::serverError();
         }
 
         $data = [
@@ -73,6 +68,7 @@ class AuthController extends Controller
 
         return ResponseApi::success($data, 'Berhasil Mendaftar, silahkan verifikasi email Anda');
     }
+
     public function login(Request $request, Firebases $firebases)
     {
         $validate = Validator::make($request->all(), [
