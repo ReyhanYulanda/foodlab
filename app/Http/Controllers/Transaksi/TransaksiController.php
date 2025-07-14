@@ -406,10 +406,15 @@ class TransaksiController extends Controller
         }
     }
 
-    public function cancel($id, Firebases $firebases)
+    public function cancel(Request $request, $id, Firebases $firebases)
     {
+        DB::beginTransaction();
         try {
-            DB::beginTransaction();
+            $currentUser = $request->user();
+
+            if (!$currentUser->can('cancel order')) {
+                return ResponseApi::forbidden('tidak memiliki akses');
+            }
 
             $transaksi = Transaksi::find($id);
 
@@ -428,12 +433,12 @@ class TransaksiController extends Controller
             $transaksi->status = 'pesanan_ditolak';
             $transaksi->save();
 
-            $user = $transaksi->user;
-            if ($user && $user->fcm_token) {
+            $userTransaksi = $transaksi->user;
+            if ($userTransaksi && $userTransaksi->fcm_token) {
                 $firebases->withData([
                     'title' => 'Pesanan Dibatalkan',
                     'body' => "Maaf, pesanan {$transaksi->id} dibatalkan oleh tenant."
-                ])->sendMessages($user->fcm_token);
+                ])->sendMessages($userTransaksi->fcm_token);
             }
 
             try {
@@ -448,21 +453,21 @@ class TransaksiController extends Controller
 
                 $transaksi->status = 'refund_selesai';
                 $transaksi->save();
-                DB::commit();
 
-                if ($user && $user->fcm_token) {
+                if ($userTransaksi && $userTransaksi->fcm_token) {
                     $firebases->withData([
                         'title' => 'Refund Berhasil',
                         'body' => 'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.'
-                    ])->sendMessages($user->fcm_token);
+                    ])->sendMessages($userTransaksi->fcm_token);
                 }
 
+                DB::commit();
                 return ResponseApi::success(null, "Transaksi dibatalkan dan refund berhasil");
             } catch (\Throwable $e) {
                 $transaksi->status = 'refund_gagal';
                 $transaksi->save();
-                DB::commit();
 
+                DB::commit(); // kita tetap commit perubahan status refund_gagal
                 Log::warning("Refund gagal: " . $e->getMessage());
                 return ResponseApi::error("Transaksi dibatalkan, tapi refund gagal. Silakan hubungi admin.");
             }
