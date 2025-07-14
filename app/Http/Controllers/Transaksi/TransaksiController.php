@@ -409,9 +409,9 @@ class TransaksiController extends Controller
     public function cancel(Request $request, $id, Firebases $firebases)
     {
         try {
-            $user = $request->user();
+            $currentUser = $request->user();
 
-            if (!$user->can('cancel order')) {
+            if (!$currentUser->can('cancel order')) {
                 return ResponseApi::forbidden('tidak memiliki akses');
             }
 
