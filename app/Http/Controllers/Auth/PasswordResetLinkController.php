@@ -69,7 +69,7 @@ class PasswordResetLinkController extends Controller
         }
 
         // Set cooldown 5 menit
-        Cache::put($cacheKey, true, now()->addMinutes(5));
+        Cache::put($cacheKey, true, now()->addMinutes(2));
 
         return response()->json(['message' => 'Link reset password telah dikirim.']);
     }
