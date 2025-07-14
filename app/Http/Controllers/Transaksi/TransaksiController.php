@@ -406,9 +406,16 @@ class TransaksiController extends Controller
         }
     }
 
-    public function cancel($id, Firebases $firebases)
+    public function cancel(Request $request, $id, Firebases $firebases)
     {
         try {
+            $user = $request->user();
+            $permission = $user->can('cancel order');
+
+            if (!$permission) {
+                return ResponseApi::error("Kamu tidak memiliki izin untuk membatalkan pesanan ini", 403);
+            }
+
             DB::beginTransaction();
 
             $transaksi = Transaksi::find($id);
