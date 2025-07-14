@@ -408,14 +408,13 @@ class TransaksiController extends Controller
 
     public function cancel(Request $request, $id, Firebases $firebases)
     {
+        DB::beginTransaction();
         try {
             $currentUser = $request->user();
 
             if (!$currentUser->can('cancel order')) {
                 return ResponseApi::forbidden('tidak memiliki akses');
             }
-
-            DB::beginTransaction();
 
             $transaksi = Transaksi::find($id);
 
@@ -454,7 +453,6 @@ class TransaksiController extends Controller
 
                 $transaksi->status = 'refund_selesai';
                 $transaksi->save();
-                DB::commit();
 
                 if ($userTransaksi && $userTransaksi->fcm_token) {
                     $firebases->withData([
@@ -463,12 +461,13 @@ class TransaksiController extends Controller
                     ])->sendMessages($userTransaksi->fcm_token);
                 }
 
+                DB::commit();
                 return ResponseApi::success(null, "Transaksi dibatalkan dan refund berhasil");
             } catch (\Throwable $e) {
                 $transaksi->status = 'refund_gagal';
                 $transaksi->save();
-                DB::commit();
 
+                DB::commit(); // kita tetap commit perubahan status refund_gagal
                 Log::warning("Refund gagal: " . $e->getMessage());
                 return ResponseApi::error("Transaksi dibatalkan, tapi refund gagal. Silakan hubungi admin.");
             }
