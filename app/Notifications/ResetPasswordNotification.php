@@ -28,21 +28,13 @@ class ResetPasswordNotification extends Notification
 
     public function toMail($notifiable)
     {
-        $resetUrl = url(route('password.reset', [
-            'token' => $this->token,
-            'email' => $notifiable->getEmailForPasswordReset(),
-        ], false));
-
         return (new MailMessage)
-            ->subject('Reset Password - FoodLab')
-            ->line('You are receiving this email because we received a password reset request for your account.')
-            ->action('Reset Password', $resetUrl)
-            ->line('If you did not request a password reset, no further action is required.')
-            ->withSwiftMessage(function ($message) {
-                $headers = $message->getHeaders();
-                $headers->addTextHeader('X-App-Env', config('app.env'));
-                $headers->addTextHeader('X-Mailer', 'Laravel 8 FoodLab');
-                $headers->addTextHeader('X-Custom-Reset', 'FoodLabReset');
-            });
+            ->subject('Reset Akun - Foodlab')
+            ->greeting('Hai ' . $notifiable->name . '!')
+            ->line('Kami menerima permintaan untuk mereset katasandi akun Foodlab Anda.')
+            ->action('Reset Password', url('/reset-password/' . $this->token . '?email=' . urlencode($notifiable->email)))
+            ->line('Link ini akan kedaluwarsa dalam 60 menit.')
+            ->line('Jika Anda tidak meminta reset katasandi, abaikan email ini.')
+            ->salutation('Salam hangat, Tim Foodlab');
     }
 }

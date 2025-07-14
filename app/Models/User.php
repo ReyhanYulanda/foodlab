@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Http\Middleware\Tenant;
+use App\Notifications\ResetPasswordNotification;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -35,16 +36,23 @@ class User extends Authenticatable implements MustVerifyEmail
         'email_verified_at' => 'datetime',
     ];
 
-    public function rolesKw(){
+    public function rolesKw()
+    {
         return $this->belongsToMany(Role::class, 'model_has_roles', 'model_id', 'role_id');
     }
 
-    public function tenant(){
+    public function tenant()
+    {
         return  $this->belongsTo(Tenants::class, 'id', 'user_id');
     }
 
     public function transaksiKoin()
     {
         return $this->hasMany(TransaksiSaldoKoin::class);
+    }
+
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 }
