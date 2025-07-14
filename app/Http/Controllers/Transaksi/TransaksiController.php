@@ -410,10 +410,9 @@ class TransaksiController extends Controller
     {
         try {
             $user = $request->user();
-            $permission = $user->can('cancel order');
 
-            if (!$permission) {
-                return ResponseApi::error("Kamu tidak memiliki izin untuk membatalkan pesanan ini", 403);
+            if (!$user->can('cancel order')) {
+                return ResponseApi::forbidden('tidak memiliki akses');
             }
 
             DB::beginTransaction();
