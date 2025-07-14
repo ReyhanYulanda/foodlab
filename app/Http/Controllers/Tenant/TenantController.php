@@ -20,12 +20,12 @@ class TenantController extends Controller
             ], 403);
         }
 
-        if ($user && $user->fcm_token) {
-            $firebases->withData([
-                'title' => 'Selamat Datang!',
-                'body' => 'Terima kasih telah membuka aplikasi kami 😊',
-            ])->sendMessages($user->fcm_token);
-        }
+        // if ($user && $user->fcm_token) {
+        //     $firebases->withData([
+        //         'title' => 'Selamat Datang!',
+        //         'body' => 'Terima kasih telah membuka aplikasi kami 😊',
+        //     ])->sendMessages($user->fcm_token);
+        // }
 
         $tenants = Tenants::with(['listMenu', 'pemilik'])
             ->where('user_id', '!=', $request->user()->id)
