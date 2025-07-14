@@ -73,9 +73,9 @@ Route::middleware('auth:sanctum', 'verified')->group(function () {
     });
 
     Route::put('/update-fcm-token', [UserController::class, 'updateFcmToken']);
+    Route::post('/order/cancel/{id}', [TransaksiController::class, 'cancel']);
 });
 Route::post('/order/callback', [TransaksiController::class, 'webHookMidtrans']);
-Route::post('/order/cancel/{id}', [TransaksiController::class, 'cancel']);
 
 Route::post('login', [AuthController::class, 'login']);
 Route::post('register', [AuthController::class, 'register']);
