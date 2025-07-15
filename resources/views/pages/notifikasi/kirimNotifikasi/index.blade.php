@@ -26,7 +26,7 @@
                         <input type="hidden" name="selected_ids" id="selected_ids"
                             value="{{ request('selected_ids') }}">
                         <input type="hidden" id="all_user_ids" value="{{ $allUserIds }}">
-                        
+
                         <div class="mb-3">
                             <label for="judul">Judul Notif</label>
                             <input type="text" name="judul" id="judul" class="form-control" required>
@@ -34,6 +34,16 @@
                         <div class="mb-3">
                             <label for="isi">Isi Notif</label>
                             <textarea name="isi" id="isi" class="form-control" required></textarea>
+                        </div>
+
+                        <div class="d-flex mb-2">
+                            <button type="button" class="btn btn-secondary me-2" id="save-temp-btn">Simpan
+                                Sementara</button>
+                            <div class="input-group">
+                                <input type="text" id="search-input" value="{{ request('search') }}"
+                                    class="form-control" placeholder="Cari nama user atau email user">
+                                <button type="button" class="btn btn-primary" id="search-btn">Cari</button>
+                            </div>
                         </div>
 
                         <table class="table table-responsive w-full">
@@ -136,6 +146,16 @@
                         cb.checked = checked;
                     });
                     updateHiddenInput();
+                });
+            }
+            
+            let saveTempBtn = document.getElementById('save-temp-btn');
+            if (saveTempBtn) {
+                saveTempBtn.addEventListener('click', function() {
+                    let url = new URL(window.location.href);
+                    url.searchParams.set('search', ''); // kosong
+                    url.searchParams.set('selected_ids', Array.from(selectedIds).join(','));
+                    window.location.href = url.toString();
                 });
             }
 
