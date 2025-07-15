@@ -88,9 +88,21 @@
             let initial = document.getElementById('selected_ids').value;
             let selectedIds = new Set(initial ? initial.split(',') : []);
 
+            let allUserIdsRaw = document.getElementById('all_user_ids').value;
+            let allUserIds = allUserIdsRaw ? allUserIdsRaw.split(',') : [];
+
+            let selectAll = document.getElementById('select-all');
+
             function updateHiddenInput() {
                 document.getElementById('selected_ids').value = Array.from(selectedIds).join(',');
                 updateUrlWithSelectedIds();
+            }
+
+            function updateUrlWithSelectedIds() {
+                let params = new URLSearchParams(window.location.search);
+                params.set('selected_ids', Array.from(selectedIds).join(','));
+                let newUrl = window.location.pathname + '?' + params.toString();
+                window.history.replaceState({}, '', newUrl);
             }
 
             function registerCheckboxEvents() {
@@ -112,9 +124,6 @@
                 });
             }
 
-            let allUserIds = document.getElementById('all_user_ids').value ? document.getElementById('all_user_ids')
-                .value.split(',') : [];
-
             if (selectAll) {
                 selectAll.addEventListener('click', function() {
                     let checked = this.checked;
@@ -130,15 +139,7 @@
                 });
             }
 
-            function updateUrlWithSelectedIds() {
-                let params = new URLSearchParams(window.location.search);
-                params.set('selected_ids', Array.from(selectedIds).join(','));
-                let newUrl = window.location.pathname + '?' + params.toString();
-                window.history.replaceState({}, '', newUrl);
-            }
-
-            registerCheckboxEvents();
-
+            // Tombol search
             let searchBtn = document.getElementById('search-btn');
             let searchInput = document.getElementById('search-input');
             if (searchBtn && searchInput) {
@@ -151,16 +152,10 @@
                 });
             }
 
-            // ✅ intercept pagination click
-            document.querySelectorAll('.pagination a').forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    let url = new URL(this.href);
-                    url.searchParams.set('selected_ids', Array.from(selectedIds).join(','));
-                    window.location.href = url.toString();
-                });
-            });
+            // Panggil saat pertama
+            registerCheckboxEvents();
         });
     </script>
+
 
 </x-master-layout>
