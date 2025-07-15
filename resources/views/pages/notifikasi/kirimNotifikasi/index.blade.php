@@ -61,7 +61,7 @@
                                     onchange="window.location.href = this.value;">
                                     @foreach ([10, 25, 50, 100] as $perPageOption)
                                         <option
-                                            value="{{ request()->fullUrlWithQuery(['per_page' => $perPageOption]) }}"
+                                            value="{{ request()->fullUrlWithQuery(['per_page' => $perPageOption, 'selected_ids' => request('selected_ids')]) }}"
                                             {{ request('per_page', 10) == $perPageOption ? 'selected' : '' }}>
                                             {{ $perPageOption }}
                                         </option>
@@ -71,7 +71,7 @@
                             </div>
 
                             <div>
-                                {{ $users->appends(request()->except('page'))->links() }}
+                                {{ $users->appends(request()->except('page') + ['selected_ids' => request('selected_ids')])->links() }}
                             </div>
                         </div>
 
@@ -93,11 +93,10 @@
 
             function registerCheckboxEvents() {
                 document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
-                    // restore checked state kalau id sudah ada di selectedIds
                     if (selectedIds.has(cb.value)) {
                         cb.checked = true;
                     } else {
-                        cb.checked = false; // tambahkan ini biar sinkron
+                        cb.checked = false;
                     }
 
                     cb.addEventListener('change', function() {
@@ -140,6 +139,16 @@
                     window.location.href = url.toString();
                 });
             }
+
+            // ✅ intercept pagination click
+            document.querySelectorAll('.pagination a').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    let url = new URL(this.href);
+                    url.searchParams.set('selected_ids', Array.from(selectedIds).join(','));
+                    window.location.href = url.toString();
+                });
+            });
         });
     </script>
 
