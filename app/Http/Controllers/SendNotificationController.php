@@ -60,7 +60,7 @@ class SendNotificationController extends Controller
             $fcmToken = $request->fcm_token;
 
             $this->firebases
-                ->withNotification('Pesanan Masuk', 'Ada Pesanan Masuk!')
+                // ->withNotification('Pesanan Masuk', 'Ada Pesanan Masuk!')
                 ->withData([
                     'title' => 'Pesanan Masuk',
                     'body' => 'Ada Pesanan Masuk!'
