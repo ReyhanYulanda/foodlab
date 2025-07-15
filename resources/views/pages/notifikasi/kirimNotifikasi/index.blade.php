@@ -36,11 +36,11 @@
                             <textarea name="isi" id="isi" class="form-control" required></textarea>
                         </div>
 
-                        <div class="mb-2">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
                             <button type="button" class="btn btn-secondary" id="save-temp-btn">Simpan
                                 Sementara</button>
+                            <button type="submit" class="btn btn-primary">Kirim Notif</button>
                         </div>
-
 
                         <table class="table table-responsive w-full">
                             <thead>
@@ -82,7 +82,7 @@
                             </div>
                         </div>
 
-                        <button type="submit" class="btn btn-primary float-end mt-3">Kirim Notif</button>
+                        {{-- <button type="submit" class="btn btn-primary float-end mt-3">Kirim Notif</button> --}}
                     </form>
                 </div>
             </div>
