@@ -96,6 +96,7 @@
             function updateHiddenInput() {
                 document.getElementById('selected_ids').value = Array.from(selectedIds).join(',');
                 updateUrlWithSelectedIds();
+                updatePaginationLinks();
             }
 
             function updateUrlWithSelectedIds() {
@@ -152,6 +153,23 @@
                 });
             }
 
+            function updatePaginationLinks() {
+                let selected = Array.from(selectedIds).join(',');
+
+                // Update pagination links
+                document.querySelectorAll('.pagination a').forEach(a => {
+                    let url = new URL(a.href);
+                    url.searchParams.set('selected_ids', selected);
+                    a.href = url.toString();
+                });
+
+                // Update perPage select
+                document.querySelectorAll('select#perPage option').forEach(option => {
+                    let url = new URL(option.value);
+                    url.searchParams.set('selected_ids', selected);
+                    option.value = url.toString();
+                });
+            }
             // Panggil saat pertama
             registerCheckboxEvents();
         });
