@@ -36,15 +36,11 @@
                             <textarea name="isi" id="isi" class="form-control" required></textarea>
                         </div>
 
-                        <div class="d-flex mb-2">
-                            <button type="button" class="btn btn-secondary me-2" id="save-temp-btn">Simpan
+                        <div class="mb-2">
+                            <button type="button" class="btn btn-secondary" id="save-temp-btn">Simpan
                                 Sementara</button>
-                            <div class="input-group">
-                                <input type="text" id="search-input" value="{{ request('search') }}"
-                                    class="form-control" placeholder="Cari nama user atau email user">
-                                <button type="button" class="btn btn-primary" id="search-btn">Cari</button>
-                            </div>
                         </div>
+
 
                         <table class="table table-responsive w-full">
                             <thead>
@@ -148,7 +144,7 @@
                     updateHiddenInput();
                 });
             }
-            
+
             let saveTempBtn = document.getElementById('save-temp-btn');
             if (saveTempBtn) {
                 saveTempBtn.addEventListener('click', function() {
