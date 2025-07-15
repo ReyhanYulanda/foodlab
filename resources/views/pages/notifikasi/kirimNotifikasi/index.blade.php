@@ -92,8 +92,11 @@
 
             function registerCheckboxEvents() {
                 document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
+                    // restore checked state kalau id sudah ada di selectedIds
                     if (selectedIds.has(cb.value)) {
                         cb.checked = true;
+                    } else {
+                        cb.checked = false; // tambahkan ini biar sinkron
                     }
 
                     cb.addEventListener('change', function() {
