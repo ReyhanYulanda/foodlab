@@ -52,19 +52,20 @@ class SendNotificationController extends Controller
 
     public function sendToUser(Request $request)
     {
-
         $request->validate([
             'fcm_token' => 'required|string',
-            'title' => 'required|string',
-            'body' => 'required|string',
-            'data' => 'nullable|array',
         ]);
 
         $fcmToken = $request->fcm_token;
 
         $this->firebases
-            ->withNotification($request->title, $request->body)
-            ->withData($request->data ?? []);
+            ->withNotification('Pesanan Masuk', 'Ada Pesanan Masuk!')
+            ->withData([
+                'title' => 'Pesanan Masuk',
+                'body' => 'Ada Pesanan Masuk!'
+            ])->sendMessages([
+                $fcmToken
+            ]);
 
         $success = $this->firebases->sendMessages($fcmToken);
 
@@ -74,7 +75,6 @@ class SendNotificationController extends Controller
             return response()->json(['message' => 'Failed to send notification'], 500);
         }
     }
-
 
 
     /**
