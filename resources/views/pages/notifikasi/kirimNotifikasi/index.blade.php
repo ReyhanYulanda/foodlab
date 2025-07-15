@@ -15,11 +15,10 @@
 
                     <!-- ✅ Form search terpisah -->
                     <form method="GET" action="{{ route('notifikasi.index') }}" class="mb-3">
-                        <div class="input-group">
-                            <input type="text" name="search" value="{{ request('search') }}" class="form-control"
-                                placeholder="Cari nama user atau email user">
-                            <button class="btn btn-primary" type="submit">Cari</button>
-                        </div>
+                        <div class="input-group mb-2">
+                            <input type="text" id="search-input" value="{{ request('search') }}" class="form-control" placeholder="Cari nama user atau email user">
+                            <button type="button" class="btn btn-primary" id="search-btn">Cari</button>
+                        </div>                       
                     </form>
 
                     <!-- ✅ Form kirim notif -->
@@ -84,21 +83,20 @@
     </div>
 
     <script>
-        // ambil data lama dari hidden input, misalnya "239,240"
+        // restore selected ids
         let initial = document.getElementById('selected_ids').value;
         let selectedIds = new Set(initial ? initial.split(',') : []);
-
+    
         function updateHiddenInput() {
             document.getElementById('selected_ids').value = Array.from(selectedIds).join(',');
         }
-
+    
         function registerCheckboxEvents() {
             document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
-                // restore checked state kalau id sudah ada di selectedIds
                 if (selectedIds.has(cb.value)) {
                     cb.checked = true;
                 }
-
+    
                 cb.addEventListener('change', function() {
                     if (this.checked) {
                         selectedIds.add(this.value);
@@ -109,8 +107,7 @@
                 });
             });
         }
-
-        // event select all
+    
         document.getElementById('select-all').addEventListener('click', function() {
             let checked = this.checked;
             document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
@@ -123,9 +120,16 @@
             });
             updateHiddenInput();
         });
-
-        // jalankan pertama kali
+    
         registerCheckboxEvents();
+    
+        // ✅ search button click → redirect
+        document.getElementById('search-btn').addEventListener('click', function() {
+            let q = document.getElementById('search-input').value;
+            let url = new URL(window.location.href);
+            url.searchParams.set('search', q);
+            window.location.href = url.toString();
+        });
     </script>
 
 </x-master-layout>
