@@ -14,12 +14,11 @@
                     @endif
 
                     <!-- ✅ Form search terpisah -->
-                    <form method="GET" action="{{ route('notifikasi.index') }}" class="mb-3">
-                        <div class="input-group mb-2">
-                            <input type="text" id="search-input" value="{{ request('search') }}" class="form-control" placeholder="Cari nama user atau email user">
-                            <button type="button" class="btn btn-primary" id="search-btn">Cari</button>
-                        </div>                                               
-                    </form>
+                    <div class="input-group mb-2">
+                        <input type="text" id="search-input" value="{{ request('search') }}" class="form-control"
+                            placeholder="Cari nama user atau email user">
+                        <button type="button" class="btn btn-primary" id="search-btn">Cari</button>
+                    </div>
 
                     <!-- ✅ Form kirim notif -->
                     <form method="POST" action="{{ route('notifikasi.kirim') }}">
@@ -83,21 +82,21 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function() {
             // restore selected ids
             let initial = document.getElementById('selected_ids').value;
             let selectedIds = new Set(initial ? initial.split(',') : []);
-        
+
             function updateHiddenInput() {
                 document.getElementById('selected_ids').value = Array.from(selectedIds).join(',');
             }
-        
+
             function registerCheckboxEvents() {
                 document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
                     if (selectedIds.has(cb.value)) {
                         cb.checked = true;
                     }
-        
+
                     cb.addEventListener('change', function() {
                         if (this.checked) {
                             selectedIds.add(this.value);
@@ -108,7 +107,7 @@
                     });
                 });
             }
-        
+
             let selectAll = document.getElementById('select-all');
             if (selectAll) {
                 selectAll.addEventListener('click', function() {
@@ -124,9 +123,9 @@
                     updateHiddenInput();
                 });
             }
-        
+
             registerCheckboxEvents();
-        
+
             let searchBtn = document.getElementById('search-btn');
             let searchInput = document.getElementById('search-input');
             if (searchBtn && searchInput) {
@@ -138,6 +137,6 @@
                 });
             }
         });
-        </script>        
+    </script>
 
 </x-master-layout>
