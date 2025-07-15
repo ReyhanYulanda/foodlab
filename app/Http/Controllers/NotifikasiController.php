@@ -36,7 +36,6 @@ class NotifikasiController extends Controller
         return view('pages.notifikasi.kirimNotifikasi.index', [
             'users' => $users,
             'allUserIds' => $allUserIds,
-            'selectedIds' => $request->selected_ids,
         ]);
     }
 
