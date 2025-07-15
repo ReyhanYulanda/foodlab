@@ -26,7 +26,7 @@
                         <input type="hidden" name="selected_ids" id="selected_ids"
                             value="{{ request('selected_ids') }}">
                         <input type="hidden" id="all_user_ids" value="{{ $allUserIds }}">
-                        
+
                         <div class="mb-3">
                             <label for="judul">Judul Notif</label>
                             <input type="text" name="judul" id="judul" class="form-control" required>
@@ -95,8 +95,9 @@
 
             function updateHiddenInput() {
                 document.getElementById('selected_ids').value = Array.from(selectedIds).join(',');
-                updateUrlWithSelectedIds();
-                updatePaginationLinks();
+                updateUrlWithSelectedIds(); // update URL browser (replaceState)
+                updatePaginationLinks(); // update href semua pagination <a>
+                updatePerPageOptions(); // update value option perPage supaya ada selected_ids
             }
 
             function updateUrlWithSelectedIds() {
@@ -104,6 +105,15 @@
                 params.set('selected_ids', Array.from(selectedIds).join(','));
                 let newUrl = window.location.pathname + '?' + params.toString();
                 window.history.replaceState({}, '', newUrl);
+            }
+
+            function updatePerPageOptions() {
+                let selected = Array.from(selectedIds).join(',');
+                document.querySelectorAll('select#perPage option').forEach(option => {
+                    let url = new URL(option.value);
+                    url.searchParams.set('selected_ids', selected);
+                    option.value = url.toString();
+                });
             }
 
             function registerCheckboxEvents() {
@@ -120,22 +130,20 @@
                 });
             }
 
+            // Pastikan setiap kali centang check all / centang manual:
             if (selectAll) {
                 selectAll.addEventListener('click', function() {
                     let checked = this.checked;
-                    let pageUserIds = [];
-                    document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
-                        pageUserIds.push(cb.value);
-                    });
                     if (checked) {
-                        pageUserIds.forEach(id => selectedIds.add(id));
+                        allUserIds.forEach(id => selectedIds.add(id));
                     } else {
-                        pageUserIds.forEach(id => selectedIds.delete(id));
+                        allUserIds.forEach(id => selectedIds.delete(id));
                     }
+                    // update visual checkbox di page ini
                     document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
                         cb.checked = checked;
                     });
-                    updateHiddenInput();
+                    updateHiddenInput(); // selalu panggil updateHiddenInput (ini kunci)
                 });
             }
 
