@@ -4,13 +4,15 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tenants;
+use App\Models\TransaksiDetail;
 use App\Response\ResponseApi;
 use Illuminate\Http\Request;
 use App\Services\Firebases;
 
 class TenantController extends Controller
 {
-    public function getAll(Request $request, Firebases $firebases){
+    public function getAll(Request $request, Firebases $firebases)
+    {
         $user = $request->user();
 
         if (!$user->can('read beranda')) {
@@ -20,15 +22,8 @@ class TenantController extends Controller
             ], 403);
         }
 
-        // if ($user && $user->fcm_token) {
-        //     $firebases->withData([
-        //         'title' => 'Selamat Datang!',
-        //         'body' => 'Terima kasih telah membuka aplikasi kami 😊',
-        //     ])->sendMessages($user->fcm_token);
-        // }
-
         $tenants = Tenants::with(['listMenu', 'pemilik'])
-            ->where('user_id', '!=', $request->user()->id)
+            ->where('user_id', '!=', $user->id)
             ->get()
             ->filter(function ($tenant) {
                 return $tenant->pemilik;
@@ -38,10 +33,11 @@ class TenantController extends Controller
         return ResponseApi::success(compact('tenants'), 'berhasil mendapatkan data');
     }
 
-    public function getSpecificTenant(Request $request, $TenantId){
+    public function getSpecificTenant(Request $request, $TenantId)
+    {
         $user = $request->user()->can('read beranda');
 
-        if(!$user){
+        if (!$user) {
             ResponseApi::error('tidak memiliki akses', 403);
         }
 
