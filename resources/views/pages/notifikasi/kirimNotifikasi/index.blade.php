@@ -23,6 +23,10 @@
                     <!-- ✅ Form kirim notif -->
                     <form method="POST" action="{{ route('notifikasi.kirim') }}">
                         @csrf
+                        <input type="hidden" name="selected_ids" id="selected_ids"
+                            value="{{ request('selected_ids') }}">
+                        <input type="hidden" id="all_user_ids" value="{{ $allUserIds }}">
+                        
                         <div class="mb-3">
                             <label for="judul">Judul Notif</label>
                             <input type="text" name="judul" id="judul" class="form-control" required>
@@ -31,10 +35,6 @@
                             <label for="isi">Isi Notif</label>
                             <textarea name="isi" id="isi" class="form-control" required></textarea>
                         </div>
-
-                        <input type="hidden" name="selected_ids" id="selected_ids"
-                            value="{{ request('selected_ids') }}">
-                        <input type="hidden" id="all_user_ids" value="{{ $allUserIds }}">
 
                         <table class="table table-responsive w-full">
                             <thead>
@@ -106,29 +106,9 @@
                 window.history.replaceState({}, '', newUrl);
             }
 
-            function updatePaginationLinks() {
-                let selected = Array.from(selectedIds).join(',');
-
-                // Update pagination links
-                document.querySelectorAll('.pagination a').forEach(a => {
-                    let url = new URL(a.href);
-                    url.searchParams.set('selected_ids', selected);
-                    a.href = url.toString();
-                });
-
-                // Update perPage select
-                document.querySelectorAll('select#perPage option').forEach(option => {
-                    let url = new URL(option.value);
-                    url.searchParams.set('selected_ids', selected);
-                    option.value = url.toString();
-                });
-            }
-
             function registerCheckboxEvents() {
                 document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
-                    // restore checked state sesuai selectedIds
                     cb.checked = selectedIds.has(cb.value);
-
                     cb.addEventListener('change', function() {
                         if (this.checked) {
                             selectedIds.add(this.value);
@@ -143,20 +123,15 @@
             if (selectAll) {
                 selectAll.addEventListener('click', function() {
                     let checked = this.checked;
-
-                    // ambil id user di halaman ini saja
                     let pageUserIds = [];
                     document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
                         pageUserIds.push(cb.value);
                     });
-
                     if (checked) {
                         pageUserIds.forEach(id => selectedIds.add(id));
                     } else {
                         pageUserIds.forEach(id => selectedIds.delete(id));
                     }
-
-                    // centang visual checkbox di page ini
                     document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
                         cb.checked = checked;
                     });
@@ -164,7 +139,6 @@
                 });
             }
 
-            // Tombol search
             let searchBtn = document.getElementById('search-btn');
             let searchInput = document.getElementById('search-input');
             if (searchBtn && searchInput) {
@@ -177,11 +151,22 @@
                 });
             }
 
-            // Saat pertama load
-            registerCheckboxEvents();
+            function updatePaginationLinks() {
+                let selected = Array.from(selectedIds).join(',');
+                document.querySelectorAll('.pagination a').forEach(a => {
+                    let url = new URL(a.href);
+                    url.searchParams.set('selected_ids', selected);
+                    a.href = url.toString();
+                });
+                document.querySelectorAll('select#perPage option').forEach(option => {
+                    let url = new URL(option.value);
+                    url.searchParams.set('selected_ids', selected);
+                    option.value = url.toString();
+                });
+            }
 
-            // Saat pindah page pakai ajax (kalau ada)
-            // atau: setiap page baru, JS ini akan jalan ulang (karena di DOMContentLoaded)
+            registerCheckboxEvents();
+            updatePaginationLinks(); // panggil di awal agar link di page pertama sudah ada selected_ids
         });
     </script>
 
