@@ -45,7 +45,7 @@ class AuthController extends Controller
                 // 'phone' => $request->phone,
             ]);
 
-            $newUser->sendEmailVerificationNotification();
+            // $newUser->sendEmailVerificationNotification();
             // Token Management
             $token = $newUser->createToken('secret')->plainTextToken;
 
