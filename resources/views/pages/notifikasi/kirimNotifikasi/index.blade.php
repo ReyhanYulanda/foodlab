@@ -83,7 +83,6 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // restore selected ids
             let initial = document.getElementById('selected_ids').value;
             let selectedIds = new Set(initial ? initial.split(',') : []);
 
