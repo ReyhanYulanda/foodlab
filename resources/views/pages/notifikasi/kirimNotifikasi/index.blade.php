@@ -53,6 +53,8 @@
                             </tbody>
                         </table>
 
+                        <input type="hidden" name="selected_ids" id="selected_ids">
+
                         <div class="d-flex justify-content-between align-items-center mt-3">
                             <div class="form-group mb-0 d-flex align-items-center">
                                 <label for="perPage" class="mr-2 mb-0">Tampilkan:</label>
@@ -82,9 +84,34 @@
     </div>
 
     <script>
+        let selectedIds = new Set();
+
+        document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
+            cb.addEventListener('change', function() {
+                if (this.checked) {
+                    selectedIds.add(this.value);
+                } else {
+                    selectedIds.delete(this.value);
+                }
+                updateHiddenInput();
+            });
+        });
+
         document.getElementById('select-all').addEventListener('click', function() {
             let checked = this.checked;
-            document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => cb.checked = checked);
+            document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
+                cb.checked = checked;
+                if (checked) {
+                    selectedIds.add(cb.value);
+                } else {
+                    selectedIds.delete(cb.value);
+                }
+            });
+            updateHiddenInput();
         });
+
+        function updateHiddenInput() {
+            document.getElementById('selected_ids').value = Array.from(selectedIds).join(',');
+        }
     </script>
 </x-master-layout>

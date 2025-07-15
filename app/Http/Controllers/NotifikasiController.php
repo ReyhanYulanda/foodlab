@@ -36,8 +36,10 @@ class NotifikasiController extends Controller
             'user_ids' => 'required|array',
         ]);
 
-        // ambil fcm_token user yang dicentang & tidak null
-        $tokens = User::whereIn('id', $request->user_ids)
+        $selectedIds = explode(',', $request->selected_ids);
+
+        // Query fcm_token
+        $tokens = User::whereIn('id', $selectedIds)
             ->whereNotNull('fcm_token')
             ->pluck('fcm_token')
             ->toArray();
