@@ -90,6 +90,7 @@
 
             function updateHiddenInput() {
                 document.getElementById('selected_ids').value = Array.from(selectedIds).join(',');
+                updateUrlWithSelectedIds();
             }
 
             function registerCheckboxEvents() {
@@ -127,6 +128,13 @@
                     });
                     updateHiddenInput();
                 });
+            }
+
+            function updateUrlWithSelectedIds() {
+                let params = new URLSearchParams(window.location.search);
+                params.set('selected_ids', Array.from(selectedIds).join(','));
+                let newUrl = window.location.pathname + '?' + params.toString();
+                window.history.replaceState({}, '', newUrl);
             }
 
             registerCheckboxEvents();
