@@ -118,7 +118,11 @@
 
             function registerCheckboxEvents() {
                 document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
-                    cb.checked = selectedIds.has(cb.value);
+                    if (selectedIds.has(cb.value)) {
+                        cb.checked = true;
+                    } else {
+                        cb.checked = false;
+                    }
                     cb.addEventListener('change', function() {
                         if (this.checked) {
                             selectedIds.add(this.value);
