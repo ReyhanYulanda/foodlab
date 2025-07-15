@@ -32,6 +32,10 @@
                             <textarea name="isi" id="isi" class="form-control" required></textarea>
                         </div>
 
+                        <input type="hidden" name="selected_ids" id="selected_ids"
+                            value="{{ request('selected_ids') }}">
+                        <input type="hidden" id="all_user_ids" value="{{ $allUserIds }}">
+
                         <table class="table table-responsive w-full">
                             <thead>
                                 <tr>
@@ -50,9 +54,6 @@
                                 @endforeach
                             </tbody>
                         </table>
-
-                        <input type="hidden" name="selected_ids" id="selected_ids"
-                            value="{{ request('selected_ids') }}">
 
                         <div class="d-flex justify-content-between align-items-center mt-3">
                             <div class="form-group mb-0 d-flex align-items-center">
@@ -110,17 +111,19 @@
                 });
             }
 
-            let selectAll = document.getElementById('select-all');
+            let allUserIds = document.getElementById('all_user_ids').value ? document.getElementById('all_user_ids')
+                .value.split(',') : [];
+
             if (selectAll) {
                 selectAll.addEventListener('click', function() {
                     let checked = this.checked;
+                    if (checked) {
+                        allUserIds.forEach(id => selectedIds.add(id));
+                    } else {
+                        allUserIds.forEach(id => selectedIds.delete(id));
+                    }
                     document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
                         cb.checked = checked;
-                        if (checked) {
-                            selectedIds.add(cb.value);
-                        } else {
-                            selectedIds.delete(cb.value);
-                        }
                     });
                     updateHiddenInput();
                 });

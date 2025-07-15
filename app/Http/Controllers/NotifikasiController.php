@@ -18,14 +18,25 @@ class NotifikasiController extends Controller
         $search = $request->search;
         $perPage = $request->per_page ?? 10;
 
-        $users = User::query()
+        // base query
+        $baseQuery = User::query()
             ->when($search, function ($query) use ($search) {
-                $query->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
-            })
-            ->paginate($perPage);
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            });
 
-        return view('pages.notifikasi.kirimNotifikasi.index', compact('users'));
+        // pagination
+        $users = $baseQuery->paginate($perPage);
+
+        // ambil semua id user hasil filter
+        $allUserIds = $baseQuery->pluck('id')->implode(',');
+
+        return view('pages.notifikasi.kirimNotifikasi.index', [
+            'users' => $users,
+            'allUserIds' => $allUserIds,
+        ]);
     }
 
     public function kirim(Request $request, Firebases $firebases)
