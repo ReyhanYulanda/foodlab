@@ -143,12 +143,20 @@
             if (selectAll) {
                 selectAll.addEventListener('click', function() {
                     let checked = this.checked;
+
+                    // ambil id user di halaman ini saja
+                    let pageUserIds = [];
+                    document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
+                        pageUserIds.push(cb.value);
+                    });
+
                     if (checked) {
-                        allUserIds.forEach(id => selectedIds.add(id));
+                        pageUserIds.forEach(id => selectedIds.add(id));
                     } else {
-                        allUserIds.forEach(id => selectedIds.delete(id));
+                        pageUserIds.forEach(id => selectedIds.delete(id));
                     }
-                    // centang semua checkbox di halaman ini saja
+
+                    // centang visual checkbox di page ini
                     document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
                         cb.checked = checked;
                     });
