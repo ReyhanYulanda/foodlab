@@ -51,7 +51,8 @@
                             </tbody>
                         </table>
 
-                        <input type="hidden" name="selected_ids" id="selected_ids" value="{{ old('selected_ids') }}">
+                        <input type="hidden" name="selected_ids" id="selected_ids"
+                            value="{{ request('selected_ids') }}">
 
                         <div class="d-flex justify-content-between align-items-center mt-3">
                             <div class="form-group mb-0 d-flex align-items-center">
@@ -135,6 +136,7 @@
                     let q = searchInput.value;
                     let url = new URL(window.location.href);
                     url.searchParams.set('search', q);
+                    url.searchParams.set('selected_ids', Array.from(selectedIds).join(','));
                     window.location.href = url.toString();
                 });
             }
