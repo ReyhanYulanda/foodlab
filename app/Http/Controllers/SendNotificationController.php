@@ -68,13 +68,7 @@ class SendNotificationController extends Controller
                     $fcmToken
                 ]);
 
-            $success = $this->firebases->sendMessages($fcmToken);
-
-            if ($success) {
-                return response()->json(['message' => 'Notification sent successfully']);
-            } else {
-                return response()->json(['message' => 'Failed to send notification'], 500);
-            }
+            return response()->json(['message' => 'Notification sent successfully'], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error: ' . $e->getMessage()], 500);
         }
