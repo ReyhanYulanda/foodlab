@@ -256,7 +256,9 @@ class TransaksiController extends Controller
                 DB::commit();
 
                 if ($tenantUser && $tenantUser->fcm_token) {
-                    $firebases->withData([
+                    $firebases
+                    ->withNotification('Pesanan Masuk', 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!')
+                    ->withData([
                         'title' => 'Pesanan Masuk',
                         'body' => 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!'
                     ])->sendMessages($tenantUser->fcm_token);
