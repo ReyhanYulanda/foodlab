@@ -106,13 +106,28 @@
                 window.history.replaceState({}, '', newUrl);
             }
 
+            function updatePaginationLinks() {
+                let selected = Array.from(selectedIds).join(',');
+
+                // Update pagination links
+                document.querySelectorAll('.pagination a').forEach(a => {
+                    let url = new URL(a.href);
+                    url.searchParams.set('selected_ids', selected);
+                    a.href = url.toString();
+                });
+
+                // Update perPage select
+                document.querySelectorAll('select#perPage option').forEach(option => {
+                    let url = new URL(option.value);
+                    url.searchParams.set('selected_ids', selected);
+                    option.value = url.toString();
+                });
+            }
+
             function registerCheckboxEvents() {
                 document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
-                    if (selectedIds.has(cb.value)) {
-                        cb.checked = true;
-                    } else {
-                        cb.checked = false;
-                    }
+                    // restore checked state sesuai selectedIds
+                    cb.checked = selectedIds.has(cb.value);
 
                     cb.addEventListener('change', function() {
                         if (this.checked) {
@@ -133,6 +148,7 @@
                     } else {
                         allUserIds.forEach(id => selectedIds.delete(id));
                     }
+                    // centang semua checkbox di halaman ini saja
                     document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
                         cb.checked = checked;
                     });
@@ -153,27 +169,12 @@
                 });
             }
 
-            function updatePaginationLinks() {
-                let selected = Array.from(selectedIds).join(',');
-
-                // Update pagination links
-                document.querySelectorAll('.pagination a').forEach(a => {
-                    let url = new URL(a.href);
-                    url.searchParams.set('selected_ids', selected);
-                    a.href = url.toString();
-                });
-
-                // Update perPage select
-                document.querySelectorAll('select#perPage option').forEach(option => {
-                    let url = new URL(option.value);
-                    url.searchParams.set('selected_ids', selected);
-                    option.value = url.toString();
-                });
-            }
-            // Panggil saat pertama
+            // Saat pertama load
             registerCheckboxEvents();
+
+            // Saat pindah page pakai ajax (kalau ada)
+            // atau: setiap page baru, JS ini akan jalan ulang (karena di DOMContentLoaded)
         });
     </script>
-
 
 </x-master-layout>
