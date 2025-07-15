@@ -18,7 +18,7 @@
                         <div class="input-group mb-2">
                             <input type="text" id="search-input" value="{{ request('search') }}" class="form-control" placeholder="Cari nama user atau email user">
                             <button type="button" class="btn btn-primary" id="search-btn">Cari</button>
-                        </div>                       
+                        </div>                                               
                     </form>
 
                     <!-- ✅ Form kirim notif -->
@@ -83,53 +83,61 @@
     </div>
 
     <script>
-        // restore selected ids
-        let initial = document.getElementById('selected_ids').value;
-        let selectedIds = new Set(initial ? initial.split(',') : []);
-    
-        function updateHiddenInput() {
-            document.getElementById('selected_ids').value = Array.from(selectedIds).join(',');
-        }
-    
-        function registerCheckboxEvents() {
-            document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
-                if (selectedIds.has(cb.value)) {
-                    cb.checked = true;
-                }
-    
-                cb.addEventListener('change', function() {
-                    if (this.checked) {
-                        selectedIds.add(this.value);
-                    } else {
-                        selectedIds.delete(this.value);
+        document.addEventListener('DOMContentLoaded', function () {
+            // restore selected ids
+            let initial = document.getElementById('selected_ids').value;
+            let selectedIds = new Set(initial ? initial.split(',') : []);
+        
+            function updateHiddenInput() {
+                document.getElementById('selected_ids').value = Array.from(selectedIds).join(',');
+            }
+        
+            function registerCheckboxEvents() {
+                document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
+                    if (selectedIds.has(cb.value)) {
+                        cb.checked = true;
                     }
+        
+                    cb.addEventListener('change', function() {
+                        if (this.checked) {
+                            selectedIds.add(this.value);
+                        } else {
+                            selectedIds.delete(this.value);
+                        }
+                        updateHiddenInput();
+                    });
+                });
+            }
+        
+            let selectAll = document.getElementById('select-all');
+            if (selectAll) {
+                selectAll.addEventListener('click', function() {
+                    let checked = this.checked;
+                    document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
+                        cb.checked = checked;
+                        if (checked) {
+                            selectedIds.add(cb.value);
+                        } else {
+                            selectedIds.delete(cb.value);
+                        }
+                    });
                     updateHiddenInput();
                 });
-            });
-        }
-    
-        document.getElementById('select-all').addEventListener('click', function() {
-            let checked = this.checked;
-            document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
-                cb.checked = checked;
-                if (checked) {
-                    selectedIds.add(cb.value);
-                } else {
-                    selectedIds.delete(cb.value);
-                }
-            });
-            updateHiddenInput();
+            }
+        
+            registerCheckboxEvents();
+        
+            let searchBtn = document.getElementById('search-btn');
+            let searchInput = document.getElementById('search-input');
+            if (searchBtn && searchInput) {
+                searchBtn.addEventListener('click', function() {
+                    let q = searchInput.value;
+                    let url = new URL(window.location.href);
+                    url.searchParams.set('search', q);
+                    window.location.href = url.toString();
+                });
+            }
         });
-    
-        registerCheckboxEvents();
-    
-        // ✅ search button click → redirect
-        document.getElementById('search-btn').addEventListener('click', function() {
-            let q = document.getElementById('search-input').value;
-            let url = new URL(window.location.href);
-            url.searchParams.set('search', q);
-            window.location.href = url.toString();
-        });
-    </script>
+        </script>        
 
 </x-master-layout>
