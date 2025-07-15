@@ -53,7 +53,7 @@
                             </tbody>
                         </table>
 
-                        <input type="hidden" name="selected_ids" id="selected_ids">
+                        <input type="hidden" name="selected_ids" id="selected_ids" value="{{ old('selected_ids') }}">
 
                         <div class="d-flex justify-content-between align-items-center mt-3">
                             <div class="form-group mb-0 d-flex align-items-center">
@@ -84,19 +84,33 @@
     </div>
 
     <script>
-        let selectedIds = new Set();
+        // ambil data lama dari hidden input, misalnya "239,240"
+        let initial = document.getElementById('selected_ids').value;
+        let selectedIds = new Set(initial ? initial.split(',') : []);
 
-        document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
-            cb.addEventListener('change', function() {
-                if (this.checked) {
-                    selectedIds.add(this.value);
-                } else {
-                    selectedIds.delete(this.value);
+        function updateHiddenInput() {
+            document.getElementById('selected_ids').value = Array.from(selectedIds).join(',');
+        }
+
+        function registerCheckboxEvents() {
+            document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
+                // restore checked state kalau id sudah ada di selectedIds
+                if (selectedIds.has(cb.value)) {
+                    cb.checked = true;
                 }
-                updateHiddenInput();
-            });
-        });
 
+                cb.addEventListener('change', function() {
+                    if (this.checked) {
+                        selectedIds.add(this.value);
+                    } else {
+                        selectedIds.delete(this.value);
+                    }
+                    updateHiddenInput();
+                });
+            });
+        }
+
+        // event select all
         document.getElementById('select-all').addEventListener('click', function() {
             let checked = this.checked;
             document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
@@ -110,8 +124,8 @@
             updateHiddenInput();
         });
 
-        function updateHiddenInput() {
-            document.getElementById('selected_ids').value = Array.from(selectedIds).join(',');
-        }
+        // jalankan pertama kali
+        registerCheckboxEvents();
     </script>
+
 </x-master-layout>
