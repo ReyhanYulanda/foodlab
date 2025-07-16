@@ -190,14 +190,14 @@ class TransaksiController extends Controller
         $menu_ids = collect($request->menus)->pluck('id')->toArray();
         $menuFirst = Menus::with('tenants.pemilik')->find($menu_ids[0]);
 
-        if (!$menuFirst || !$menuFirst->tenant) {
+        if (!$menuFirst || !$menuFirst->tenants) {
             return response()->json([
                 'status' => 'failed',
                 'message' => 'Tenant tidak ditemukan'
             ], 404);
         }
 
-        $tenant = $menuFirst->tenant;
+        $tenant = $menuFirst->tenants;
 
         // === ✅ Cek apakah tenant sedang online ===
         if ($tenant->isOnline == 0) {
