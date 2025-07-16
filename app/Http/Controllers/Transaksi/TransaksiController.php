@@ -176,8 +176,10 @@ class TransaksiController extends Controller
             'ruangan_id' => 'required_if:isAntar,true',
             'metode_pembayaran' => 'required|in:koin,cod',
             'catatan' => 'nullable',
-            'status' => 'nullable',
+            // 'status' => 'nullable',
             'menus' => 'required|array',
+            'menus.*.id' => 'required|integer|exists:menus,id',
+            'menus.*.jumlah' => 'required|integer|min:1',
         ]);
 
         if ($validatator->fails()) {
@@ -257,11 +259,11 @@ class TransaksiController extends Controller
 
                 if ($tenantUser && $tenantUser->fcm_token) {
                     $firebases
-                    ->withNotification('Pesanan Masuk', 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!')
-                    ->withData([
-                        'title' => 'Pesanan Masuk',
-                        'body' => 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!'
-                    ])->sendMessages($tenantUser->fcm_token);
+                        ->withNotification('Pesanan Masuk', 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!')
+                        ->withData([
+                            'title' => 'Pesanan Masuk',
+                            'body' => 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!'
+                        ])->sendMessages($tenantUser->fcm_token);
                 }
 
                 if ($status == 'selesai') {
