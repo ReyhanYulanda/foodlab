@@ -176,9 +176,11 @@ class TransaksiController extends Controller
             'ruangan_id' => 'required_if:isAntar,true',
             'metode_pembayaran' => 'required|in:koin,cod',
             'catatan' => 'nullable',
-            'status' => 'nullable',
+            // 'status' => 'nullable',
             'menus' => 'required|array',
-        ]);
+            'menus.*.id' => 'required|integer|exists:menus,id',
+            'menus.*.jumlah' => 'required|integer|min:1',
+        ]);       
 
         if ($validatator->fails()) {
             return response()->json([
