@@ -23,15 +23,23 @@ class TenantController extends Controller
         }
 
         $tenants = Tenants::with(['listMenu', 'pemilik'])
-            ->where('user_id', '!=', $user->id)
             ->get()
             ->filter(function ($tenant) {
                 return $tenant->pemilik;
             })
             ->values();
 
-        return ResponseApi::success(compact('tenants'), 'berhasil mendapatkan data');
+        $myTenant = $tenants->where('user_id', $user->id);
+
+        $otherTenants = $tenants->where('user_id', '!=', $user->id);
+
+        $orderedTenants = $myTenant->concat($otherTenants)->values();
+
+        return ResponseApi::success([
+            'tenants' => $orderedTenants
+        ], 'berhasil mendapatkan data');
     }
+
 
     public function getSpecificTenant(Request $request, $TenantId)
     {
