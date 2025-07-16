@@ -21,6 +21,7 @@ use App\Http\Controllers\Web\Transaksi\TransaksiDriverController;
 use App\Http\Controllers\Web\Transaksi\TransaksiTenantController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Auth\EmailVerificationController;
+use App\Http\Controllers\NotifikasiController;
 
 Route::get('/verify-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])
     ->middleware(['signed'])
@@ -58,6 +59,9 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
     Route::resource('gedung', GedungController::class);
     Route::resource('pembayaran', PembayaranController::class);
     Route::resource('pengaturan', PengaturanController::class);
+
+    Route::get('/notifikasi/kirim', [NotifikasiController::class, 'index'])->name('notifikasi.index');
+    Route::post('/notifikasi/kirim', [NotifikasiController::class, 'kirim'])->name('notifikasi.kirim');
 
     Route::post('/pembayaran/transfer', [PembayaranController::class, 'transfer'])->name('pembayaran.transfer');
 
