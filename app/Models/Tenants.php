@@ -66,7 +66,7 @@ class Tenants extends Model
 
     public function getIsOnlineAttribute()
     {
-        return $this->pemilik->isOnline;
+        return $this->pemilik ? $this->pemilik->isOnline : null;
     }
 
     public function calculateMinPriceMenu()
