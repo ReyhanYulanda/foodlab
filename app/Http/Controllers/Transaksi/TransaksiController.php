@@ -187,6 +187,41 @@ class TransaksiController extends Controller
             ]);
         }
 
+        $menu_ids = collect($request->menus)->pluck('id')->toArray();
+        $menuFirst = Menus::with('tenant.pemilik')->find($menu_ids[0]);
+
+        if (!$menuFirst || !$menuFirst->tenant) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Tenant tidak ditemukan'
+            ], 404);
+        }
+
+        $tenant = $menuFirst->tenant;
+
+        // === ✅ Cek apakah tenant sedang online ===
+        if ($tenant->isOnline == 0) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Toko sedang tutup'
+            ], 400);
+        }
+
+        // === ✅ Cek apakah ada menu yang tidak ready ===
+        $menusNotReady = Menus::withTrashed()
+            ->whereIn('id', $menu_ids)
+            ->where('isReady', 0)
+            ->pluck('id')
+            ->toArray();
+
+        if (!empty($menusNotReady)) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Beberapa menu sedang tidak tersedia',
+                'data' => $menusNotReady
+            ], 400);
+        }
+
         DB::beginTransaction();
         try {
             $menu_id = $request->menus[0]['id'];
@@ -257,11 +292,11 @@ class TransaksiController extends Controller
 
                 if ($tenantUser && $tenantUser->fcm_token) {
                     $firebases
-                    ->withNotification('Pesanan Masuk', 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!')
-                    ->withData([
-                        'title' => 'Pesanan Masuk',
-                        'body' => 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!'
-                    ])->sendMessages($tenantUser->fcm_token);
+                        ->withNotification('Pesanan Masuk', 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!')
+                        ->withData([
+                            'title' => 'Pesanan Masuk',
+                            'body' => 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!'
+                        ])->sendMessages($tenantUser->fcm_token);
                 }
 
                 if ($status == 'selesai') {
