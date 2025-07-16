@@ -43,4 +43,9 @@ class Menus extends Model
     {
         return $this->hasMany(TransaksiDetail::class);
     }
+
+    public function tenant()
+    {
+        return $this->belongsTo(Tenants::class, 'tenant_id');
+    }
 }
