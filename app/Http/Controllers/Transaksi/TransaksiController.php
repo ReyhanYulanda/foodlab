@@ -188,7 +188,7 @@ class TransaksiController extends Controller
         }
 
         $menu_ids = collect($request->menus)->pluck('id')->toArray();
-        $menuFirst = Menus::with('tenant.pemilik')->find($menu_ids[0]);
+        $menuFirst = Menus::with('tenants.pemilik')->find($menu_ids[0]);
 
         if (!$menuFirst || !$menuFirst->tenant) {
             return response()->json([
