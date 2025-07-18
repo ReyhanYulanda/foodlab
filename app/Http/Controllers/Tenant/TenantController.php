@@ -24,16 +24,16 @@ class TenantController extends Controller
 
         $tenants = Tenants::with(['listMenu', 'pemilik'])
             ->get()
-            ->filter(function ($tenant) {
-                return $tenant->pemilik;
-            })
+            ->filter(fn($tenant) => $tenant->pemilik)
             ->values();
 
         $myTenant = $tenants->where('user_id', $user->id);
 
         $otherTenants = $tenants->where('user_id', '!=', $user->id);
 
-        $orderedTenants = $myTenant->concat($otherTenants)->values();
+        $orderedTenants = $myTenant->concat($otherTenants)
+            ->sortByDesc('transaksi_berhasil')
+            ->values();
 
         return ResponseApi::success([
             'tenants' => $orderedTenants
