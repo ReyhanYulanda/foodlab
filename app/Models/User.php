@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Http\Middleware\Tenant;
+use App\Notifications\ResetPasswordNotification;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;

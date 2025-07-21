@@ -23,7 +23,16 @@ class Tenants extends Model
         'no_rekening_pribadi',
     ];
 
-    public $appends = ['gambar', 'range'];
+    public $appends = ['gambar', 'range', 'transaksi_berhasil'];
+
+    public function getTransaksiBerhasilAttribute()
+    {
+        return TransaksiDetail::whereHas('menus', function ($query) {
+            $query->where('tenant_id', $this->id);
+        })
+            ->where('status', 'selesai')
+            ->count();
+    }
 
     public function getRangeAttribute()
     {
@@ -39,7 +48,7 @@ class Tenants extends Model
     public function kelola()
     {
         return $this->hasMany(MenusKelola::class, 'tenant_id');
-    }  
+    }
     public function listMenu()
     {
         return $this->hasMany(Menus::class, 'tenant_id')->orderByDesc('isReady');
@@ -60,7 +69,8 @@ class Tenants extends Model
         return $this->pemilik->isOnline;
     }
 
-    public function calculateMinPriceMenu(){
+    public function calculateMinPriceMenu()
+    {
         return $this->listMenu()->min('harga');
     }
 }

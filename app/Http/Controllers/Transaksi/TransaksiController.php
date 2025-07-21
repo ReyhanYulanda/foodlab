@@ -161,7 +161,7 @@ class TransaksiController extends Controller
     public function store(Request $request, Firebases $firebases)
     {
         $user = $request->user();
-        $permission = $user->can('create order');
+        $permission = $user->can('create order user');
         $permission = true;
 
         if (!$permission) {
@@ -187,6 +187,41 @@ class TransaksiController extends Controller
                 'status' => 'failed',
                 'messages' => $validatator->errors()->all()
             ]);
+        }
+
+        $menu_ids = collect($request->menus)->pluck('id')->toArray();
+        $menuFirst = Menus::with('tenant.pemilik')->find($menu_ids[0]);
+
+        if (!$menuFirst || !$menuFirst->tenant) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Tenant tidak ditemukan'
+            ], 404);
+        }
+
+        $tenant = $menuFirst->tenant;
+
+        // === ✅ Cek apakah tenant sedang online ===
+        if ($tenant->isOnline == 0) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Toko sedang tutup'
+            ], 400);
+        }
+
+        // === ✅ Cek apakah ada menu yang tidak ready ===
+        $menusNotReady = Menus::withTrashed()
+            ->whereIn('id', $menu_ids)
+            ->where('isReady', 0)
+            ->pluck('id')
+            ->toArray();
+
+        if (!empty($menusNotReady)) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Beberapa menu sedang tidak tersedia',
+                'data' => $menusNotReady
+            ], 400);
         }
 
         DB::beginTransaction();

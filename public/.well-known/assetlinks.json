@@ -1,0 +1,12 @@
+[
+    {
+        "relation": ["delegate_permission/common.handle_all_urls"],
+        "target": {
+            "namespace": "android_app",
+            "package_name": "com.foodlab.pens",
+            "sha256_cert_fingerprints": [
+                "6E:D1:BB:FA:CF:4A:1E:60:97:59:D8:B6:72:E7:3F:44:23:C1:10:CB:75:37:BB:B8:7D:03:C1:CD:4F:38:F1:3F"
+            ]
+        }
+    }
+]
