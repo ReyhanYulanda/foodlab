@@ -64,8 +64,8 @@ class ProfileTenantController extends Controller
         $tenant->update([
             'nama_tenant' => $request->nama_tenant,
             'nama_kavling' => $request->nama_kavling,
-            'jam_buka' => $request->jam_buka,
-            'jam_tutup' => $request->jam_tutup,
+            // 'jam_buka' => $request->jam_buka,
+            // 'jam_tutup' => $request->jam_tutup,
             'no_rekening_toko' => $request->no_rekening_toko,
             'no_rekening_pribadi' => $request->no_rekening_pribadi,
             'nama_gambar' => $url,

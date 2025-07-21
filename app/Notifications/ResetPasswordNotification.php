@@ -9,23 +9,35 @@ use Illuminate\Notifications\Notification;
 
 class ResetPasswordNotification extends Notification
 {
-    use Queueable;
+
+    // use Queueable;
 
     public $token;
 
-    /**
-     * Create a new notification instance.
-     */
     public function __construct($token)
     {
         $this->token = $token;
     }
 
+
+    /**
+     * Get the notification's delivery channels.
+     *
+     * @param  mixed  $notifiable
+     * @return array
+     */
     public function via($notifiable)
     {
         return ['mail'];
     }
 
+
+    /**
+     * Get the mail representation of the notification.
+     *
+     * @param  mixed  $notifiable
+     * @return \Illuminate\Notifications\Messages\MailMessage
+     */
     public function toMail($notifiable)
     {
         return (new MailMessage)
@@ -36,5 +48,18 @@ class ResetPasswordNotification extends Notification
             ->line('Link ini akan kedaluwarsa dalam 60 menit.')
             ->line('Jika Anda tidak meminta reset katasandi, abaikan email ini.')
             ->salutation('Salam hangat, Tim Foodlab');
+    }
+  
+    /**
+     * Get the array representation of the notification.
+     *
+     * @param  mixed  $notifiable
+     * @return array
+     */
+    public function toArray($notifiable)
+    {
+        return [
+            //
+        ];
     }
 }
