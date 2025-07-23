@@ -33,6 +33,7 @@ Route::middleware('auth:sanctum', 'verified')->group(function () {
     Route::get('/katalog/tenants/{TenantId}', [TenantController::class, 'getSpecificTenant']);
     Route::get('/tenants', [TenantController::class, 'getAll']);
     Route::get('/tenants/{TenantId}', [TenantController::class, 'getSpecificTenant']);
+    Route::get('/menus/{id}', [TenantController::class, 'getMenusById']);
     Route::get('/order/user', [TransaksiController::class, 'orderUser']);
     Route::post('/order', [TransaksiController::class, 'store']);
     Route::get('/order/driver', [TransaksiController::class, 'getOnlineDriver']);
