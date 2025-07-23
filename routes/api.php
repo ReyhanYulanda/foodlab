@@ -17,6 +17,7 @@ use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Models\Transaksi;
 use App\Http\Controllers\Kelola\Tenant\ProfileTenantController;
+use App\Http\Controllers\MandiriSandboxController;
 use App\Http\Controllers\SendNotificationController;
 use App\Http\Controllers\User\TransaksiUserController;
 use Illuminate\Support\Facades\Route;
@@ -98,3 +99,4 @@ Route::post('/forgot-password', [PasswordResetLinkController::class, 'passwordRe
 Route::post('/reset-password', [NewPasswordController::class, 'newPasswordAPI']);
 Route::post('/send-email-verification', [EmailVerificationNotificationController::class, 'send']);
 Route::post('/send-notification', [SendNotificationController::class, 'sendToUser']);
+Route::get('/mandiri/sandbox/get-token', [MandiriSandboxController::class, 'getAccessToken']);
