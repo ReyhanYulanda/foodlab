@@ -40,6 +40,20 @@ class TenantController extends Controller
         ], 'berhasil mendapatkan data');
     }
 
+    public function getMenusById($id)
+    {
+        $tenant = Tenants::with('listMenu')->find($id);
+
+        if (!$tenant) {
+            return ResponseApi::error('Tenant tidak ditemukan', 404);
+        }
+
+        return ResponseApi::success([
+            'tenant_id' => $tenant->id,
+            'menus' => $tenant->listMenu
+        ], 'Berhasil mendapatkan menu');
+    }
+
 
     public function getSpecificTenant(Request $request, $TenantId)
     {
