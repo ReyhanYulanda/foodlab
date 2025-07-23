@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Models\Menus;
 use App\Models\Tenants;
 use App\Models\TransaksiDetail;
 use App\Response\ResponseApi;
@@ -42,16 +43,13 @@ class TenantController extends Controller
 
     public function getMenusById($id)
     {
-        $tenant = Tenants::with('listMenu')->find($id);
+        $menu = Menus::with(['tenant', 'kategori'])->find($id);
 
-        if (!$tenant) {
-            return ResponseApi::error('Tenant tidak ditemukan', 404);
+        if (!$menu) {
+            return ResponseApi::error('Menu tidak ditemukan', 404);
         }
 
-        return ResponseApi::success([
-            'tenant_id' => $tenant->id,
-            'menus' => $tenant->listMenu
-        ], 'Berhasil mendapatkan menu');
+        return ResponseApi::success(compact('menu'), 'berhasil mendapatkan data menu');
     }
 
 
