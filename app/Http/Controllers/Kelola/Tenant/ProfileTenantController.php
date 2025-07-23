@@ -14,12 +14,12 @@ class ProfileTenantController extends Controller
     public function show(Request $request)
     {
         $user = $request->user();
-        $tenant = $user->tenant; 
-    
+        $tenant = $user->tenant;
+
         if (!$tenant) {
             return response()->json(['message' => 'Tenant not found for this user'], 404);
         }
-    
+
         return response()->json([
             'tenant' => $tenant,
         ]);
@@ -43,7 +43,7 @@ class ProfileTenantController extends Controller
             'no_rekening_pribadi' => 'nullable|string|max:255',
             'gambar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
-    
+
         if ($validationError) {
             return $validationError;
         }
@@ -62,12 +62,12 @@ class ProfileTenantController extends Controller
         }
 
         $tenant->update([
-            'nama_tenant' => $request->nama_tenant,
-            'nama_kavling' => $request->nama_kavling,
-            'jam_buka' => $request->jam_buka,
-            'jam_tutup' => $request->jam_tutup,
-            'no_rekening_toko' => $request->no_rekening_toko,
-            'no_rekening_pribadi' => $request->no_rekening_pribadi,
+            'nama_tenant' => $request->nama_tenant ?? $tenant->nama_tenant,
+            'nama_kavling' => $request->nama_kavling ?? $tenant->nama_kavling,
+            'jam_buka' => $request->jam_buka ?? $tenant->jam_buka,
+            'jam_tutup' => $request->jam_tutup ?? $tenant->jam_tutup,
+            'no_rekening_toko' => $request->no_rekening_toko ?? $tenant->no_rekening_toko,
+            'no_rekening_pribadi' => $request->no_rekening_pribadi ?? $tenant->no_rekening_pribadi,
             'nama_gambar' => $url,
         ]);
 

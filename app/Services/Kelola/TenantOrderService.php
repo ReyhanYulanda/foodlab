@@ -48,6 +48,18 @@ class TenantOrderService
             return ResponseApi::error('pesanan tidak ditemukan', 404);
         }
 
+        if ($transaksi->status === 'refund_selesai') {
+            return ResponseApi::error('Pesanan telah selesai refund system karena melebihi 10 menit.', 403);
+        }
+
+        if ($transaksi->status === 'pesanan_ditolak') {
+            return ResponseApi::error('Pesanan sudah ditolak sebelumnya.', 403);
+        }
+
+        if ($transaksi->status === 'selesai') {
+            return ResponseApi::error('Pesanan sudah selesai.', 403);
+        }
+
         $validation = ValidationHelper::validate($request->all(), [
             'status' => 'required|in:pesanan_ditolak,pesanan_diproses,siap_diantar,siap_diambil,diantar,selesai'
         ]);

@@ -161,7 +161,7 @@ class TransaksiController extends Controller
     public function store(Request $request, Firebases $firebases)
     {
         $user = $request->user();
-        $permission = $user->can('create order');
+        $permission = $user->can('create order user');
         $permission = true;
 
         if (!$permission) {
@@ -176,8 +176,10 @@ class TransaksiController extends Controller
             'ruangan_id' => 'required_if:isAntar,true',
             'metode_pembayaran' => 'required|in:koin,cod',
             'catatan' => 'nullable',
-            'status' => 'nullable',
+            // 'status' => 'nullable',
             'menus' => 'required|array',
+            'menus.*.id' => 'required|integer|exists:menus,id',
+            'menus.*.jumlah' => 'required|integer|min:1',
         ]);
 
         if ($validatator->fails()) {
@@ -185,6 +187,41 @@ class TransaksiController extends Controller
                 'status' => 'failed',
                 'messages' => $validatator->errors()->all()
             ]);
+        }
+
+        $menu_ids = collect($request->menus)->pluck('id')->toArray();
+        $menuFirst = Menus::with('tenant.pemilik')->find($menu_ids[0]);
+
+        if (!$menuFirst || !$menuFirst->tenant) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Tenant tidak ditemukan'
+            ], 404);
+        }
+
+        $tenant = $menuFirst->tenant;
+
+        // === ✅ Cek apakah tenant sedang online ===
+        if ($tenant->isOnline == 0) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Toko sedang tutup'
+            ], 400);
+        }
+
+        // === ✅ Cek apakah ada menu yang tidak ready ===
+        $menusNotReady = Menus::withTrashed()
+            ->whereIn('id', $menu_ids)
+            ->where('isReady', 0)
+            ->pluck('id')
+            ->toArray();
+
+        if (!empty($menusNotReady)) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Beberapa menu sedang tidak tersedia',
+                'data' => $menusNotReady
+            ], 400);
         }
 
         DB::beginTransaction();
@@ -253,13 +290,20 @@ class TransaksiController extends Controller
             $success = $this->storeTransakasiDetail($request, $transaksi);
 
             if ($success) {
-                DB::commit();
-
                 if ($tenantUser && $tenantUser->fcm_token) {
-                    $firebases->withData([
-                        'title' => 'Pesanan Masuk',
-                        'body' => 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!'
-                    ])->sendMessages($tenantUser->fcm_token);
+                    $customNames = [
+                        18 => 'Pesanan Masuk (mama dani)',
+                        38 => 'Pesanan Masuk (kedai foodlabs)',
+                    ];
+                    $tenantName = $customNames[$tenant->id] ?? 'Pesanan Masuk';
+                    $messageBody = 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!';
+
+                    $firebases
+                        ->withNotification($tenantName, $messageBody)
+                        ->withData([
+                            'title' => $tenantName,
+                            'body' => $messageBody
+                        ])->sendMessages($tenantUser->fcm_token);
                 }
 
                 if ($status == 'selesai') {
@@ -406,10 +450,15 @@ class TransaksiController extends Controller
         }
     }
 
-    public function cancel($id, Firebases $firebases)
+    public function cancel(Request $request, $id, Firebases $firebases)
     {
+        DB::beginTransaction();
         try {
-            DB::beginTransaction();
+            $currentUser = $request->user();
+
+            if (!$currentUser->can('cancel order')) {
+                return ResponseApi::forbidden('tidak memiliki akses');
+            }
 
             $transaksi = Transaksi::find($id);
 
@@ -428,12 +477,12 @@ class TransaksiController extends Controller
             $transaksi->status = 'pesanan_ditolak';
             $transaksi->save();
 
-            $user = $transaksi->user;
-            if ($user && $user->fcm_token) {
+            $userTransaksi = $transaksi->user;
+            if ($userTransaksi && $userTransaksi->fcm_token) {
                 $firebases->withData([
                     'title' => 'Pesanan Dibatalkan',
                     'body' => "Maaf, pesanan {$transaksi->id} dibatalkan oleh tenant."
-                ])->sendMessages($user->fcm_token);
+                ])->sendMessages($userTransaksi->fcm_token);
             }
 
             try {
@@ -448,21 +497,21 @@ class TransaksiController extends Controller
 
                 $transaksi->status = 'refund_selesai';
                 $transaksi->save();
-                DB::commit();
 
-                if ($user && $user->fcm_token) {
+                if ($userTransaksi && $userTransaksi->fcm_token) {
                     $firebases->withData([
                         'title' => 'Refund Berhasil',
                         'body' => 'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.'
-                    ])->sendMessages($user->fcm_token);
+                    ])->sendMessages($userTransaksi->fcm_token);
                 }
 
+                DB::commit();
                 return ResponseApi::success(null, "Transaksi dibatalkan dan refund berhasil");
             } catch (\Throwable $e) {
                 $transaksi->status = 'refund_gagal';
                 $transaksi->save();
-                DB::commit();
 
+                DB::commit(); // kita tetap commit perubahan status refund_gagal
                 Log::warning("Refund gagal: " . $e->getMessage());
                 return ResponseApi::error("Transaksi dibatalkan, tapi refund gagal. Silakan hubungi admin.");
             }

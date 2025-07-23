@@ -3,16 +3,20 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Models\Menus;
 use App\Models\Tenants;
+use App\Models\TransaksiDetail;
 use App\Response\ResponseApi;
 use Illuminate\Http\Request;
+use App\Services\Firebases;
 
 class TenantController extends Controller
 {
-    public function getAll(Request $request){
-        $user = $request->user()->can('read beranda');
+    public function getAll(Request $request, Firebases $firebases)
+    {
+        $user = $request->user();
 
-        if(!$user){
+        if (!$user->can('read beranda')) {
             return response()->json([
                 'status' => 'failed',
                 'message' => 'tidak memiliki akses',
@@ -20,20 +24,40 @@ class TenantController extends Controller
         }
 
         $tenants = Tenants::with(['listMenu', 'pemilik'])
-            ->where('user_id', '!=', $request->user()->id)
             ->get()
-            ->filter(function ($tenant) {
-                return $tenant->pemilik;
-            })
+            ->filter(fn($tenant) => $tenant->pemilik)
             ->values();
 
-        return ResponseApi::success(compact('tenants'), 'berhasil mendapatkan data');
+        $myTenant = $tenants->where('user_id', $user->id);
+
+        $otherTenants = $tenants->where('user_id', '!=', $user->id);
+
+        $orderedTenants = $myTenant->concat($otherTenants)
+            ->sortByDesc('transaksi_berhasil')
+            ->values();
+
+        return ResponseApi::success([
+            'tenants' => $orderedTenants
+        ], 'berhasil mendapatkan data');
     }
 
-    public function getSpecificTenant(Request $request, $TenantId){
+    public function getMenusById($id)
+    {
+        $menu = Menus::with(['tenant', 'kategori'])->find($id);
+
+        if (!$menu) {
+            return ResponseApi::error('Menu tidak ditemukan', 404);
+        }
+
+        return ResponseApi::success(compact('menu'), 'berhasil mendapatkan data menu');
+    }
+
+
+    public function getSpecificTenant(Request $request, $TenantId)
+    {
         $user = $request->user()->can('read beranda');
 
-        if(!$user){
+        if (!$user) {
             ResponseApi::error('tidak memiliki akses', 403);
         }
 

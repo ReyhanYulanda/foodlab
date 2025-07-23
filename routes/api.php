@@ -1,6 +1,7 @@
 <?php
 
 use App\Events\NotifyUserWhenTransaksiUpdated;
+use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\PengaturanController;
 use App\Http\Controllers\Api\RuanganController;
@@ -11,10 +12,12 @@ use App\Http\Controllers\Tenant\TenantController;
 use App\Http\Controllers\Transaksi\TransaksiController;
 use App\Http\Controllers\User\UserController;
 use App\Http\Controllers\Api\SaldoKoin\SaldoKoinController;
+use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Models\Transaksi;
 use App\Http\Controllers\Kelola\Tenant\ProfileTenantController;
+use App\Http\Controllers\SendNotificationController;
 use App\Http\Controllers\User\TransaksiUserController;
 use Illuminate\Support\Facades\Route;
 
@@ -30,6 +33,7 @@ Route::middleware('auth:sanctum', 'verified')->group(function () {
     Route::get('/katalog/tenants/{TenantId}', [TenantController::class, 'getSpecificTenant']);
     Route::get('/tenants', [TenantController::class, 'getAll']);
     Route::get('/tenants/{TenantId}', [TenantController::class, 'getSpecificTenant']);
+    Route::get('/menus/{id}', [TenantController::class, 'getMenusById']);
     Route::get('/order/user', [TransaksiController::class, 'orderUser']);
     Route::post('/order', [TransaksiController::class, 'store']);
     Route::get('/order/driver', [TransaksiController::class, 'getOnlineDriver']);
@@ -71,9 +75,9 @@ Route::middleware('auth:sanctum', 'verified')->group(function () {
     });
 
     Route::put('/update-fcm-token', [UserController::class, 'updateFcmToken']);
+    Route::post('/order/cancel/{id}', [TransaksiController::class, 'cancel']);
 });
 Route::post('/order/callback', [TransaksiController::class, 'webHookMidtrans']);
-Route::post('/order/cancel/{id}', [TransaksiController::class, 'cancel']);
 
 Route::post('login', [AuthController::class, 'login']);
 Route::post('register', [AuthController::class, 'register']);
@@ -92,3 +96,5 @@ Route::get('/verify-email/{id}/{hash}', [\App\Http\Controllers\Api\Auth\EmailVer
 
 Route::post('/forgot-password', [PasswordResetLinkController::class, 'passwordResetAPI']);
 Route::post('/reset-password', [NewPasswordController::class, 'newPasswordAPI']);
+Route::post('/send-email-verification', [EmailVerificationNotificationController::class, 'send']);
+Route::post('/send-notification', [SendNotificationController::class, 'sendToUser']);
