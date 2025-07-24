@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('menu/{id}', [KelolaTenantController::class, 'updateMenuWeb']);
 
-Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function () {
+Route::middleware('auth:sanctum', 'verified')->group(function () {
     Route::post('/tenant/menucoba/{id}', [KelolaTenantController::class, 'updateMenu']);
 
     Route::get('/auth', [UserController::class, 'index']);
