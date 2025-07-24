@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Providers\RouteServiceProvider;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class EmailVerificationNotificationController extends Controller
 {
@@ -43,8 +44,21 @@ class EmailVerificationNotificationController extends Controller
             return response()->json(['message' => 'Email is already verified.'], 400);
         }
 
+        // Cek apakah user sedang dalam cooldown
+        $cacheKey = 'email_verification_sent:' . $user->id;
+        if (Cache::has($cacheKey)) {
+            $remaining = Cache::get($cacheKey) - now()->timestamp;
+            return response()->json([
+                'message' => 'Please wait before requesting another verification email.',
+                'retry_after_seconds' => $remaining > 0 ? $remaining : 0,
+            ], 429);
+        }
+
         // Kirim email verifikasi
         $user->sendEmailVerificationNotification();
+
+        // Set cooldown selama 2 menit (120 detik)
+        Cache::put($cacheKey, now()->addMinutes(2)->timestamp, now()->addMinutes(2));
 
         return response()->json(['message' => 'Verification email sent successfully.']);
     }
