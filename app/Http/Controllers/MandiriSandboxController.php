@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Storage;
 use GuzzleHttp\Client;
 use phpseclib3\Crypt\PublicKeyLoader;
 use phpseclib3\Crypt\RSA;
+use DateTime;
+use DateTimeZone;
 
 class MandiriSandboxController extends Controller
 {
@@ -68,8 +70,8 @@ class MandiriSandboxController extends Controller
             'Content-Type'      => 'application/json',
             'X-CLIENT-KEY'      => $clientId,
             'X-PARTNER-ID'      => $partnerId,
-            'X-TIMESTAMP'       => $timestamp,
-            'X-SIGNATURE'       => $signature,
+            'X-TIMESTAMP'       => '2025-07-23T22:08:04.848+07:00',
+            'X-SIGNATURE'       => 'D7xHrUQS6jasQSHgWKe73vOuagQasML/bVBsKPgYG3oP8ntNOL5fNrN6QfYWl9mEb3cTlfGpHkgZ0j6zwqqZpfWB2LuT40l94JCfgISl2Kf8+4P98AOAtcW391EKEhdPxqr9Q70ajT3mbaIYp17dCzMM7SzbNL6fluyOnhMGk4qA/2cPiRj6MSWO4qSgJYpzcbXVuuKN1hutcVd6QbTt2piGoHDJkL1e49Bh8r/I9BDQ95YDG9q7QUpRukFzCX8bA1ZX9oGbGpLkLTluHKK/gyptri3k2F2/fMXUa2JQG6NXvBYHN17xb0I/MUuaPXK3Miz5dS4AEDBlzJALZwNBDw==',
             'Authorization'     => 'Bearer ' . $accessToken,
         ])->post('https://sandbox.bankmandiri.co.id' . $endpoint, $payload);
 
@@ -80,82 +82,176 @@ class MandiriSandboxController extends Controller
         ]);
     }
 
+    public function getSignature()
+    {
+        // Path file private key
+        $private_key_path = storage_path('app/keys/API_Portal.pem'); // sesuaikan lokasi file
+        $password = 'a123';
+
+        // Generate X-Timestamp
+        $timestamp = new DateTime();
+        $timestamp->setTimeZone(new DateTimeZone('Asia/Jakarta'));
+        $x_timestamp = $timestamp->format('c');
+
+        // Client ID
+        $client_id = '4351d2b8-8a0c-49b7-8f34-fdc42a4d1ae3';
+        $data = $client_id . '|' . $x_timestamp;
+        $rsa_algorithm = OPENSSL_ALGO_SHA256;
+
+        // Load private key
+        $privatekey_file = file_get_contents($private_key_path);
+        $privatekey = openssl_pkey_get_private($privatekey_file, $password);
+
+        if (!$privatekey) {
+            return response()->json([
+                'error' => 'Failed to load private key',
+                'openssl_error' => openssl_error_string()
+            ], 500);
+        }
+
+        // Generate signature
+        if (!openssl_sign($data, $signature, $privatekey, $rsa_algorithm)) {
+            return response()->json([
+                'error' => 'Failed to sign data',
+                'openssl_error' => openssl_error_string()
+            ], 500);
+        }
+
+        $signature_base64 = base64_encode($signature);
+
+        return response()->json([
+            'timestamp' => $x_timestamp,
+            'data' => $data,
+            'signature' => $signature_base64,
+        ]);
+    }
+
     public function getAccessToken()
     {
-        // Data credential sandbox
-        $clientId = '4351d2b8-8a0c-49b7-8f34-fdc42a4d1ae3';
-        $timestamp = Carbon::now()->format("Y-m-d\TH:i:sP"); // Contoh: 2023-04-27T14:59:48+07:00
-        $clientSecret = '325fe2bc-7d9b-4e15-a056-c6d6824a9f1f';
+        $client_id = '4351d2b8-8a0c-49b7-8f34-fdc42a4d1ae3';
+        $client_secret = '325fe2bc-7d9b-4e15-a056-c6d6824a9f1f';
 
-        // Format string untuk signature
-        $stringToSign = $clientId . "|" . $timestamp;
+        $timestamp = new \DateTime('now', new \DateTimeZone('Asia/Jakarta'));
+        $x_timestamp = $timestamp->format('Y-m-d\TH:i:s.vP');
+        // $x_timestamp .= '+0700'; // → 2025-07-23T22:14:30.431+0700 ✅
 
-        // Path ke private key PEM
-        $pem = file_get_contents(storage_path('app/keys/API_Portal.pem'));
 
-        // Load private key dan tanda tangani
-        try {
-            $privateKey = PublicKeyLoader::load($pem, 'a123') // <- password disini
-                ->withPadding(RSA::SIGNATURE_PKCS1)
-                ->withHash('sha256');
+        $http_method = 'POST';
+        $endpoint_path = '/openapi/auth/v2.0/access-token/b2b';
+        $form_data = 'grant_type=client_credentials';
 
-            $signature = base64_encode($privateKey->sign($stringToSign));
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to load private key or generate signature', 'detail' => $e->getMessage()]);
+        $binary_sha256 = hash('sha256', $form_data, true);
+        $hex_sha256 = strtolower(bin2hex($binary_sha256));
+
+        $signature_raw = 'POST:/openapi/auth/v2.0/access-token/b2b:' . $client_id . ':' . $hex_sha256 . ':' . $x_timestamp;
+        $signature_hmac = hash_hmac('sha512', $signature_raw, $client_secret, true);
+        $x_signature = base64_encode($signature_hmac);
+
+        $base_url = 'https://sandbox.bankmandiri.co.id';
+
+        // Request
+        $response = Http::withHeaders([
+            'Content-Type' => 'application/x-www-form-urlencoded',
+            'X-CLIENT-KEY' => $client_id,
+            'X-TIMESTAMP' => $x_timestamp,
+            'X-SIGNATURE' => $x_signature,
+            'User-Agent' => 'PostmanRuntime/7.26.3',
+        ])->asForm()->post($base_url . $endpoint_path, [
+            'grant_type' => 'client_credentials', // ✅ HARUS pakai underscore
+        ]);
+
+
+        // Log untuk debugging
+        Log::info('Mandiri Access Token Response', [
+            'timestamp' => $x_timestamp,
+            'signature_raw' => $signature_raw,
+            'x_signature' => $x_signature,
+            'hex_sha256' => $hex_sha256,
+            'http_code' => $response->status(),
+            'body' => $response->body(),
+        ]);
+
+        // Response handling
+        if ($response->failed()) {
+            return response()->json([
+                'error' => 'Failed to retrieve access token',
+                'details' => $response->json(),
+                'raw_body' => $response->json(),
+            ], $response->status());
         }
 
-        // Kirim request token
-        $client = new Client();
+        $json = $response->json();
 
-        try {
-            $response = $client->request('POST', 'https://sandbox.bankmandiri.co.id/openapi/auth/v2.0/access-token/b2b', [
-                'headers' => [
-                    'Content-Type' => 'application/x-www-form-urlencoded',
-                    'X-TIMESTAMP' => $timestamp,
-                    'X-SIGNATURE' => $signature,
-                    'X-CLIENT-KEY' => $clientId,
-                    'X-CLIENT-SECRET' => $clientSecret,
-                ],
-                'form_params' => [
-                    'grant_type' => 'client_credentials',
-                    'client_id' => $clientId,
-                    'client_secret' => $clientSecret,
-                    'X-PARTNER-ID' => 'SANDBOX', // Ganti dengan partner ID yang sesuai
-                ]
-            ]);
-
-            return json_decode($response->getBody(), true);
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to get access token', 'detail' => $e->getMessage()]);
-        }
+        return response()->json([
+            'access_token' => $json['accessToken'] ?? null,
+            'expires_in' => $json['expiresIn'] ?? null,
+            'response' => $json
+        ]);
     }
 
 
-    public function getAccessTokenStatic()
+    public function getTransactionSignature()
     {
-        $url = 'https://sandbox.bankmandiri.co.id/openapi/auth/v2.0/access-token/b2b';
+        // === Setup ===
+        $http_method = 'POST';
+        $endpoint_url = '/openapi/transaction/v1.0/transfer-va/create-va';
 
-        $headers = [
-            'X-Client-Key' => '70285a30-e30a-4587-8y55-ac9d2hba2',
-            'X-TIMESTAMP' => '2020-09-07T08:22:05.429+07:00',
-            'X-SIGNATURE' => 'L3jR+bsf6ZpmFx9dc8yY5tyw/3dWdsGga9pe6Fgq6sFqRPNmYXntgVZtobZ6tcI1gV6EPda0iemoqVo1z3mk2oX6uUDWkzy6MA+ulBfuWqdetpHY/yjZSh9HtZ5tUA0McLehiktbFvJPnZ5w/PLS6WWAbHYCZ+ZcaCYvY6fUIOkeT5w+M5SzsSi21SJq7UBwlPCSLigm3mxD3N4hdXNle2xrqcMyamJYVkIppLlxywHFktQlD3zn1fwksJeGTxhfkej7UC45oTV6vHi1uMW06j3NM3EuW/ruvPivXcWVAWWjG5YEWZ1QcDmgivWNRegdw05F9Wyc5tQaOCdt9IK+sw==',
-            'User-Agent' => 'PostmanRuntime/7.26.3',
-            'Content-Type' => 'application/x-www-form-urlencoded',
+        // Dummy Access Token (dari dokumentasi, sesuaikan jika dynamic)
+        $access_token = 'eyJraWQiOiJzc29zIiwiYWxnIjoiUlM1MTIifQ.eyJzdWIiOiIwMzBiM2QzMS00MjQ2LTQ1MzMtYTEyMS0wYTA4NjExZWJmOTgiLCJhdWQiOiJtYW5kaXJpLWF1ZCIsImNsaWVudElkIjoiN2IyNzRkNzktZTYzOC00YzBkLTk1YmEtNWZiMWU1NWFiODFhIiwic2lnbiI6IlgtUEFSVE5FUi1JRCIsImlzcyI6Im1hbmRpcmktand0IiwicGFydG5lcklkIjoiU0FOREJPWCIsImV4cCI6MTY4MDUxMTE4OSwiaWF0IjoxNjgwNTEwMjg5fQ.HjOZ2wVMnoFjvy6MFgQwCpKbdfZ3iCCONsN4t1Q1ONeIY8_ctM1-V_BnmuAAZUBSysrcR8i3llAZJ_k_90jS-DE2wt6eYtwBsfZamJP6t4rh8Hf_vKRDlQ-vjLNRHdFJizuIMJpuWYa9OYHV4qhkI7wYmpc_4JNZV3DjifqoG_AydZpxksFDNTuUitWxVTDD-k-ogrRUpZpH8eBMu3aEbAe_m6Grlk868NJVHogLURy0VNtnPLu6DRz7Z4veB6903h8aljSxKPC4hRJTBkQBaBJCtTm2pSL-IKkesIUNryxzmW2Y_0Ww7PzGFFi0OLBlqxNkvObTq5ndzbi4392t0Q';
+
+        // Client Secret (dari kamu)
+        $client_secret = 'fd04e03e-76db-4403-97f4-1c2abc76764c';
+
+        // Payload JSON (simulasi)
+        $data_json = [
+            "partnerServiceId" => "89661",
+            "customerNo" => "8966112900000391",
+            "virtualAccountNo" => "8966112900000391",
+            "virtualAccountName" => "Jokul Doe",
+            "virtualAccountEmail" => "jokul@email.com",
+            "virtualAccountPhone" => "6281828384858",
+            "trxId" => "abcd12346",
+            "totalAmount" => [
+                "value" => "75000.00",
+                "currency" => "IDR"
+            ],
+            "billDetails" => [
+                [
+                    "billAmount" => [
+                        "value" => "75000.00",
+                        "currency" => "IDR"
+                    ]
+                ]
+            ],
+            "expiredDate" => "2022-12-14T23:59:59+07:00"
         ];
 
-        $body = [
-            'grant_type' => 'client_credentials',
-        ];
+        // Minify JSON
+        $json_minified = json_encode($data_json, JSON_UNESCAPED_SLASHES);
 
-        $response = Http::withHeaders($headers)
-            ->asForm()
-            ->post($url, $body);
+        // SHA-256 hash binary → hex → lowercase
+        $binary_sha256 = hash('sha256', $json_minified, true);
+        $hex_sha256 = strtolower(bin2hex($binary_sha256));
 
-        // Log debug
-        Log::info('Status: ' . $response->status());
-        Log::info('Headers: ', $response->headers());
-        Log::info('Body: ' . $response->body());
+        // Timestamp
+        $dt = new DateTime();
+        $dt->setTimezone(new DateTimeZone('Asia/Jakarta'));
+        $timestamp = $dt->format('c');
 
-        return $response->body(); // bisa diganti ke ->json() jika sudah valid json
+        // Build signature base string
+        $signature_base = $http_method . ':' . $endpoint_url . ':' . $access_token . ':' . $hex_sha256 . ':' . $timestamp;
+
+        // SHA512 HMAC using client secret
+        $hmac_sha512 = hash_hmac('sha512', $signature_base, $client_secret, true);
+        $x_signature = base64_encode($hmac_sha512);
+
+        // Response
+        return response()->json([
+            'timestamp' => $timestamp,
+            'minified_json' => $json_minified,
+            'hex_sha256' => $hex_sha256,
+            'signature_base_string' => $signature_base,
+            'x-signature' => $x_signature
+        ]);
     }
 }

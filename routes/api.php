@@ -100,5 +100,7 @@ Route::post('/reset-password', [NewPasswordController::class, 'newPasswordAPI'])
 Route::post('/send-email-verification', [EmailVerificationNotificationController::class, 'send']);
 Route::post('/send-notification', [SendNotificationController::class, 'sendToUser']);
 Route::get('/mandiri/sandbox/create-va', [MandiriSandboxController::class, 'createVA']);
-Route::get('/mandiri/sandbox/get-token', [MandiriSandboxController::class, 'getAccessToken']);
+Route::get('/mandiri/sandbox/get-signature', [MandiriSandboxController::class, 'getSignature']);
+Route::get('/mandiri/sandbox/get-access-token', [MandiriSandboxController::class, 'getAccessToken']);
+// Route::post('/mandiri/sandbox/get-access-token', [MandiriSandboxController::class, 'getAccessToken']);
 Route::get('/mandiri/sandbox/get-token-static', [MandiriSandboxController::class, 'getAccessTokenStatic']);
