@@ -55,6 +55,7 @@ class RequestLogger
             'user_id' => optional($user)->id,
             'tenant_id' => $tenantId,
             'pembeli_id' => $pembeliId,
+            'transaksi_id' => $transaksiId,
         ]);
 
         $response = $next($request);
