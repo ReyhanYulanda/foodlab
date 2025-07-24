@@ -35,10 +35,12 @@ class RequestLogger
             if ($transaksi) {
                 $pembeliId = $transaksi->user_id;
 
-                // Kalau belum ada tenant_id dari login, ambil dari transaksi
+                // Ambil tenant_id dari transaksi jika belum dapat
                 if (!$tenantId) {
-                    $firstTenantId = optional($transaksi->listTransaksiDetail->first()?->menus)->tenant_id;
-                    $tenantId = $firstTenantId;
+                    $firstDetail = $transaksi->listTransaksiDetail->first();
+                    if ($firstDetail && $firstDetail->menus) {
+                        $tenantId = $firstDetail->menus->tenant_id;
+                    }
                 }
             }
         }
