@@ -290,19 +290,14 @@ class TransaksiController extends Controller
             $success = $this->storeTransakasiDetail($request, $transaksi);
 
             if ($success) {
-                if ($tenantUser && $tenantUser->fcm_token) {
-                    $customNames = [
-                        18 => 'Pesanan Masuk (mama dani)',
-                        38 => 'Pesanan Masuk (kedai foodlabs)',
-                    ];
-                    $tenantName = $customNames[$tenant->id] ?? 'Pesanan Masuk';
-                    $messageBody = 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!';
+                DB::commit();
 
+                if ($tenantUser && $tenantUser->fcm_token) {
                     $firebases
-                        ->withNotification($tenantName, $messageBody)
+                        ->withNotification('Pesanan Masuk', 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!')
                         ->withData([
-                            'title' => $tenantName,
-                            'body' => $messageBody
+                            'title' => 'Pesanan Masuk',
+                            'body' => 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!'
                         ])->sendMessages($tenantUser->fcm_token);
                 }
 
