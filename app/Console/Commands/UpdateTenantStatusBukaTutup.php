@@ -20,9 +20,7 @@ class UpdateTenantStatusBukaTutup extends Command
         foreach ($tenants as $tenant) {
             $user = $tenant->pemilik;
 
-            if (!$user) continue;
-
-            if ($user->manual_offline) {
+            if (!$user || $user->manual_offline) {
                 continue;
             }
 
@@ -31,12 +29,15 @@ class UpdateTenantStatusBukaTutup extends Command
 
             if (is_null($jamBuka) || is_null($jamTutup)) continue;
 
-            if ($jamBuka <= $now && $now <= $jamTutup) {
-                $user->isOnline = 1;
+            if ($jamBuka <= $jamTutup) {
+                // Normal case: buka dan tutup di hari yang sama
+                $isOpen = $jamBuka <= $now && $now <= $jamTutup;
             } else {
-                $user->isOnline = 0;
+                // Special case: jam tutup lewat tengah malam
+                $isOpen = $now >= $jamBuka || $now <= $jamTutup;
             }
 
+            $user->isOnline = $isOpen ? 1 : 0;
             $user->save();
         }
 
