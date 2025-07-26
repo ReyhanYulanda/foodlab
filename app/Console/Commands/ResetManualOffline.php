@@ -14,7 +14,6 @@ class ResetManualOffline extends Command
 
     public function handle()
     {
-        $now = Carbon::now()->format('H:i');
 
         $tenants = Tenants::with('pemilik')->get();
 
@@ -31,6 +30,7 @@ class ResetManualOffline extends Command
 
             $user->manual_offline = false;
             $user->manual_override = false;
+            $user->isOnline = 0;
             $user->save();
         }
 
