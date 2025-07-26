@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notification;
 
 class ResetPasswordNotification extends Notification
 {
+
     // use Queueable;
 
     public $token;
@@ -17,6 +18,7 @@ class ResetPasswordNotification extends Notification
     {
         $this->token = $token;
     }
+
 
     /**
      * Get the notification's delivery channels.
@@ -28,6 +30,7 @@ class ResetPasswordNotification extends Notification
     {
         return ['mail'];
     }
+
 
     /**
      * Get the mail representation of the notification.
@@ -46,7 +49,7 @@ class ResetPasswordNotification extends Notification
             ->line('Jika Anda tidak meminta reset katasandi, abaikan email ini.')
             ->salutation('Salam hangat, Tim Foodlab');
     }
-
+  
     /**
      * Get the array representation of the notification.
      *

@@ -4,6 +4,7 @@ namespace App\Services\Kelola;
 
 use App\Models\Menus;
 use App\Models\Tenants;
+use App\Models\TransaksiDetail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 
@@ -11,7 +12,21 @@ class TenantService
 {
     public function getTenantData($user)
     {
-        return Tenants::where('user_id', $user->id)->with('listMenu')->with('pemilik')->first();
+        $tenant = Tenants::where('user_id', $user->id)
+            ->with('listMenu')
+            ->with('pemilik')
+            ->first();
+
+        if ($tenant) {
+            $transaksiBerhasil = TransaksiDetail::whereHas('menus', function ($query) use ($tenant) {
+                $query->where('tenant_id', $tenant->id);
+            })
+                ->where('status', 'selesai')
+                ->count();
+
+            $tenant->transaksi_berhasil = $transaksiBerhasil;
+        }
+        return $tenant;
     }
 
     public function storeMenu(Request $request, $user)
@@ -70,7 +85,7 @@ class TenantService
         }
 
         $menu->delete();
-        
+
         return 'Menu makanan berhasil dihapus';
     }
 }

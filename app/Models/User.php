@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Http\Middleware\Tenant;
+use App\Notifications\ResetPasswordNotification;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -11,8 +12,6 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 use Spatie\Permission\Traits\HasRoles;
-use App\Notifications\ResetPasswordNotification;
-
 class User extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles;
@@ -23,6 +22,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'fcm_token',
         'isOnline',
+        'manual_offline',
+        'manual_override',
         "phone",
         "image"
     ];

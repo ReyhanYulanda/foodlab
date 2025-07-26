@@ -43,9 +43,7 @@ class AuthController extends Controller
                 'password' => Hash::make($request->password),
                 // 'phone' => $request->phone,
             ]);
-
             $newUser->sendEmailVerificationNotification();
-
             // Token Management
             $token = $newUser->createToken('secret')->plainTextToken;
 
