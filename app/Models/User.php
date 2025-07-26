@@ -23,6 +23,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'fcm_token',
         'isOnline',
         'manual_offline',
+        'manual_override',
         "phone",
         "image"
     ];

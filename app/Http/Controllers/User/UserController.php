@@ -143,12 +143,15 @@ class UserController extends Controller
             ];
 
             // Tangani isOnline dan manual_offline untuk role tenant
-            if ($request->has('isOnline')) {
-                $data['isOnline'] = $request->isOnline;
-
-                if ($user->hasRole('tenant')) {
-                    $data['manual_offline'] = $request->isOnline == 0 ? true : false;
+            if ($user->hasRole('tenant')) {
+                if ($request->isOnline == 1) {
+                    // User menghidupkan secara manual
+                    $data['manual_offline'] = false;
                     $data['manual_override'] = true;
+                } else {
+                    // User mematikan secara manual
+                    $data['manual_offline'] = true;
+                    $data['manual_override'] = false;
                 }
             }
 
