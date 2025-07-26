@@ -148,11 +148,12 @@ class UserController extends Controller
                     if ($user->hasRole('tenant')) {
                         $tenant = $user->tenant;
 
-                        $hasProcessingOrders = Transaksi::whereHas('listTransaksiDetail', function ($q) use ($tenant) {
-                            $q->whereHas('menus', function ($q2) use ($tenant) {
-                                $q2->where('tenant_id', $tenant->id);
-                            })->where('status', 'pesanan_diproses');
-                        })->exists();
+                        $hasProcessingOrders = Transaksi::where('status', 'pesanan_diproses')
+                            ->whereHas('listTransaksiDetail', function ($q) use ($tenant) {
+                                $q->whereHas('menus', function ($q2) use ($tenant) {
+                                    $q2->where('tenant_id', $tenant->id);
+                                });
+                            })->exists();
 
                         if ($hasProcessingOrders) {
                             return response()->json([
