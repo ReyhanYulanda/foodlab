@@ -13,27 +13,24 @@ class UpdateTenantStatusBukaTutup extends Command
 
     public function handle()
     {
-        $now = \Carbon\Carbon::now()->format('H:i');
+        $now = Carbon::now()->format('H:i');
 
-        $tenants = \App\Models\Tenants::with('pemilik')->get();
+        $tenants = Tenants::with('pemilik')->get();
 
         foreach ($tenants as $tenant) {
             $user = $tenant->pemilik;
 
             if (!$user) continue;
 
-            // Jika manual_offline bernilai true, maka kita tidak override status online-nya
-            if ($user->manual_offline) {
-                // lewati update status isOnline
-                continue;
-            }
+            // Jika manual_offline true, maka biarkan tetap offline dan skip update
+            if ($user->manual_offline) continue;
 
             $jamBuka = $tenant->jam_buka;
             $jamTutup = $tenant->jam_tutup;
 
-            if (is_null($jamBuka) || is_null($jamTutup)) continue;
+            if (!$jamBuka || !$jamTutup) continue;
 
-            // Default: update status online berdasarkan jam operasional
+            // Jika tidak manual offline, maka update berdasarkan jam buka
             if ($jamBuka <= $now && $now <= $jamTutup) {
                 $user->isOnline = 1;
             } else {
@@ -42,7 +39,6 @@ class UpdateTenantStatusBukaTutup extends Command
 
             $user->save();
         }
-
         $this->info('Status tenant berhasil diperbarui.');
     }
 }
