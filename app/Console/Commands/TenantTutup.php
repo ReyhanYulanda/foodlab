@@ -31,11 +31,11 @@ class TenantTutup extends Command
 
             foreach ($tenants as $tenant) {
                 $user = $tenant->pemilik;
-                if ($user) {
+                if ($user && !$user->manual_offline) {
                     $user->isOnline = 0;
                     $user->save();
                 }
-            }
+            }            
 
             Log::info("Command tenant:tutup dijalankan pada $jamSekarang, semua tenant diset offline.");
             $this->info("Semua tenant diset offline pada jam $jamSekarang.");
