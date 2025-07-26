@@ -14,7 +14,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('order:autocancel')->everyMinute();
         $schedule->command('tenant:update-status')->everyMinute();
         $schedule->command('tenant:tutup')->everyMinute();
-        $schedule->command('tenant:reset-manual-offline')->dailyAt($reset_manual->nilai ?? '22:08');
+        $schedule->command('tenant:reset-manual-offline')->dailyAt('22:12');
     }
 
     protected function commands()
