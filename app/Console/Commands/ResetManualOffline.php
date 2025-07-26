@@ -28,11 +28,10 @@ class ResetManualOffline extends Command
             if (!$jamBuka) continue;
 
             // Reset jika sekarang < jam buka
-            if ($now < $jamBuka) {
-                $user->manual_offline = false;
-                $user->manual_override = false;
-                $user->save();
-            }
+
+            $user->manual_offline = false;
+            $user->manual_override = false;
+            $user->save();
         }
 
         $this->info('manual_offline telah di-reset untuk semua tenant yang aktif hari ini.');
