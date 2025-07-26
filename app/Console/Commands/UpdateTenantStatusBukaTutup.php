@@ -22,6 +22,10 @@ class UpdateTenantStatusBukaTutup extends Command
 
             if (!$user) continue;
 
+            if ($user->manual_offline) {
+                continue;
+            }
+
             $jamBuka = $tenant->jam_buka;
             $jamTutup = $tenant->jam_tutup;
 
