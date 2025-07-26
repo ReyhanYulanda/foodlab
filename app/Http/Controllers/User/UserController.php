@@ -148,6 +148,7 @@ class UserController extends Controller
 
                 if ($user->hasRole('tenant')) {
                     $data['manual_offline'] = $request->isOnline == 0 ? true : false;
+                    $data['manual_override'] = true;
                 }
             }
 

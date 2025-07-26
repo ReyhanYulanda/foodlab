@@ -22,8 +22,7 @@ class UpdateTenantStatusBukaTutup extends Command
 
             if (!$user) continue;
 
-            // Jika manual_offline true, maka biarkan tetap offline dan skip update
-            if ($user->manual_offline) continue;
+            if ($user->manual_offline || $user->manual_override) continue;
 
             $jamBuka = $tenant->jam_buka;
             $jamTutup = $tenant->jam_tutup;

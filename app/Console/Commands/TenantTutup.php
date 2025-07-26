@@ -12,7 +12,7 @@ class TenantTutup extends Command
 {
     protected $signature = 'tenant:tutup';
     protected $description = 'Set semua tenant menjadi offline pada jam tertentu';
-    
+
     public function handle()
     {
         $jamTutup = Pengaturan::where('nama', 'jam_tutup_tenant')->first();
@@ -31,11 +31,11 @@ class TenantTutup extends Command
 
             foreach ($tenants as $tenant) {
                 $user = $tenant->pemilik;
-                if ($user && !$user->manual_offline) {
+                if ($user && !$user->manual_offline && !$user->manual_override) {
                     $user->isOnline = 0;
                     $user->save();
                 }
-            }            
+            }
 
             Log::info("Command tenant:tutup dijalankan pada $jamSekarang, semua tenant diset offline.");
             $this->info("Semua tenant diset offline pada jam $jamSekarang.");

@@ -30,6 +30,7 @@ class ResetManualOffline extends Command
             // Reset jika sekarang < jam buka
             if ($now < $jamBuka) {
                 $user->manual_offline = false;
+                $user->manual_override = false;
                 $user->save();
             }
         }
