@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Konfigurrasi\Menu;
+use App\Models\Transaksi;
 use App\Models\User;
 use App\Response\ResponseApi;
 use App\Services\Firebases;
@@ -141,9 +142,40 @@ class UserController extends Controller
                 "phone" => $request->phone ?? $user->phone,
                 "image" => $url ?? $user->image,
             ];
-
-            // Tangani isOnline dan manual_offline untuk role tenant
             if ($request->has('isOnline')) {
+                // Cegah jika masih ada transaksi aktif
+                if ($request->has('isOnline') && $request->isOnline == 0) {
+                    if ($user->hasRole('tenant')) {
+                        $tenant = $user->tenant;
+
+                        $hasProcessingOrders = Transaksi::whereHas('listTransaksiDetail', function ($q) use ($tenant) {
+                            $q->whereHas('menus', function ($q2) use ($tenant) {
+                                $q2->where('tenant_id', $tenant->id);
+                            })->where('status', 'pesanan_diproses');
+                        })->exists();
+
+                        if ($hasProcessingOrders) {
+                            return response()->json([
+                                'status' => 'failed',
+                                'message' => 'Tidak dapat offline karena masih ada pesanan yang sedang diproses.'
+                            ], 400);
+                        }
+                    }
+
+                    if ($user->hasRole('masbro')) {
+                        $hasDeliveryOrders = Transaksi::where('driver_id', $user->id)
+                            ->where('status', 'diantar')
+                            ->exists();
+
+                        if ($hasDeliveryOrders) {
+                            return response()->json([
+                                'status' => 'failed',
+                                'message' => 'Tidak dapat offline karena masih ada pesanan yang sedang diantar.'
+                            ], 400);
+                        }
+                    }
+                }
+
                 $data['isOnline'] = $request->isOnline;
 
                 if ($user->hasRole('tenant')) {
@@ -152,6 +184,7 @@ class UserController extends Controller
                 }
             }
 
+            // ✅ Update dilakukan setelah pengecekan selesai
             $user->update($data);
 
             return response()->json([
@@ -162,6 +195,7 @@ class UserController extends Controller
             return ResponseApi::serverError();
         }
     }
+
 
 
     public function updateFcmToken(Request $request, Firebases $firebases)
