@@ -20,7 +20,11 @@ class UpdateTenantStatusBukaTutup extends Command
         foreach ($tenants as $tenant) {
             $user = $tenant->pemilik;
 
-            if (!$user || $user->manual_offline) {
+            if (!$user) continue;
+
+            // Jika manual_offline bernilai true, maka kita tidak override status online-nya
+            if ($user->manual_offline) {
+                // lewati update status isOnline
                 continue;
             }
 
@@ -29,15 +33,13 @@ class UpdateTenantStatusBukaTutup extends Command
 
             if (is_null($jamBuka) || is_null($jamTutup)) continue;
 
-            if ($jamBuka <= $jamTutup) {
-                // Normal case: buka dan tutup di hari yang sama
-                $isOpen = $jamBuka <= $now && $now <= $jamTutup;
+            // Default: update status online berdasarkan jam operasional
+            if ($jamBuka <= $now && $now <= $jamTutup) {
+                $user->isOnline = 1;
             } else {
-                // Special case: jam tutup lewat tengah malam
-                $isOpen = $now >= $jamBuka || $now <= $jamTutup;
+                $user->isOnline = 0;
             }
 
-            $user->isOnline = $isOpen ? 1 : 0;
             $user->save();
         }
 
