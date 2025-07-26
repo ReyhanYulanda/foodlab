@@ -30,9 +30,9 @@ class UpdateTenantStatusBukaTutup extends Command
             if (!$jamBuka || !$jamTutup) continue;
 
             // Jika tidak manual offline, maka update berdasarkan jam buka
-            if ($jamBuka <= $now && $now <= $jamTutup) {
+            if ($now >= $jamBuka && $now <= $jamTutup) {
                 $user->isOnline = 1;
-            } else {
+            } elseif ($now > $jamTutup) {
                 $user->isOnline = 0;
             }
 
