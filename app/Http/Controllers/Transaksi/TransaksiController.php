@@ -209,6 +209,18 @@ class TransaksiController extends Controller
             ], 400);
         }
 
+        $jumlahDriver = User::where('isOnline', true)
+            ->whereHas('roles', function ($q) {
+                $q->where('name', 'masbro');
+            })->count();
+
+        if ($request->isAntar && $jumlahDriver == 0) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Tidak ada driver online saat ini. Silakan coba lagi nanti.'
+            ], 400);
+        }
+
         // === ✅ Cek apakah ada menu yang tidak ready ===
         $menusNotReady = Menus::withTrashed()
             ->whereIn('id', $menu_ids)
