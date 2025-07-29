@@ -572,9 +572,11 @@ class TransaksiController extends Controller
         // Kirim ke API eksternal
         $response = Http::withHeaders([
             'x-api-key' => 'PENS-wQlLZ8M8ruQMeGnoihbeeeXnlOktHZqURaGSV3j1y8YcT3KuW0rcC',
+            'Content-Type' => 'application/json',
             'Accept' => 'application/json',
-            'Content-Type' => 'application/json'
-        ])->post('https://mis.pens.ac.id/API_PENS/index.php?path=v1/execute_foodlab', $payload);
+        ])->send('POST', 'https://mis.pens.ac.id/API_PENS/index.php?path=v1/execute_foodlab', [
+            'body' => json_encode($payload)
+        ]);
 
         return response()->json([
             'status' => $response->json('status'),
