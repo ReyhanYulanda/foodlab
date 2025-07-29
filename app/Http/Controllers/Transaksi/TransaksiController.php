@@ -579,6 +579,7 @@ class TransaksiController extends Controller
             'code' => $response->json('code'),
             'data' => $response->json('data'),
             'debug' => [
+                'headers' => $response->headers(),
                 'payload_sent' => $payload,
                 'raw_response' => $response->json(),
                 'http_status' => $response->status(),
