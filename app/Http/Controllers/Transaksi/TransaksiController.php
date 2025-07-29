@@ -571,7 +571,7 @@ class TransaksiController extends Controller
 
         // ✅ Kirim dengan format JSON dan header yang benar
         $response = Http::withHeaders([
-            'x-api-key' => 'PENS-wQlLZ8M8ruQMeGnoihbeeeXnlOktHZqURaGSV3j1y8YcT3KuW0rcC',
+            'API-KEY' => 'PENS-wQlLZ8M8ruQMeGnoihbeeeXnlOktHZqURaGSV3j1y8YcT3KuW0rcC',
             'Accept' => 'application/json',
             'User-Agent' => 'curl/7.79.1'
         ])->withBody(json_encode($payload), 'application/json')
