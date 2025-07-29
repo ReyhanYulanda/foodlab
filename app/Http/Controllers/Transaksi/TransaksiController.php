@@ -573,6 +573,7 @@ class TransaksiController extends Controller
         $response = Http::withHeaders([
             'x-api-key' => 'PENS-wQlLZ8M8ruQMeGnoihbeeeXnlOktHZqURaGSV3j1y8YcT3KuW0rcC',
             'Accept' => 'application/json',
+            'User-Agent' => 'curl/7.79.1'
         ])->withBody(json_encode($payload), 'application/json')
             ->post('https://mis.pens.ac.id/API_PENS/index.php?path=v1/execute_foodlab');
 
