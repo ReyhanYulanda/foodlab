@@ -25,7 +25,7 @@ Route::post('menu/{id}', [KelolaTenantController::class, 'updateMenuWeb']);
 
 Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function () {
     Route::post('/tenant/menucoba/{id}', [KelolaTenantController::class, 'updateMenu']);
-    Route::post('/getPushToUbisma', [TransaksiController::class, 'getPushToUbisma']);
+    Route::get('/getPushToUbisma', [TransaksiController::class, 'getPushToUbisma']);
 
     Route::get('/auth', [UserController::class, 'index']);
     Route::post('/update-user', [UserController::class, 'update']);
