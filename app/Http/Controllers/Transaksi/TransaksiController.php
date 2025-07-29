@@ -20,6 +20,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
@@ -542,5 +543,48 @@ class TransaksiController extends Controller
         } catch (Exception $e) {
             Log::error("Gagal membuat kode pemesanan: " . $e->getMessage());
         }
+    }
+
+    public function getPushToUbisma(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'request_id_' => 'required|integer|digits_between:1,10',
+            'nama_' => 'required|string|max:100',
+            'nominal_topup_' => 'required|integer|digits_between:1,10',
+            'tanggal_akhir_tagihan_' => 'required|date_format:d-m-Y H:i:s',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 422,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        // Payload sesuai spesifikasi API
+        $payload = [
+            'procedure' => 'pfoodlab_topup',
+            'data' => [
+                [
+                    'request_id_' => (string) $request->input('request_id_'),
+                    'nama_' => $request->input('nama_'),
+                    'nominal_topup_' => (string) $request->input('nominal_topup_'),
+                    'tanggal_akhir_tagihan_' => $request->input('tanggal_akhir_tagihan_'),
+                ]
+            ]
+        ];
+
+        // Kirim ke API eksternal
+        $response = Http::withHeaders([
+            'x-api-key' => 'PENS-wQlLZ8M8ruQMeGnoihbeeeXnlOktHZqURaGSV3j1y8YcT3KuW0rcC',
+        ])->get('https://mis.pens.ac.id/API_PENS/index.php?path=v1/execute_foodlab', $payload);
+
+        // Kembalikan respons dari server eksternal
+        return response()->json([
+            'status' => $response->json('status'),
+            'code' => $response->json('code'),
+            'data' => $response->json('data'),
+        ], $response->status());
     }
 }
