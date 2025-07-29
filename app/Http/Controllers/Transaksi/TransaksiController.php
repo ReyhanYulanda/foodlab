@@ -547,7 +547,8 @@ class TransaksiController extends Controller
 
     public function pushToUbisma(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $data = $request->input('data.0');
+        $validator = Validator::make($data, [
             'request_id_' => 'required|integer|digits_between:1,10',
             'nama_' => 'required|string|max:100',
             'nominal_topup_' => 'required|integer|digits_between:1,10',
@@ -565,14 +566,7 @@ class TransaksiController extends Controller
         // Payload sesuai spesifikasi API
         $payload = [
             'procedure' => 'pfoodlab_topup',
-            'data' => [
-                [
-                    'request_id_' => (string) $request->input('request_id_'),
-                    'nama_' => $request->input('nama_'),
-                    'nominal_topup_' => (string) $request->input('nominal_topup_'),
-                    'tanggal_akhir_tagihan_' => $request->input('tanggal_akhir_tagihan_'),
-                ]
-            ]
+            'data' => [$data]
         ];
 
         // Kirim ke API eksternal
