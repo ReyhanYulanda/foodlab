@@ -545,7 +545,7 @@ class TransaksiController extends Controller
         }
     }
 
-    public function getPushToUbisma(Request $request)
+    public function pushToUbisma(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'request_id_' => 'required|integer|digits_between:1,10',
@@ -578,7 +578,7 @@ class TransaksiController extends Controller
         // Kirim ke API eksternal
         $response = Http::withHeaders([
             'x-api-key' => 'PENS-wQlLZ8M8ruQMeGnoihbeeeXnlOktHZqURaGSV3j1y8YcT3KuW0rcC',
-        ])->get('https://mis.pens.ac.id/API_PENS/index.php?path=v1/execute_foodlab', $payload);
+        ])->post('https://mis.pens.ac.id/API_PENS/index.php?path=v1/execute_foodlab', $payload);
 
         // Kembalikan respons dari server eksternal
         return response()->json([
