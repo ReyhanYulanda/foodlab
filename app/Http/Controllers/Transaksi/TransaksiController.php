@@ -714,11 +714,18 @@ class TransaksiController extends Controller
         $ubismaData = $response->json('data') ?? [];
 
         // 5. Update status_bayar dan tgl_bayar jika tersedia
+        try {
+            $tglBayar = isset($ubismaData['tanggal_bayar_']) && $ubismaData['tanggal_bayar_']
+                ? Carbon::createFromFormat('d-m-Y H:i:s', $ubismaData['tanggal_bayar_'])
+                : $topup->tgl_bayar;
+        } catch (\Exception $e) {
+            Log::error('Tanggal salah format dari UBISMA: ' . $ubismaData['tanggal_bayar_'] ?? 'NULL');
+            $tglBayar = $topup->tgl_bayar;
+        }
+
         $topup->update([
             'status_bayar' => $ubismaData['status_bayar_'] ?? $topup->status_bayar,
-            'tgl_bayar' => isset($ubismaData['tanggal_bayar_']) && $ubismaData['tanggal_bayar_']
-                ? Carbon::createFromFormat('d-m-Y H:i:s', $ubismaData['tanggal_bayar_'])
-                : $topup->tgl_bayar,
+            'tgl_bayar' => $tglBayar,
         ]);
 
         return response()->json([
