@@ -44,6 +44,7 @@ class UserController extends Controller
 
         $token = $user->createToken('secret', $permission)->plainTextToken;
         $data = [
+            'user_id' => $user->id,
             'nama' => $user->name,
             'email' => $user->email,
             'token' => $token,
