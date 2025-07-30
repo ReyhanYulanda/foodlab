@@ -12,6 +12,7 @@ use App\Models\SaldoKoin;
 use App\Models\TransaksiSaldoKoin;
 use App\Models\Menus;
 use App\Models\Pengaturan;
+use App\Models\TopUp;
 use App\Response\ResponseApi;
 use App\Services\Firebases;
 use App\Services\Midtrans;
@@ -586,5 +587,77 @@ class TransaksiController extends Controller
                 'http_status' => $response->status(),
             ]
         ], $response->status());
+    }
+
+    public function storeTopUp(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'user_id' => 'required|exists:users,id',
+            'nominal' => 'required|integer|min:1000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = User::findOrFail($request->user_id);
+        $requestId = $this->generateRequestId();
+        $timeout = $this->generateTimeout();
+
+        $dataToSend = [
+            'request_id_' => $requestId,
+            'nama_' => $user->name,
+            'nominal_topup_' => $request->nominal,
+            'tanggal_akhir_tagihan_' => $timeout->format('d-m-Y H:i:s'),
+        ];
+
+        // Trigger ke server UBISMA
+        $response = Http::withHeaders([
+            'x-api-key' => 'PENS-wQlLZ8M8ruQMeGnoihbeeeXnlOktHZqURaGSV3j1y8YcT3KuW0rcC',
+            'Accept' => 'application/json',
+        ])->asJson()->post('http://202.9.85.27/api/push-to-ubisma', [
+            'data' => [$dataToSend]
+        ]);
+
+        // Cek hasil response UBISMA
+        if ($response->failed()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal terhubung ke server UBISMA.',
+                'debug' => $response->body(),
+            ], $response->status());
+        }
+
+        // Simpan ke database
+        $topup = TopUp::create([
+            'user_id' => $user->id,
+            'request_id' => $requestId,
+            'nominal' => $request->nominal,
+            'status_bayar' => 'pending',
+            'tgl_akhir_tagihan' => $timeout,
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'topup' => $topup,
+                'ubisma_response' => $response->json()
+            ]
+        ]);
+    }
+
+    // Start dari 102 dan terus naik
+    protected function generateRequestId()
+    {
+        $last = TopUp::max('request_id') ?? 101;
+        return $last + 1;
+    }
+
+    protected function generateTimeout()
+    {
+        return Carbon::now()->addHour();
     }
 }
