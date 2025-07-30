@@ -636,7 +636,7 @@ class TransaksiController extends Controller
             'user_id' => $user->id,
             'request_id' => $requestId,
             'nominal' => $request->nominal,
-            'status_bayar' => 'pending',
+            // 'status_bayar' => '0',
             'tgl_akhir_tagihan' => $timeout,
         ]);
 
