@@ -648,6 +648,7 @@ class TransaksiController extends Controller
             'nominal' => $request->nominal,
             'kode_bayar' => $ubismaData['kode_bayar_mandiri_'] ?? null,
             'tgl_akhir_tagihan' => $timeout,
+            'status_bayar' => $ubismaData['status_bayar_'] ?? '0',
         ]);
 
         return response()->json([
