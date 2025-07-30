@@ -666,6 +666,59 @@ class TransaksiController extends Controller
         ]);
     }
 
+    public function getTopUp($kodeBayar)
+    {
+        // 1. Cari record berdasarkan kode_bayar
+        $topup = TopUp::where('kode_bayar', $kodeBayar)->first();
+
+        if (!$topup) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Data topup tidak ditemukan.',
+            ], 404);
+        }
+
+        // 2. Bangun ulang payload berdasarkan data yang sudah tersimpan
+        $dataToSend = [
+            'request_id' => $topup->request_id,
+            'nama_' => $topup->user->name,
+            'nominal_topup' => $topup->nominal,
+            'tanggal_akhir_tagihan' => Carbon::parse($topup->tgl_akhir_tagihan)->format('d-m-Y H:i:s'),
+        ];
+
+        // 3. Kirim request ke UBISMA
+        $response = Http::withHeaders([
+            'x-api-key' => 'PENS-wQlLZ8M8ruQMeGnoihbeeeXnlOktHZqURaGSV3j1y8YcT3KuW0rcC',
+            'Accept' => 'application/json',
+        ])->asJson()->post('https://ubisma.pens.ac.id/api/push-to-ubisma', [
+            'data' => [$dataToSend]
+        ]);
+
+        if ($response->failed()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengambil status dari UBISMA.',
+                'debug' => $response->body(),
+            ], $response->status());
+        }
+
+        // 4. Ambil data dari response
+        $ubismaData = $response->json('data') ?? [];
+
+        // 5. Update status_bayar dan tgl_bayar jika tersedia
+        $topup->update([
+            'status_bayar' => $ubismaData['status_bayar_'] ?? $topup->status_bayar,
+            'tgl_bayar' => isset($ubismaData['tanggal_bayar_']) && $ubismaData['tanggal_bayar_']
+                ? Carbon::createFromFormat('d-m-Y H:i:s', $ubismaData['tanggal_bayar_'])
+                : $topup->tgl_bayar,
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $topup
+        ]);
+    }
+
 
     // Start dari 102 dan terus naik
     protected function generateRequestId()
