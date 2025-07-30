@@ -688,10 +688,10 @@ class TransaksiController extends Controller
 
         // 2. Bangun ulang payload berdasarkan data yang sudah tersimpan
         $dataToSend = [
-            'request_id' => $topup->request_id,
+            'request_id_' => $topup->request_id,
             'nama_' => $topup->user->name,
-            'nominal_topup' => $topup->nominal,
-            'tanggal_akhir_tagihan' => Carbon::parse($topup->tgl_akhir_tagihan)->format('d-m-Y H:i:s'),
+            'nominal_topup_' => $topup->nominal,
+            'tanggal_akhir_tagihan_' => Carbon::parse($topup->tgl_akhir_tagihan)->format('d-m-Y H:i:s'),
         ];
 
         // 3. Kirim request ke UBISMA
