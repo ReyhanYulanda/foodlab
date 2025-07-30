@@ -632,8 +632,10 @@ class TransaksiController extends Controller
         }
 
         // Ambil isi data ubisma dari response
-        $ubismaResponse = $response->json('data.ubisma_response') ?? $response->json('ubisma_response');
-        $ubismaData = $ubismaResponse['data'] ?? null;
+        $ubismaResponse = $response->json();
+        Log::info('Response UBISMA:', $ubismaResponse);
+        $ubismaData = $ubismaResponse['data'][0] ?? null;
+        Log::info('Data UBISMA:', $ubismaData);
 
         if (!$ubismaData) {
             return response()->json([
