@@ -626,7 +626,7 @@ class TransaksiController extends Controller
         $response = Http::withHeaders([
             'x-api-key' => 'PENS-wQlLZ8M8ruQMeGnoihbeeeXnlOktHZqURaGSV3j1y8YcT3KuW0rcC',
             'Accept' => 'application/json',
-        ])->asJson()->post('https://api.ubisma.pens.ac.id/api/push-to-ubisma', [
+        ])->asJson()->post('https://ubisma.pens.ac.id/api/push-to-ubisma', [
             'data' => [$dataToSend]
         ]);
 
