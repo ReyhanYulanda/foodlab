@@ -678,6 +678,14 @@ class TransaksiController extends Controller
             ], 404);
         }
 
+        // 2. Cek apakah topup ini dimiliki oleh user yang sedang login
+        if ($topup->user_id !== auth()->id()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized: Anda tidak berhak mengakses topup ini.',
+            ], 403);
+        }
+
         // 2. Bangun ulang payload berdasarkan data yang sudah tersimpan
         $dataToSend = [
             'request_id' => $topup->request_id,
