@@ -11,6 +11,7 @@ use App\Services\Firebases;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SaldoKoinController extends Controller
 {
@@ -26,11 +27,14 @@ class SaldoKoinController extends Controller
             ->get();
 
         if ($pendingTopUps->count() > 0) {
+            Log::info('Saldo sebelum top-up:', ['user_id' => $userId]);
+            Log::info('Pending TopUps:', $pendingTopUps->toArray());
             $saldo = SaldoKoin::firstOrCreate(['user_id' => $userId], ['jumlah' => 0]);
 
-            $totalTopup = $pendingTopUps->sum('nominal_topup');
+            $totalTopup = $pendingTopUps->sum('nominal');
             $saldo->jumlah += $totalTopup;
             $saldo->save();
+            Log::info('Total yang ditambah ke saldo:', [$totalTopup]);
 
             // ✅ Catat transaksi
             TransaksiSaldoKoin::create([
@@ -39,6 +43,9 @@ class SaldoKoinController extends Controller
                 'tipe' => 'masuk',
                 'deskripsi' => 'Top-up berhasil melalui Virtual Account'
             ]);
+            Log::info('Transaksi Saldo Koin berhasil dicatat untuk user ID:', [$userId]);
+            // ✅ Log saldo setelah top-up
+            Log::info('Saldo setelah top-up:', ['user_id' => $userId, 'saldo' => $saldo->jumlah]);
 
             // ✅ Kirim notifikasi (opsional)
             $user = User::find($userId);
@@ -49,6 +56,7 @@ class SaldoKoinController extends Controller
                     'body' => 'Saldo sebesar Rp ' . number_format($totalTopup, 0, ',', '.') . ' telah ditambahkan ke akun Anda.'
                 ])->sendMessages($user->fcm_token);
             }
+            
 
             // ✅ Update status isTf
             TopUp::where('user_id', $userId)
@@ -57,6 +65,7 @@ class SaldoKoinController extends Controller
                 ->update(['isTf' => 1]);
         } else {
             $saldo = SaldoKoin::firstOrCreate(['user_id' => $userId], ['jumlah' => 0]);
+            Log::info('Tidak ada top-up yang pending untuk user ID:', [$userId]);
         }
 
         return response()->json([
