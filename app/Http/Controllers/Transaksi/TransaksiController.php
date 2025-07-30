@@ -632,7 +632,16 @@ class TransaksiController extends Controller
         }
 
         // Ambil isi data ubisma dari response
-        $ubismaData = $response->json('data.ubisma_response.data');
+        $ubismaResponse = $response->json('data.ubisma_response') ?? $response->json('ubisma_response');
+        $ubismaData = $ubismaResponse['data'] ?? null;
+
+        if (!$ubismaData) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Response UBISMA tidak valid atau kosong.',
+                'debug' => $response->json()
+            ], 500);
+        }
 
         // Simpan ke database
         $topup = TopUp::create([
