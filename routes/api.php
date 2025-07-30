@@ -25,7 +25,7 @@ Route::post('menu/{id}', [KelolaTenantController::class, 'updateMenuWeb']);
 
 Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function () {
     Route::post('/transaksi/topup', [TransaksiController::class, 'storeTopUp']);
-    Route::get('/transaksi/get-top-up/{$kode_bayar}', [TransaksiController::class, 'getTopUp']);
+    Route::get('/transaksi/get-top-up/{$kodeBayar}', [TransaksiController::class, 'getTopUp']);
     Route::post('/tenant/menucoba/{id}', [KelolaTenantController::class, 'updateMenu']);
     
     Route::get('/auth', [UserController::class, 'index']);
