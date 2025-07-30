@@ -734,8 +734,15 @@ class TransaksiController extends Controller
     // Start dari 102 dan terus naik
     protected function generateRequestId()
     {
-        $last = TopUp::max('request_id') ?? 101;
-        return $last + 1;
+        $starting = env('REQUEST_ID_START');
+
+        if (is_null($starting)) {
+            throw new \Exception("REQUEST_ID_START belum diset di environment");
+        }
+
+        $last = TopUp::max('request_id');
+
+        return ($last && $last >= $starting) ? $last + 1 : $starting;
     }
 
     protected function generateTimeout()
