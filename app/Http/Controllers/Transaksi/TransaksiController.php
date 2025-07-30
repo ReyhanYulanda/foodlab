@@ -20,6 +20,7 @@ use App\Traits\CanAntar;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -591,10 +592,9 @@ class TransaksiController extends Controller
 
     public function storeTopUp(Request $request)
     {
-        $user = User::findOrFail($request->user_id);
+        $user = Auth::user();
 
         $validator = Validator::make($request->all(), [
-            'user_id' => 'required|exists:users,id',
             'nominal' => 'required|integer|min:1000',
         ]);
 
@@ -615,7 +615,6 @@ class TransaksiController extends Controller
             'tanggal_akhir_tagihan_' => $timeout->format('d-m-Y H:i:s'),
         ];
 
-        // Trigger ke server UBISMA
         $response = Http::withHeaders([
             'x-api-key' => 'PENS-wQlLZ8M8ruQMeGnoihbeeeXnlOktHZqURaGSV3j1y8YcT3KuW0rcC',
             'Accept' => 'application/json',
@@ -631,7 +630,6 @@ class TransaksiController extends Controller
             ], $response->status());
         }
 
-        // Ambil isi data ubisma dari response
         $ubismaData = $response->json('data');
 
         Log::info('Response dari UBISMA:', $response->json());
@@ -644,16 +642,11 @@ class TransaksiController extends Controller
             ], 500);
         }
 
-        // Simpan ke database
         $topup = TopUp::create([
             'user_id' => $user->id,
             'request_id' => $requestId,
             'nominal' => $request->nominal,
             'kode_bayar' => $ubismaData['kode_bayar_mandiri_'] ?? null,
-            // 'status_bayar' => $ubismaData['status_bayar_'] ?? '0',
-            // 'tgl_bayar' => $ubismaData['tanggal_bayar_']
-            //     ? Carbon::createFromFormat('d-m-Y H:i:s', $ubismaData['tanggal_bayar_'])
-            //     : null,
             'tgl_akhir_tagihan' => $timeout,
         ]);
 
@@ -665,6 +658,7 @@ class TransaksiController extends Controller
             ]
         ]);
     }
+
 
     public function getTopUp($kodeBayar)
     {
