@@ -640,10 +640,10 @@ class TransaksiController extends Controller
             'request_id' => $requestId,
             'nominal' => $request->nominal,
             'kode_bayar' => $ubismaData['kode_bayar_mandiri_'] ?? null,
-            'status_bayar' => $ubismaData['status_bayar_'] ?? '0',
-            'tgl_bayar' => $ubismaData['tanggal_bayar_']
-                ? Carbon::createFromFormat('d-m-Y H:i:s', $ubismaData['tanggal_bayar_'])
-                : null,
+            // 'status_bayar' => $ubismaData['status_bayar_'] ?? '0',
+            // 'tgl_bayar' => $ubismaData['tanggal_bayar_']
+            //     ? Carbon::createFromFormat('d-m-Y H:i:s', $ubismaData['tanggal_bayar_'])
+            //     : null,
             'tgl_akhir_tagihan' => $timeout,
         ]);
 
