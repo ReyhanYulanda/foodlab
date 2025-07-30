@@ -593,13 +593,6 @@ class TransaksiController extends Controller
     {
         $user = User::findOrFail($request->user_id);
 
-        if (!$user) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'User tidak ditemukan'
-            ], 404);
-        }
-
         $validator = Validator::make($request->all(), [
             'user_id' => 'required|exists:users,id',
             'nominal' => 'required|integer|min:1000',
@@ -630,7 +623,6 @@ class TransaksiController extends Controller
             'data' => [$dataToSend]
         ]);
 
-        // Cek hasil response UBISMA
         if ($response->failed()) {
             return response()->json([
                 'status' => 'error',
@@ -639,12 +631,19 @@ class TransaksiController extends Controller
             ], $response->status());
         }
 
+        // Ambil isi data ubisma dari response
+        $ubismaData = $response->json('data.ubisma_response.data');
+
         // Simpan ke database
         $topup = TopUp::create([
             'user_id' => $user->id,
             'request_id' => $requestId,
             'nominal' => $request->nominal,
-            // 'status_bayar' => '0',
+            'kode_bayar' => $ubismaData['kode_bayar_mandiri_'] ?? null,
+            'status_bayar' => $ubismaData['status_bayar_'] ?? '0',
+            'tgl_bayar' => $ubismaData['tanggal_bayar_']
+                ? Carbon::createFromFormat('d-m-Y H:i:s', $ubismaData['tanggal_bayar_'])
+                : null,
             'tgl_akhir_tagihan' => $timeout,
         ]);
 
@@ -652,10 +651,11 @@ class TransaksiController extends Controller
             'status' => 'success',
             'data' => [
                 'topup' => $topup,
-                'ubisma_response' => $response->json()
+                'ubisma_response' => $ubismaData
             ]
         ]);
     }
+
 
     // Start dari 102 dan terus naik
     protected function generateRequestId()
