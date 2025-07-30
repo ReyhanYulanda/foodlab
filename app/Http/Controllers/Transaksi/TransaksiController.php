@@ -12,6 +12,7 @@ use App\Models\SaldoKoin;
 use App\Models\TransaksiSaldoKoin;
 use App\Models\Menus;
 use App\Models\Pengaturan;
+use App\Models\TopUp;
 use App\Response\ResponseApi;
 use App\Services\Firebases;
 use App\Services\Midtrans;
@@ -586,5 +587,165 @@ class TransaksiController extends Controller
                 'http_status' => $response->status(),
             ]
         ], $response->status());
+    }
+
+    public function storeTopUp(Request $request)
+    {
+        $user = User::findOrFail($request->user_id);
+
+        $validator = Validator::make($request->all(), [
+            'user_id' => 'required|exists:users,id',
+            'nominal' => 'required|integer|min:1000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $requestId = $this->generateRequestId();
+        $timeout = $this->generateTimeout();
+
+        $dataToSend = [
+            'request_id_' => $requestId,
+            'nama_' => $user->name,
+            'nominal_topup_' => $request->nominal,
+            'tanggal_akhir_tagihan_' => $timeout->format('d-m-Y H:i:s'),
+        ];
+
+        // Trigger ke server UBISMA
+        $response = Http::withHeaders([
+            'x-api-key' => 'PENS-wQlLZ8M8ruQMeGnoihbeeeXnlOktHZqURaGSV3j1y8YcT3KuW0rcC',
+            'Accept' => 'application/json',
+        ])->asJson()->post('https://ubisma.pens.ac.id/api/push-to-ubisma', [
+            'data' => [$dataToSend]
+        ]);
+
+        if ($response->failed()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal terhubung ke server UBISMA.',
+                'debug' => $response->body(),
+            ], $response->status());
+        }
+
+        // Ambil isi data ubisma dari response
+        $ubismaData = $response->json('data');
+
+        Log::info('Response dari UBISMA:', $response->json());
+
+        if (!$ubismaData || !isset($ubismaData['kode_bayar_mandiri_'])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Response UBISMA tidak valid atau tidak berisi kode bayar.',
+                'debug' => $response->json()
+            ], 500);
+        }
+
+        // Simpan ke database
+        $topup = TopUp::create([
+            'user_id' => $user->id,
+            'request_id' => $requestId,
+            'nominal' => $request->nominal,
+            'kode_bayar' => $ubismaData['kode_bayar_mandiri_'] ?? null,
+            // 'status_bayar' => $ubismaData['status_bayar_'] ?? '0',
+            // 'tgl_bayar' => $ubismaData['tanggal_bayar_']
+            //     ? Carbon::createFromFormat('d-m-Y H:i:s', $ubismaData['tanggal_bayar_'])
+            //     : null,
+            'tgl_akhir_tagihan' => $timeout,
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'topup' => $topup,
+                'ubisma_response' => $ubismaData
+            ]
+        ]);
+    }
+
+    public function getTopUp($kodeBayar)
+    {
+        // 1. Cari record berdasarkan kode_bayar
+        $topup = TopUp::where('kode_bayar', $kodeBayar)->first();
+
+        if (!$topup) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Data topup tidak ditemukan.',
+            ], 404);
+        }
+
+        // 2. Cek apakah topup ini dimiliki oleh user yang sedang login
+        if ($topup->user_id !== auth()->id()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized: Anda tidak berhak mengakses topup ini.',
+            ], 403);
+        }
+
+        // 2. Bangun ulang payload berdasarkan data yang sudah tersimpan
+        $dataToSend = [
+            'request_id_' => $topup->request_id,
+            'nama_' => $topup->user->name,
+            'nominal_topup_' => $topup->nominal,
+            'tanggal_akhir_tagihan_' => Carbon::parse($topup->tgl_akhir_tagihan)->format('d-m-Y H:i:s'),
+        ];
+
+        // 3. Kirim request ke UBISMA
+        $response = Http::withHeaders([
+            'x-api-key' => 'PENS-wQlLZ8M8ruQMeGnoihbeeeXnlOktHZqURaGSV3j1y8YcT3KuW0rcC',
+            'Accept' => 'application/json',
+        ])->asJson()->post('https://ubisma.pens.ac.id/api/push-to-ubisma', [
+            'data' => [$dataToSend]
+        ]);
+
+        if ($response->failed()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengambil status dari UBISMA.',
+                'debug' => $response->body(),
+            ], $response->status());
+        }
+
+        // 4. Ambil data dari response
+        $ubismaData = $response->json('data') ?? [];
+
+        // 5. Update status_bayar dan tgl_bayar jika tersedia
+        try {
+            if (!empty($ubismaData['tanggal_bayar_'])) {
+                $tglBayar = Carbon::parse($ubismaData['tanggal_bayar_']);
+            } else {
+                $tglBayar = $topup->tgl_bayar;
+            }
+        } catch (\Exception $e) {
+            Log::error('Gagal parsing tanggal_bayar_ dari UBISMA: ' . json_encode($ubismaData['tanggal_bayar_'] ?? null));
+            $tglBayar = $topup->tgl_bayar;
+        }
+
+        $topup->update([
+            'status_bayar' => $ubismaData['status_bayar_'] ?? $topup->status_bayar,
+            'tgl_bayar' => $tglBayar,
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $topup
+        ]);
+    }
+
+
+    // Start dari 102 dan terus naik
+    protected function generateRequestId()
+    {
+        $last = TopUp::max('request_id') ?? 101;
+        return $last + 1;
+    }
+
+    protected function generateTimeout()
+    {
+        return Carbon::now()->addHour();
     }
 }
