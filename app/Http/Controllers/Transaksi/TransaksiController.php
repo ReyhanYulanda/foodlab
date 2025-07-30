@@ -632,15 +632,14 @@ class TransaksiController extends Controller
         }
 
         // Ambil isi data ubisma dari response
-        $ubismaResponse = $response->json();
-        Log::info('Response UBISMA:', $ubismaResponse);
-        $ubismaData = $ubismaResponse['data'][0] ?? null;
-        Log::info('Data UBISMA:', $ubismaData);
+        $ubismaData = $response->json('data');
 
-        if (!$ubismaData) {
+        Log::info('Response dari UBISMA:', $response->json());
+
+        if (!$ubismaData || !isset($ubismaData['kode_bayar_mandiri_'])) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Response UBISMA tidak valid atau kosong.',
+                'message' => 'Response UBISMA tidak valid atau tidak berisi kode bayar.',
                 'debug' => $response->json()
             ], 500);
         }
