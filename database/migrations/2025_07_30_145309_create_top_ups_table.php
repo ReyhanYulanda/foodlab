@@ -18,10 +18,10 @@ class CreateTopUpsTable extends Migration
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->unsignedBigInteger('request_id');
             $table->integer('nominal');
-            $table->string('status_bayar')->default('pending');
+            $table->string('status_bayar')->default('0');
             $table->string('kode_bayar')->nullable();
-            $table->timestamp('tgl_bayar')->nullable();
-            $table->timestamp('tgl_akhir_tagihan');
+            $table->datetime('tgl_bayar')->nullable();
+            $table->dateTime('tgl_akhir_tagihan')->nullable();
             $table->boolean('isTf')->default(false);
             $table->timestamps();
         });
