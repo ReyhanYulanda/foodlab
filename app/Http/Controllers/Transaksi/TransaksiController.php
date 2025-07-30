@@ -591,6 +591,15 @@ class TransaksiController extends Controller
 
     public function storeTopUp(Request $request)
     {
+        $user = User::findOrFail($request->user_id);
+
+        if (!$user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'User tidak ditemukan'
+            ], 404);
+        }
+
         $validator = Validator::make($request->all(), [
             'user_id' => 'required|exists:users,id',
             'nominal' => 'required|integer|min:1000',
@@ -603,7 +612,6 @@ class TransaksiController extends Controller
             ], 422);
         }
 
-        $user = User::findOrFail($request->user_id);
         $requestId = $this->generateRequestId();
         $timeout = $this->generateTimeout();
 
@@ -618,7 +626,7 @@ class TransaksiController extends Controller
         $response = Http::withHeaders([
             'x-api-key' => 'PENS-wQlLZ8M8ruQMeGnoihbeeeXnlOktHZqURaGSV3j1y8YcT3KuW0rcC',
             'Accept' => 'application/json',
-        ])->asJson()->post('http://202.9.85.27/api/push-to-ubisma', [
+        ])->asJson()->post('https://api.ubisma.pens.ac.id/api/push-to-ubisma', [
             'data' => [$dataToSend]
         ]);
 
