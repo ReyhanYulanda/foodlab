@@ -573,9 +573,9 @@ class TransaksiController extends Controller
 
         // ✅ Kirim dengan format JSON dan header yang benar
         $response = Http::withHeaders([
-            'x-api-key' => 'PENS-wQlLZ8M8ruQMeGnoihbeeeXnlOktHZqURaGSV3j1y8YcT3KuW0rcC',
+            'x-api-key' => env('MIS_API_KEY'),
             'Accept' => 'application/json',
-        ])->asJson()->post('https://mis.pens.ac.id/API_PENS/index.php?path=v1/execute_foodlab', $payload);
+        ])->asJson()->post(env('MIS_API_URL'), $payload);
 
         return response()->json([
             'status' => $response->json('status'),
@@ -615,10 +615,13 @@ class TransaksiController extends Controller
             'tanggal_akhir_tagihan_' => $timeout->format('d-m-Y H:i:s'),
         ];
 
+        $apiKey = env('UBISMA_API_KEY');
+        $apiUrl = env('UBISMA_API_URL');
+
         $response = Http::withHeaders([
-            'x-api-key' => 'PENS-wQlLZ8M8ruQMeGnoihbeeeXnlOktHZqURaGSV3j1y8YcT3KuW0rcC',
+            'x-api-key' => $apiKey,
             'Accept' => 'application/json',
-        ])->asJson()->post('https://ubisma.pens.ac.id/api/push-to-ubisma', [
+        ])->asJson()->post($apiUrl, [
             'data' => [$dataToSend]
         ]);
 
@@ -648,7 +651,6 @@ class TransaksiController extends Controller
             'nominal' => $request->nominal,
             'kode_bayar' => $ubismaData['kode_bayar_mandiri_'] ?? null,
             'tgl_akhir_tagihan' => $timeout,
-            'status_bayar' => $ubismaData['status_bayar_'] ?? '0',
         ]);
 
         return response()->json([
@@ -659,7 +661,6 @@ class TransaksiController extends Controller
             ]
         ]);
     }
-
 
     public function getTopUp($kodeBayar)
     {
@@ -691,9 +692,9 @@ class TransaksiController extends Controller
 
         // 3. Kirim request ke UBISMA
         $response = Http::withHeaders([
-            'x-api-key' => 'PENS-wQlLZ8M8ruQMeGnoihbeeeXnlOktHZqURaGSV3j1y8YcT3KuW0rcC',
+            'x-api-key' => env('UBISMA_API_KEY'),
             'Accept' => 'application/json',
-        ])->asJson()->post('https://ubisma.pens.ac.id/api/push-to-ubisma', [
+        ])->asJson()->post(env('UBISMA_API_URL'), [
             'data' => [$dataToSend]
         ]);
 
