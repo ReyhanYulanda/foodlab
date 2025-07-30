@@ -5,7 +5,8 @@
             "namespace": "android_app",
             "package_name": "com.foodlab.pens",
             "sha256_cert_fingerprints": [
-                "6E:D1:BB:FA:CF:4A:1E:60:97:59:D8:B6:72:E7:3F:44:23:C1:10:CB:75:37:BB:B8:7D:03:C1:CD:4F:38:F1:3F"
+                "6E:D1:BB:FA:CF:4A:1E:60:97:59:D8:B6:72:E7:3F:44:23:C1:10:CB:75:37:BB:B8:7D:03:C1:CD:4F:38:F1:3F",
+                "54:DE:E6:C2:53:A9:6D:2B:4F:60:1A:2B:27:7B:DF:35:BC:46:10:75:7E:41:88:D1:3A:15:8A:61:89:6C:55:D4"
             ]
         }
     }
