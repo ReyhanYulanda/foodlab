@@ -28,7 +28,7 @@ class SaldoKoinController extends Controller
 
         if ($pendingTopUps->count() > 0) {
             Log::info('Saldo sebelum top-up:', ['user_id' => $userId]);
-            Log::info('Pending TopUps:', $pendingTopUps->toArray());
+            // Log::info('Pending TopUps:', $pendingTopUps->toArray());
             $saldo = SaldoKoin::firstOrCreate(['user_id' => $userId], ['jumlah' => 0]);
 
             $totalTopup = $pendingTopUps->sum('nominal');
@@ -43,7 +43,7 @@ class SaldoKoinController extends Controller
                 'tipe' => 'masuk',
                 'deskripsi' => 'Top-up berhasil melalui Virtual Account'
             ]);
-            Log::info('Transaksi Saldo Koin berhasil dicatat untuk user ID:', [$userId]);
+            // Log::info('Transaksi Saldo Koin berhasil dicatat untuk user ID:', [$userId]);
             // ✅ Log saldo setelah top-up
             Log::info('Saldo setelah top-up:', ['user_id' => $userId, 'saldo' => $saldo->jumlah]);
 
@@ -65,7 +65,7 @@ class SaldoKoinController extends Controller
                 ->update(['isTf' => 1]);
         } else {
             $saldo = SaldoKoin::firstOrCreate(['user_id' => $userId], ['jumlah' => 0]);
-            Log::info('Tidak ada top-up yang pending untuk user ID:', [$userId]);
+            // Log::info('Tidak ada top-up yang pending untuk user ID:', [$userId]);
         }
 
         return response()->json([
