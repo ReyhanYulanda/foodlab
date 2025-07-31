@@ -60,6 +60,7 @@ class NotifikasiController extends Controller
             ->withData([
                 'title' => $request->judul,
                 'body' => $request->isi,
+                'channel_id' => 'driver_fdlb_channel',
             ])
             ->sendMessages($tokens);
 
