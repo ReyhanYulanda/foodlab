@@ -312,8 +312,9 @@ class TransaksiController extends Controller
                         ->withNotification('Pesanan Masuk', 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!')
                         ->withData([
                             'title' => 'Pesanan Masuk',
-                            'body' => 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!'
-                        ])->sendMessages($tenantUser->fcm_token);
+                            'body' => 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!',
+                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                        ])->sendToTenant($tenantUser->fcm_token);
                 }
 
                 if ($status == 'selesai') {
@@ -491,8 +492,9 @@ class TransaksiController extends Controller
             if ($userTransaksi && $userTransaksi->fcm_token) {
                 $firebases->withData([
                     'title' => 'Pesanan Dibatalkan',
-                    'body' => "Maaf, pesanan {$transaksi->id} dibatalkan oleh tenant."
-                ])->sendMessages($userTransaksi->fcm_token);
+                    'body' => "Maaf, pesanan {$transaksi->id} dibatalkan oleh tenant.",
+                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                ])->sendToFallback($userTransaksi->fcm_token);
             }
 
             try {
@@ -511,8 +513,9 @@ class TransaksiController extends Controller
                 if ($userTransaksi && $userTransaksi->fcm_token) {
                     $firebases->withData([
                         'title' => 'Refund Berhasil',
-                        'body' => 'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.'
-                    ])->sendMessages($userTransaksi->fcm_token);
+                        'body' => 'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.',
+                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                    ])->sendToFallback($userTransaksi->fcm_token);
                 }
 
                 DB::commit();

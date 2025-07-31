@@ -53,8 +53,9 @@ class SaldoKoinController extends Controller
                 $firebases = new Firebases();
                 $firebases->withData([
                     'title' => 'Top-up Berhasil',
-                    'body' => 'Saldo sebesar Rp ' . number_format($totalTopup, 0, ',', '.') . ' telah ditambahkan ke akun Anda.'
-                ])->sendMessages($user->fcm_token);
+                    'body' => 'Saldo sebesar Rp ' . number_format($totalTopup, 0, ',', '.') . ' telah ditambahkan ke akun Anda.',
+                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                ])->sendToFallback($user->fcm_token);
             }
             
 

@@ -2,11 +2,12 @@
 
 namespace App\Services;
 
-use App\Models\User;
-use Kreait\Firebase\Messaging\CloudMessage;
-use Kreait\Laravel\Firebase\Facades\Firebase;
 use Kreait\Firebase\Factory;
 use Kreait\Firebase\Messaging\Notification;
+use Kreait\Firebase\Messaging\CloudMessage;
+use Kreait\Firebase\Messaging;
+use App\Models\User;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class Firebases
@@ -15,7 +16,7 @@ class Firebases
     protected $factory;
     protected $message;
     protected $notification;
-    // protected
+
     public function __construct()
     {
         $this->factory = (new Factory)->withServiceAccount(base_path('masbro.json'));
@@ -23,19 +24,37 @@ class Firebases
         $this->defaultValue();
     }
 
-    public function withNotification(String $judul, String $body){
-        $this->notification = Notification::create($judul, $body);
+    public function withNotification(string $title, string $body)
+    {
+        $this->notification = Notification::create($title, $body);
         return $this;
     }
-    public function withData(Array $data){
+
+    public function withData(array $data)
+    {
         $this->message = $data;
         return $this;
     }
-    public function sendMessages($tokens)
+
+    protected function defaultValue()
+    {
+        $this->notification = Notification::create(
+            "Selamat Datang Di Masbro Canteen",
+            "Aplikasi Pemesanan Makanan di Kantin PENS Dengan Menerapkan Payment Gateway"
+        );
+
+        $this->message = [
+            "title" => "Default Title",
+            "body" => "Default Body",
+            "click_action" => "FLUTTER_NOTIFICATION_CLICK"
+        ];
+    }
+
+    public function sendMessages($tokens, string $channelId = 'fcm_fallback_notification_channel')
     {
         try {
             if (is_string($tokens)) {
-                $tokens = [$tokens]; 
+                $tokens = [$tokens];
             }
 
             foreach ($tokens as $token) {
@@ -43,25 +62,53 @@ class Firebases
                     continue;
                 }
 
-                $cloudMessage = CloudMessage::withTarget('token', $token)
-                    // ->withNotification($this->notification)
-                    ->withData($this->message);
+                $messageArray = [
+                    'token' => $token,
+                    'notification' => [
+                        'title' => $this->notification->title(),
+                        'body' => $this->notification->body(),
+                    ],
+                    'android' => [
+                        'notification' => [
+                            'sound' => 'default',
+                            'channel_id' => $channelId,
+                        ],
+                        'priority' => 'high',
+                    ],
+                    'data' => $this->message,
+                ];
 
+                $cloudMessage = CloudMessage::fromArray($messageArray);
                 $this->messaging->send($cloudMessage);
             }
 
             return true;
         } catch (Throwable $th) {
+            Log::error('FCM Send Error', [
+                'message' => $th->getMessage(),
+                'trace' => $th->getTraceAsString(),
+            ]);
             return false;
         }
     }
-    public function defaultValue(){
-        $this->notification = Notification::create("Selamat Datang Di Masbro Canteen", "Aplikasi Pemesanan Makanan di Kantin PENS Dengan Menerapkan Payment Gateway");
-        $this->message = ["DATA" => "NO DATA"];
+
+    public function updateFcmToken(User $user, string $token = '')
+    {
+        return $user->update(['fcm_token' => $token]);
     }
 
-    public function updateFcmToken(User $user, $token = ""){
-        $updated = $user->update(['fcm_token' => $token]);
-        return $updated;
+    public function sendToTenant($tokens)
+    {
+        return $this->sendMessages($tokens, 'tenant_channel');
+    }
+
+    public function sendToDriver($tokens)
+    {
+        return $this->sendMessages($tokens, 'driver_fdlb_channel');
+    }
+
+    public function sendToFallback($tokens)
+    {
+        return $this->sendMessages($tokens, 'fcm_fallback_notification_channel');
     }
 }

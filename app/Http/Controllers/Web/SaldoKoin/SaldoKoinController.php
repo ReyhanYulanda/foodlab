@@ -15,7 +15,7 @@ class SaldoKoinController extends Controller
     {
         $this->authorize('read saldo_koin');
 
-        $perPage = $request->input('per_page', 10); 
+        $perPage = $request->input('per_page', 10);
         $query = SaldoKoin::with('user');
 
         if ($request->has('search')) {
@@ -40,7 +40,7 @@ class SaldoKoinController extends Controller
         $users = User::select('id', 'name', 'email')->get();
         return view('pages.saldoKoin.create', compact('users'));
     }
-    
+
     public function store(Request $request, Firebases $firebases)
     {
         $this->authorize('create saldo_koin');
@@ -50,12 +50,12 @@ class SaldoKoinController extends Controller
             'jumlah' => 'required|integer|min:0',
             'deskripsi' => 'nullable|string|max:255'
         ]);
-    
+
         $saldo = SaldoKoin::firstOrCreate(['user_id' => $request->user_id]);
-    
+
         $saldo->jumlah += $request->jumlah;
         $saldo->save();
-    
+
         TransaksiSaldoKoin::create([
             'user_id' => $request->user_id,
             'jumlah' => $request->jumlah,
@@ -68,10 +68,11 @@ class SaldoKoinController extends Controller
         if ($user && $user->fcm_token) {
             $firebases->withData([
                 'title' => 'Top-up Berhasil',
-                'body' => 'Saldo sebesar Rp ' . number_format($request->jumlah, 0, ',', '.'). ' telah ditambahkan ke akun Anda.'
-            ])->sendMessages($user->fcm_token);
+                'body' => 'Saldo sebesar Rp ' . number_format($request->jumlah, 0, ',', '.') . ' telah ditambahkan ke akun Anda.',
+                'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+            ])->sendToFallback($user->fcm_token);
         }
-    
+
         return redirect()->route('saldoKoin.index')->with('success', 'Saldo koin berhasil diperbarui.');
     }
 

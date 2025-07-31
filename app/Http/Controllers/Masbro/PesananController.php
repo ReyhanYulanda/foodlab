@@ -133,15 +133,17 @@ class PesananController extends Controller
                     $firebases->withData([
                         'title' => 'Pesanan Sedang Diantar',
                         'status' => "Pesanan {$transaksi->id} sedang diantar oleh driver. Mohon tunggu sebentar!",
-                    ])->sendMessages($transaksi->user->fcm_token);
+                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                    ])->sendToFallback($transaksi->user->fcm_token);
                 }
 
                 if ($transaksi->status == 'selesai') {
                     $firebases->withData([
                         'title' => 'Pesanan Selesai',
                         'body' => "Pesanan {$transaksi->id} telah selesai. Ambil dan terima pesananmu. Selamat menikmati! 🍽",
+                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                     ])
-                        ->sendMessages($transaksi->user->fcm_token);
+                        ->sendToFallback($transaksi->user->fcm_token);
 
                     $ongkirAsli = $transaksi->ongkos_kirim;
 

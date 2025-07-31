@@ -37,8 +37,9 @@ class AutoCancelOrder extends Command
                 if ($user && $user->fcm_token) {
                     $firebases->withData([
                         'title' => 'Pesanan Dibatalkan',
-                        'body' => 'Pesanan #' . $transaksi->id . ' tidak direspond tenant.'
-                    ])->sendMessages($user->fcm_token);
+                        'body' => 'Pesanan #' . $transaksi->id . ' tidak direspond tenant.',
+                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                    ])->sendToFallback($user->fcm_token);
                 }
 
                 $tenants = $transaksi->listTransaksiDetail()
@@ -51,8 +52,9 @@ class AutoCancelOrder extends Command
                     if ($tenant && $tenant->pemilik && $tenant->pemilik->fcm_token) {
                         $firebases->withData([
                             'title' => 'Pesanan Dibatalkan Otomatis',
-                            'body' => 'Pesanan #' . $transaksi->id . ' dibatalkan karena tidak direspons tepat waktu.'
-                        ])->sendMessages($tenant->pemilik->fcm_token);
+                            'body' => 'Pesanan #' . $transaksi->id . ' dibatalkan karena tidak direspons tepat waktu.',
+                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                        ])->sendToTenant($tenant->pemilik->fcm_token);
                     }
                 }
 
@@ -66,8 +68,9 @@ class AutoCancelOrder extends Command
                 if ($user && $user->fcm_token) {
                     $firebases->withData([
                         'title' => 'Refund Berhasil',
-                        'body' => 'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.'
-                    ])->sendMessages($user->fcm_token);
+                        'body' => 'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.',
+                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                    ])->sendToFallback($user->fcm_token);
                 }
 
                 Log::info("Transaksi #{$transaksi->id} dibatalkan otomatis setelah $timeout menit dan refund berhasil.");
