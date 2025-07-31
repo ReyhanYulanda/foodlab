@@ -44,7 +44,7 @@ class Firebases
                 }
 
                 $cloudMessage = CloudMessage::withTarget('token', $token)
-                    // ->withNotification($this->notification)
+                    ->withNotification($this->notification)
                     ->withData($this->message);
 
                 $this->messaging->send($cloudMessage);
