@@ -94,8 +94,9 @@ class TenantOrderService
             ->toArray();
 
         $user = User::find($transaksi->user_id);
-        $userToken = $user && $user->fcm_token ? [$user->fcm_token] : [];
 
+        // Pastikan token user pembeli dalam bentuk array
+        $userToken = $user && $user->fcm_token ? [$user->fcm_token] : [];
 
         // SEND TO USER (Pembeli)
         $sendToUser = function ($title, $body, $type) use ($firebases, $transaksi, $userToken) {
@@ -114,7 +115,8 @@ class TenantOrderService
 
         // SEND TO TENANT
         $sendToTenant = function ($title, $body, $type) use ($firebases, $transaksi) {
-            if ($transaksi->tenant && $transaksi->tenant->user && $transaksi->tenant->user->fcm_token) {
+            $tenantToken = optional($transaksi->tenant->user)->fcm_token;
+            if ($tenantToken) {
                 $firebases->withNotification($title, $body)
                     ->withData([
                         'title' => $title,
@@ -123,7 +125,7 @@ class TenantOrderService
                         'transaksi_id' => $transaksi->id,
                         'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                     ])
-                    ->sendToTenant($transaksi->tenant->user->fcm_token);
+                    ->sendToFallback([$tenantToken]);
             }
         };
 
@@ -138,7 +140,7 @@ class TenantOrderService
                         'transaksi_id' => $transaksi->id,
                         'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                     ])
-                    ->sendToDriver($masbroTokens); // bisa array token
+                    ->sendToFallback($masbroTokens);
             }
         };
 
