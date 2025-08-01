@@ -28,7 +28,7 @@ class DriverTutup extends Command
         $jamTutupValue = $jamTutup->nilai;
 
         if ($jamSekarang >= $jamTutupValue) {
-            $drivers = User::role('driver')->where('isOnline', 1)->get();
+            $drivers = User::role('masbro')->where('isOnline', 1)->get();
 
             foreach ($drivers as $driver) {
                 $driver->update([
