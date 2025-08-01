@@ -13,7 +13,7 @@ class AddCatatanPenolakanColumnToTableTransaksi extends Migration
      */
     public function up()
     {
-        Schema::table('Transaksi', function (Blueprint $table) {
+        Schema::table('transaksi', function (Blueprint $table) {
             $table->string('catatan_penolakan')->nullable();
         });
     }
@@ -25,7 +25,7 @@ class AddCatatanPenolakanColumnToTableTransaksi extends Migration
      */
     public function down()
     {
-        Schema::table('Transaksi', function (Blueprint $table) {
+        Schema::table('transaksi', function (Blueprint $table) {
             $table->string('catatan_penolakan')->nullable();
         });
     }
