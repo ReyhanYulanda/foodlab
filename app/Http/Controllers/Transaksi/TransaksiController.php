@@ -183,6 +183,7 @@ class TransaksiController extends Controller
             'menus' => 'required|array',
             'menus.*.id' => 'required|integer|exists:menus,id',
             'menus.*.jumlah' => 'required|integer|min:1',
+            'catatan_lokasi_pengantaran' => 'nullable|string|max:255',
         ]);
 
         if ($validatator->fails()) {
@@ -292,6 +293,7 @@ class TransaksiController extends Controller
                 'status' => $status,
                 'ongkos_kirim' => $ongkosKirimFix,
                 'biaya_layanan' => $biayaLayanan,
+                'catatan_lokasi_pengantaran' => $request->catatan_lokasi_pengantaran ?? null,
             ]);
 
             do {
@@ -483,6 +485,10 @@ class TransaksiController extends Controller
 
             if ($transaksi->status === 'refund_gagal') {
                 return ResponseApi::error("Refund sebelumnya gagal. Silakan hubungi admin", 400);
+            }
+
+            if ($request->has('catatan_penolakan')) {
+                $transaksi->catatan_penolakan = $request->input('catatan_penolakan');
             }
 
             $transaksi->status = 'pesanan_ditolak';
