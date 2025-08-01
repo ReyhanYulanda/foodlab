@@ -499,11 +499,13 @@ class TransaksiController extends Controller
 
             $userTransaksi = $transaksi->user;
             if ($userTransaksi && $userTransaksi->fcm_token) {
-                $firebases->withData([
-                    'title' => 'Pesanan Dibatalkan',
-                    'body' => "Maaf, pesanan {$transaksi->id} dibatalkan oleh tenant.",
-                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
-                ])->sendToFallback($userToken);
+                $firebases
+                    ->withNotification('Pesanan Dibatalkan', "Maaf, pesanan {$transaksi->id} dibatalkan oleh tenant.")
+                    ->withData([
+                        'title' => 'Pesanan Dibatalkan',
+                        'body' => "Maaf, pesanan {$transaksi->id} dibatalkan oleh tenant.",
+                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                    ])->sendToFallback($userToken);
             }
 
             try {
@@ -520,11 +522,13 @@ class TransaksiController extends Controller
                 $transaksi->save();
 
                 if ($userTransaksi && $userTransaksi->fcm_token) {
-                    $firebases->withData([
-                        'title' => 'Refund Berhasil',
-                        'body' => 'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.',
-                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
-                    ])->sendToFallback($userToken);
+                    $firebases
+                        ->withNotification('Refund Berhasil', 'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.')
+                        ->withData([
+                            'title' => 'Refund Berhasil',
+                            'body' => 'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.',
+                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                        ])->sendToFallback($userToken);
                 }
 
                 DB::commit();
