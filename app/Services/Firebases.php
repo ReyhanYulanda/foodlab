@@ -21,7 +21,7 @@ class Firebases
     {
         $this->factory = (new Factory)->withServiceAccount(base_path('masbro.json'));
         $this->messaging = $this->factory->createMessaging();
-        $this->defaultValue();
+        // $this->defaultValue();
     }
 
     public function withNotification(string $title, string $body)
