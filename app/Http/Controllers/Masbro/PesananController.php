@@ -136,7 +136,7 @@ class PesananController extends Controller
                         'title' => 'Pesanan Sedang Diantar',
                         'status' => "Pesanan {$transaksi->id} sedang diantar oleh driver. Mohon tunggu sebentar!",
                         'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                    ])->sendToFallback($fcmuser);
+                    ])->sendToFallback($fcmuser->fcm_token);
                 }
 
                 if ($transaksi->status == 'selesai') {
@@ -145,7 +145,7 @@ class PesananController extends Controller
                         'body' => "Pesanan {$transaksi->id} telah selesai. Ambil dan terima pesananmu. Selamat menikmati! 🍽",
                         'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                     ])
-                        ->sendToFallback($fcmuser);
+                        ->sendToFallback($fcmuser->fcm_token);
 
                     $ongkirAsli = $transaksi->ongkos_kirim;
 
