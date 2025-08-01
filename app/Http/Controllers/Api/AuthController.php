@@ -113,7 +113,9 @@ class AuthController extends Controller
             'permission' => $permission,
         ];
 
-        ($firebases->updateFcmToken($user, $request->fcm_token));
+        if ($request->filled('fcm_token')) {
+            $firebases->updateFcmToken($user, $request->fcm_token);
+        }
 
         return ResponseApi::success($data, 'berhasil mendapatkan data');
     }
