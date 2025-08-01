@@ -494,13 +494,16 @@ class TransaksiController extends Controller
             $transaksi->status = 'pesanan_ditolak';
             $transaksi->save();
 
+            $user = User::find($transaksi->user_id);
+            $userToken = $user && $user->fcm_token ? [$user->fcm_token] : [];
+
             $userTransaksi = $transaksi->user;
             if ($userTransaksi && $userTransaksi->fcm_token) {
                 $firebases->withData([
                     'title' => 'Pesanan Dibatalkan',
                     'body' => "Maaf, pesanan {$transaksi->id} dibatalkan oleh tenant.",
                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
-                ])->sendToFallback($userTransaksi->fcm_token);
+                ])->sendToFallback($userToken);
             }
 
             try {
@@ -521,7 +524,7 @@ class TransaksiController extends Controller
                         'title' => 'Refund Berhasil',
                         'body' => 'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.',
                         'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
-                    ])->sendToFallback($userTransaksi->fcm_token);
+                    ])->sendToFallback($userToken);
                 }
 
                 DB::commit();
