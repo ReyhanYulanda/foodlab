@@ -65,7 +65,7 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
     Route::post('/notifikasi/kirim', [NotifikasiController::class, 'kirim'])->name('notifikasi.kirim');
 
     Route::get('/list-driver', [ListAktifDriverController::class, 'index'])->name('list-driver.index');
-    Route::post('/list-driver/{id}/offline', [ListAktifDriverController::class, 'setOffline'])->name('list-driver.setOffline');
+    Route::post('/list-driver/{user}/set-offline', [ListAktifDriverController::class, 'setOffline'])->name('list-driver.setOffline');
 
     Route::post('/pembayaran/transfer', [PembayaranController::class, 'transfer'])->name('pembayaran.transfer');
 

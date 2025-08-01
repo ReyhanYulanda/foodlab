@@ -9,24 +9,21 @@ class ListAktifDriverController extends Controller
 {
     public function index()
     {
-        $drivers = User::role('masbro')->where('isOnline', 1)->get();
-        $jumlahDriver = $drivers->count();
+        $drivers = User::role('masbro')
+            ->where('isOnline', 1)
+            ->get();
 
-        return view('pages.listDriver.index', compact('drivers', 'jumlahDriver'));
+        return view('pages.listDriver.index', [
+            'header' => 'List Driver Aktif',
+            'drivers' => $drivers,
+        ]);
     }
 
-    public function setOffline($id)
+    public function setOffline(User $user)
     {
-        $driver = User::findOrFail($id);
+        $user->update(['isOnline' => 0]);
 
-        // Optional: validasi kalau bukan 'masbro'
-        if (!$driver->hasRole('masbro')) {
-            return redirect()->back()->with('error', 'Bukan role masbro');
-        }
-
-        $driver->isOnline = 0;
-        $driver->save();
-
-        return redirect()->back()->with('success', 'Driver dimatikan dari status online');
+        return redirect()->route('list-driver.index')
+            ->with('success', 'Driver telah diubah menjadi offline.');
     }
 }
