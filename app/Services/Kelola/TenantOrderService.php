@@ -93,17 +93,23 @@ class TenantOrderService
             ->pluck('fcm_token')
             ->toArray();
 
+        $user = User::find($transaksi->user_id);
+        $userToken = $user && $user->fcm_token ? [$user->fcm_token] : [];
+
+
         // SEND TO USER (Pembeli)
-        $sendToUser = function ($title, $body, $type) use ($firebases, $transaksi) {
-            $firebases->withNotification($title, $body)
-                ->withData([
-                    'title' => $title,
-                    'body' => $body,
-                    'type' => $type,
-                    'transaksi_id' => $transaksi->id,
-                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                ])
-                ->sendToFallback($transaksi->user); // bisa array token atau user model
+        $sendToUser = function ($title, $body, $type) use ($firebases, $transaksi, $userToken) {
+            if (!empty($userToken)) {
+                $firebases->withNotification($title, $body)
+                    ->withData([
+                        'title' => $title,
+                        'body' => $body,
+                        'type' => $type,
+                        'transaksi_id' => $transaksi->id,
+                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                    ])
+                    ->sendToFallback($userToken);
+            }
         };
 
         // SEND TO TENANT
