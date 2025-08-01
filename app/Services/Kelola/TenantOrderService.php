@@ -125,7 +125,7 @@ class TenantOrderService
                         'transaksi_id' => $transaksi->id,
                         'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                     ])
-                    ->sendToFallback([$tenantToken]);
+                    ->sendToTenant([$tenantToken]);
             }
         };
 
@@ -140,7 +140,7 @@ class TenantOrderService
                         'transaksi_id' => $transaksi->id,
                         'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                     ])
-                    ->sendToFallback($masbroTokens);
+                    ->sendToDriver($masbroTokens);
             }
         };
 
