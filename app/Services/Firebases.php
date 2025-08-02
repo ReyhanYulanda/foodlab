@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\FcmToken;
 use Kreait\Firebase\Factory;
 use Kreait\Firebase\Messaging\Notification;
 use Kreait\Firebase\Messaging\CloudMessage;
@@ -62,24 +63,35 @@ class Firebases
                     continue;
                 }
 
-                $messageArray = [
-                    'token' => $token,
-                    'notification' => [
-                        'title' => $this->notification->title(),
-                        'body' => $this->notification->body(),
-                    ],
-                    'android' => [
+                try {
+                    $messageArray = [
+                        'token' => $token,
                         'notification' => [
-                            'sound' => 'default',
-                            'channel_id' => $channelId,
+                            'title' => $this->notification->title(),
+                            'body' => $this->notification->body(),
                         ],
-                        'priority' => 'high',
-                    ],
-                    'data' => $this->message,
-                ];
+                        'android' => [
+                            'notification' => [
+                                'sound' => 'default',
+                                'channel_id' => $channelId,
+                            ],
+                            'priority' => 'high',
+                        ],
+                        'data' => $this->message,
+                    ];
 
-                $cloudMessage = CloudMessage::fromArray($messageArray);
-                $this->messaging->send($cloudMessage);
+                    $cloudMessage = CloudMessage::fromArray($messageArray);
+                    $this->messaging->send($cloudMessage);
+                } catch (\Kreait\Firebase\Exception\Messaging\NotFound $e) {
+                    // Token tidak valid → hapus dari database
+                    FcmToken::where('fcm_token', $token)->delete();
+                    Log::warning("FCM Token invalid and deleted: " . $token);
+                } catch (Throwable $th) {
+                    Log::error('FCM Send Error', [
+                        'message' => $th->getMessage(),
+                        'trace' => $th->getTraceAsString(),
+                    ]);
+                }
             }
 
             return true;

@@ -311,7 +311,7 @@ class TransaksiController extends Controller
             if ($success) {
                 DB::commit();
 
-                if ($tenantUser && $tenantUser->fcm_token) {
+                if (!empty($fcmTenantToken)) {
                     $firebases
                         ->withNotification('Pesanan Masuk', 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!')
                         ->withData([
@@ -320,6 +320,7 @@ class TransaksiController extends Controller
                             'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                         ])->sendToTenant($fcmTenantToken);
                 }
+                Log::info('Sending FCM to tenant', ['tokens' => $fcmTenantToken]);
 
                 if ($status == 'selesai') {
                     return response()->json([
