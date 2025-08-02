@@ -128,7 +128,15 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $user = $request->user();
+        $fcmToken = $request->input('fcm_token'); // pastikan dikirim dari frontend
+
+        if ($fcmToken) {
+            $user->fcmTokens()->where('fcm_token', $fcmToken)->delete();
+        }
+
+        $user->currentAccessToken()->delete();
+
         return ResponseApi::success(null, 'Logout berhasil');
     }
 
