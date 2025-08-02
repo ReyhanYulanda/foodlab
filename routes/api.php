@@ -17,6 +17,7 @@ use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Models\Transaksi;
 use App\Http\Controllers\Kelola\Tenant\ProfileTenantController;
+use App\Http\Controllers\MandiriSandboxController;
 use App\Http\Controllers\SendNotificationController;
 use App\Http\Controllers\User\TransaksiUserController;
 use Illuminate\Support\Facades\Route;
