@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Pengaturan;
+use App\Models\User;
 use App\Services\Firebases;
 
 class AutoCancelOrder extends Command
@@ -30,47 +31,64 @@ class AutoCancelOrder extends Command
             DB::beginTransaction();
             try {
                 $user = $transaksi->user;
+                $fcmUser = User::find($transaksi->user_id);
+                $fcmUserToken = $fcmUser && $fcmUser->fcm_token ? [$fcmUser->fcm_token] : [];
 
                 $transaksi->status = 'pesanan_ditolak';
                 $transaksi->save();
 
                 if ($user && $user->fcm_token) {
-                    $firebases->withData([
-                        'title' => 'Pesanan Dibatalkan',
-                        'body' => 'Pesanan #' . $transaksi->id . ' tidak direspond tenant.',
-                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
-                    ])->sendToFallback($user->fcm_token);
+                    $firebases
+                        ->withNotification(
+                            'Pesanan Dibatalkan',
+                            'Pesanan #' . $transaksi->id . ' tidak direspons tenant.'
+                        )
+                        ->withData([
+                            'title' => 'Pesanan Dibatalkan',
+                            'body' => 'Pesanan #' . $transaksi->id . ' tidak direspond tenant.',
+                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                        ])->sendToFallback($fcmUserToken);
                 }
 
                 $tenants = $transaksi->listTransaksiDetail()
-                    ->with('menus.tenants.pemilik') 
+                    ->with('menus.tenants.pemilik')
                     ->get()
                     ->pluck('menus.tenants')
                     ->unique('id');
 
                 foreach ($tenants as $tenant) {
                     if ($tenant && $tenant->pemilik && $tenant->pemilik->fcm_token) {
-                        $firebases->withData([
-                            'title' => 'Pesanan Dibatalkan Otomatis',
-                            'body' => 'Pesanan #' . $transaksi->id . ' dibatalkan karena tidak direspons tepat waktu.',
-                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
-                        ])->sendToTenant($tenant->pemilik->fcm_token);
+                        $firebases
+                            ->withNotification(
+                                'Pesanan Dibatalkan Otomatis',
+                                'Pesanan #' . $transaksi->id . ' dibatalkan karena tidak direspons tepat waktu.'
+                            )
+                            ->withData([
+                                'title' => 'Pesanan Dibatalkan Otomatis',
+                                'body' => 'Pesanan #' . $transaksi->id . ' dibatalkan karena tidak direspons tepat waktu.',
+                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                            ])->sendToTenant($tenant->pemilik->fcm_token);
                     }
                 }
 
                 $this->refundKoin($transaksi);
 
-                $transaksi->status = 'refund_selesai'; 
+                $transaksi->status = 'refund_selesai';
                 $transaksi->save();
 
                 DB::commit();
 
                 if ($user && $user->fcm_token) {
-                    $firebases->withData([
-                        'title' => 'Refund Berhasil',
-                        'body' => 'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.',
-                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
-                    ])->sendToFallback($user->fcm_token);
+                    $firebases
+                        ->withNotification(
+                            'Refund Berhasil',
+                            'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.'
+                        )
+                        ->withData([
+                            'title' => 'Refund Berhasil',
+                            'body' => 'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.',
+                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                        ])->sendToFallback($fcmUserToken);
                 }
 
                 Log::info("Transaksi #{$transaksi->id} dibatalkan otomatis setelah $timeout menit dan refund berhasil.");
