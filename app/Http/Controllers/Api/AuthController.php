@@ -128,8 +128,8 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        $request->user()->tokens()->delete();
-        return ResponseApi::success(null, 'logout berhasil');
+        $request->user()->currentAccessToken()->delete();
+        return ResponseApi::success(null, 'Logout berhasil');
     }
 
     public function forgotPassword(Request $request)
