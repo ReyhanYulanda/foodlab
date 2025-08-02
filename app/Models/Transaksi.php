@@ -26,6 +26,8 @@ class Transaksi extends Model
         'catatan',
         'driver_id',
         'kode_pemesanan',
+        'catatan_lokasi_pengantaran',
+        'catatan_penolakan',
     ];
 
     protected $appends = ['sub_total', 'gedung', 'nama_ruangan', 'nama_pembeli', 'nama_tenant','order_id'];

@@ -126,22 +126,31 @@ class PesananController extends Controller
                 $transaksi->save();
                 $status = str_replace('_', ' ', $transaksi->status);
 
+                $fcmuser = User::find($transaksi->user_id);
+                $fcmuserToken = $fcmuser && $fcmuser->fcm_token ? [$fcmuser->fcm_token] : [];
+
                 if ($transaksi->metode_pembayaran != 'transfer') {
                     $transaksi->listTransaksiDetail()->update(['status' => $transaksi->status]);
                 }
                 if ($transaksi->status == 'diantar') {
-                    $firebases->withData([
-                        'title' => 'Pesanan Sedang Diantar',
-                        'status' => "Pesanan {$transaksi->id} sedang diantar oleh driver. Mohon tunggu sebentar!",
-                    ])->sendMessages($transaksi->user->fcm_token);
+                    $firebases
+                        ->withNotification('Pesanan Sedang Diantar', "Pesanan {$transaksi->id} sedang diantar oleh driver. Mohon tunggu sebentar!")
+                        ->withData([
+                            'title' => 'Pesanan Sedang Diantar',
+                            'status' => "Pesanan {$transaksi->id} sedang diantar oleh driver. Mohon tunggu sebentar!",
+                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                        ])->sendToFallback($fcmuserToken);
                 }
 
                 if ($transaksi->status == 'selesai') {
-                    $firebases->withData([
-                        'title' => 'Pesanan Selesai',
-                        'body' => "Pesanan {$transaksi->id} telah selesai. Ambil dan terima pesananmu. Selamat menikmati! 🍽",
-                    ])
-                        ->sendMessages($transaksi->user->fcm_token);
+                    $firebases
+                        ->withNotification('Pesanan Selesai', "Pesanan {$transaksi->id} telah selesai. Ambil dan terima pesananmu. Selamat menikmati! 🍽")
+                        ->withData([
+                            'title' => 'Pesanan Selesai',
+                            'body' => "Pesanan {$transaksi->id} telah selesai. Ambil dan terima pesananmu. Selamat menikmati! 🍽",
+                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                        ])
+                        ->sendToFallback($fcmuserToken);
 
                     $ongkirAsli = $transaksi->ongkos_kirim;
 

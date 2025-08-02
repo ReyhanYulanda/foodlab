@@ -12,6 +12,7 @@ use App\Models\SaldoKoin;
 use App\Models\TransaksiSaldoKoin;
 use App\Models\Menus;
 use App\Models\Pengaturan;
+use App\Models\TopUp;
 use App\Response\ResponseApi;
 use App\Services\Firebases;
 use App\Services\Midtrans;
@@ -19,7 +20,9 @@ use App\Traits\CanAntar;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
@@ -180,6 +183,7 @@ class TransaksiController extends Controller
             'menus' => 'required|array',
             'menus.*.id' => 'required|integer|exists:menus,id',
             'menus.*.jumlah' => 'required|integer|min:1',
+            'catatan_lokasi_pengantaran' => 'nullable|string|max:255',
         ]);
 
         if ($validatator->fails()) {
@@ -206,6 +210,18 @@ class TransaksiController extends Controller
             return response()->json([
                 'status' => 'failed',
                 'message' => 'Toko sedang tutup'
+            ], 400);
+        }
+
+        $jumlahDriver = User::where('isOnline', true)
+            ->whereHas('roles', function ($q) {
+                $q->where('name', 'masbro');
+            })->count();
+
+        if ($request->isAntar && $jumlahDriver == 0) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Tidak ada driver online saat ini. Silakan coba lagi nanti.'
             ], 400);
         }
 
@@ -277,6 +293,7 @@ class TransaksiController extends Controller
                 'status' => $status,
                 'ongkos_kirim' => $ongkosKirimFix,
                 'biaya_layanan' => $biayaLayanan,
+                'catatan_lokasi_pengantaran' => $request->catatan_lokasi_pengantaran ?? null,
             ]);
 
             do {
@@ -290,20 +307,16 @@ class TransaksiController extends Controller
             $success = $this->storeTransakasiDetail($request, $transaksi);
 
             if ($success) {
-                if ($tenantUser && $tenantUser->fcm_token) {
-                    $customNames = [
-                        18 => 'Pesanan Masuk (mama dani)',
-                        38 => 'Pesanan Masuk (kedai foodlabs)',
-                    ];
-                    $tenantName = $customNames[$tenant->id] ?? 'Pesanan Masuk';
-                    $messageBody = 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!';
+                DB::commit();
 
+                if ($tenantUser && $tenantUser->fcm_token) {
                     $firebases
-                        ->withNotification($tenantName, $messageBody)
+                        ->withNotification('Pesanan Masuk', 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!')
                         ->withData([
-                            'title' => $tenantName,
-                            'body' => $messageBody
-                        ])->sendMessages($tenantUser->fcm_token);
+                            'title' => 'Pesanan Masuk',
+                            'body' => 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!',
+                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                        ])->sendToTenant($tenantUser->fcm_token);
                 }
 
                 if ($status == 'selesai') {
@@ -474,15 +487,25 @@ class TransaksiController extends Controller
                 return ResponseApi::error("Refund sebelumnya gagal. Silakan hubungi admin", 400);
             }
 
+            if ($request->has('catatan_penolakan')) {
+                $transaksi->catatan_penolakan = $request->input('catatan_penolakan');
+            }
+
             $transaksi->status = 'pesanan_ditolak';
             $transaksi->save();
 
+            $user = User::find($transaksi->user_id);
+            $userToken = $user && $user->fcm_token ? [$user->fcm_token] : [];
+
             $userTransaksi = $transaksi->user;
             if ($userTransaksi && $userTransaksi->fcm_token) {
-                $firebases->withData([
-                    'title' => 'Pesanan Dibatalkan',
-                    'body' => "Maaf, pesanan {$transaksi->id} dibatalkan oleh tenant."
-                ])->sendMessages($userTransaksi->fcm_token);
+                $firebases
+                    ->withNotification('Pesanan Dibatalkan', "Maaf, pesanan {$transaksi->id} dibatalkan oleh tenant.")
+                    ->withData([
+                        'title' => 'Pesanan Dibatalkan',
+                        'body' => "Maaf, pesanan {$transaksi->id} dibatalkan oleh tenant.",
+                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                    ])->sendToFallback($userToken);
             }
 
             try {
@@ -499,10 +522,13 @@ class TransaksiController extends Controller
                 $transaksi->save();
 
                 if ($userTransaksi && $userTransaksi->fcm_token) {
-                    $firebases->withData([
-                        'title' => 'Refund Berhasil',
-                        'body' => 'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.'
-                    ])->sendMessages($userTransaksi->fcm_token);
+                    $firebases
+                        ->withNotification('Refund Berhasil', 'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.')
+                        ->withData([
+                            'title' => 'Refund Berhasil',
+                            'body' => 'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.',
+                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                        ])->sendToFallback($userToken);
                 }
 
                 DB::commit();
@@ -535,5 +561,210 @@ class TransaksiController extends Controller
         } catch (Exception $e) {
             Log::error("Gagal membuat kode pemesanan: " . $e->getMessage());
         }
+    }
+
+    public function pushToUbisma(Request $request)
+    {
+        $data = $request->input('data.0');
+
+        $validator = Validator::make($data, [
+            'request_id_' => 'required|integer|digits_between:1,10',
+            'nama_' => 'required|string|max:100',
+            'nominal_topup_' => 'required|integer|digits_between:1,10',
+            'tanggal_akhir_tagihan_' => 'required|date_format:d-m-Y H:i:s',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 422,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $payload = [
+            'procedure' => 'pfoodlab_topup',
+            'data' => [$data]
+        ];
+
+        // ✅ Kirim dengan format JSON dan header yang benar
+        $response = Http::withHeaders([
+            'x-api-key' => env('MIS_API_KEY'),
+            'Accept' => 'application/json',
+        ])->asJson()->post(env('MIS_API_URL'), $payload);
+
+        return response()->json([
+            'status' => $response->json('status'),
+            'code' => $response->json('code'),
+            'data' => $response->json('data'),
+            'debug' => [
+                'headers' => $response->headers(),
+                'payload_sent' => $payload,
+                'raw_response' => $response->json(),
+                'http_status' => $response->status(),
+            ]
+        ], $response->status());
+    }
+
+    public function storeTopUp(Request $request)
+    {
+        $user = Auth::user();
+
+        $validator = Validator::make($request->all(), [
+            'nominal' => 'required|integer|min:1000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $requestId = $this->generateRequestId();
+        $timeout = $this->generateTimeout();
+
+        $dataToSend = [
+            'request_id_' => $requestId,
+            'nama_' => $user->name,
+            'nominal_topup_' => $request->nominal,
+            'tanggal_akhir_tagihan_' => $timeout->format('d-m-Y H:i:s'),
+        ];
+
+        $apiKey = env('UBISMA_API_KEY');
+        $apiUrl = env('UBISMA_API_URL');
+
+        $response = Http::withHeaders([
+            'x-api-key' => $apiKey,
+            'Accept' => 'application/json',
+        ])->asJson()->post($apiUrl, [
+            'data' => [$dataToSend]
+        ]);
+
+        if ($response->failed()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal terhubung ke server UBISMA.',
+                'debug' => $response->body(),
+            ], $response->status());
+        }
+
+        $ubismaData = $response->json('data');
+
+        Log::info('Response dari UBISMA:', $response->json());
+
+        if (!$ubismaData || !isset($ubismaData['kode_bayar_mandiri_'])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Response UBISMA tidak valid atau tidak berisi kode bayar.',
+                'debug' => $response->json()
+            ], 500);
+        }
+
+        $topup = TopUp::create([
+            'user_id' => $user->id,
+            'request_id' => $requestId,
+            'nominal' => $request->nominal,
+            'kode_bayar' => $ubismaData['kode_bayar_mandiri_'] ?? null,
+            'tgl_akhir_tagihan' => $timeout,
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'topup' => $topup,
+                'ubisma_response' => $ubismaData
+            ]
+        ]);
+    }
+
+    public function getTopUp($kodeBayar)
+    {
+        // 1. Cari record berdasarkan kode_bayar
+        $topup = TopUp::where('kode_bayar', $kodeBayar)->first();
+
+        if (!$topup) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Data topup tidak ditemukan.',
+            ], 404);
+        }
+
+        // 2. Cek apakah topup ini dimiliki oleh user yang sedang login
+        if ($topup->user_id !== auth()->id()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized: Anda tidak berhak mengakses topup ini.',
+            ], 403);
+        }
+
+        // 2. Bangun ulang payload berdasarkan data yang sudah tersimpan
+        $dataToSend = [
+            'request_id_' => $topup->request_id,
+            'nama_' => $topup->user->name,
+            'nominal_topup_' => $topup->nominal,
+            'tanggal_akhir_tagihan_' => Carbon::parse($topup->tgl_akhir_tagihan)->format('d-m-Y H:i:s'),
+        ];
+
+        // 3. Kirim request ke UBISMA
+        $response = Http::withHeaders([
+            'x-api-key' => env('UBISMA_API_KEY'),
+            'Accept' => 'application/json',
+        ])->asJson()->post(env('UBISMA_API_URL'), [
+            'data' => [$dataToSend]
+        ]);
+
+        if ($response->failed()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengambil status dari UBISMA.',
+                'debug' => $response->body(),
+            ], $response->status());
+        }
+
+        // 4. Ambil data dari response
+        $ubismaData = $response->json('data') ?? [];
+
+        // 5. Update status_bayar dan tgl_bayar jika tersedia
+        try {
+            if (!empty($ubismaData['tanggal_bayar_'])) {
+                $tglBayar = Carbon::parse($ubismaData['tanggal_bayar_']);
+            } else {
+                $tglBayar = $topup->tgl_bayar;
+            }
+        } catch (\Exception $e) {
+            Log::error('Gagal parsing tanggal_bayar_ dari UBISMA: ' . json_encode($ubismaData['tanggal_bayar_'] ?? null));
+            $tglBayar = $topup->tgl_bayar;
+        }
+
+        $topup->update([
+            'status_bayar' => $ubismaData['status_bayar_'] ?? $topup->status_bayar,
+            'tgl_bayar' => $tglBayar,
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $topup
+        ]);
+    }
+
+
+    // Start dari 102 dan terus naik
+    protected function generateRequestId()
+    {
+        $starting = env('REQUEST_ID_START');
+
+        if (is_null($starting)) {
+            throw new \Exception("REQUEST_ID_START belum diset di environment");
+        }
+
+        $last = TopUp::max('request_id');
+
+        return ($last && $last >= $starting) ? $last + 1 : $starting;
+    }
+
+    protected function generateTimeout()
+    {
+        return Carbon::now()->addHour();
     }
 }

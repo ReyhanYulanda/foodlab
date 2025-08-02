@@ -21,6 +21,7 @@ use App\Http\Controllers\Web\Transaksi\TransaksiDriverController;
 use App\Http\Controllers\Web\Transaksi\TransaksiTenantController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Auth\EmailVerificationController;
+use App\Http\Controllers\ListAktifDriverController;
 use App\Http\Controllers\NotifikasiController;
 
 Route::get('/verify-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])
@@ -62,6 +63,9 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
 
     Route::get('/notifikasi/kirim', [NotifikasiController::class, 'index'])->name('notifikasi.index');
     Route::post('/notifikasi/kirim', [NotifikasiController::class, 'kirim'])->name('notifikasi.kirim');
+
+    Route::get('/list-driver', [ListAktifDriverController::class, 'index'])->name('list-driver.index');
+    Route::post('/list-driver/{user}/set-offline', [ListAktifDriverController::class, 'setOffline'])->name('list-driver.setOffline');
 
     Route::post('/pembayaran/transfer', [PembayaranController::class, 'transfer'])->name('pembayaran.transfer');
 

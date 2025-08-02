@@ -43,7 +43,7 @@ class AuthController extends Controller
                 'password' => Hash::make($request->password),
                 // 'phone' => $request->phone,
             ]);
-            // $newUser->sendEmailVerificationNotification();
+            $newUser->sendEmailVerificationNotification();
             // Token Management
             $token = $newUser->createToken('secret')->plainTextToken;
 
@@ -113,7 +113,9 @@ class AuthController extends Controller
             'permission' => $permission,
         ];
 
-        ($firebases->updateFcmToken($user, $request->fcm_token));
+        if ($request->filled('fcm_token')) {
+            $firebases->updateFcmToken($user, $request->fcm_token);
+        }
 
         return ResponseApi::success($data, 'berhasil mendapatkan data');
     }

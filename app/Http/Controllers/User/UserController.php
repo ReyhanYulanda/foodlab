@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Konfigurrasi\Menu;
+use App\Models\Transaksi;
 use App\Models\User;
 use App\Response\ResponseApi;
 use App\Services\Firebases;
@@ -12,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
@@ -19,7 +21,7 @@ class UserController extends Controller
     {
         $user = $request->user();
 
-        if(!$user){
+        if (!$user) {
             return response()->json([
                 'status' => 'failed',
                 'message' => 'Tidak ada akses'
@@ -28,7 +30,7 @@ class UserController extends Controller
 
         $user = User::find($user->id);
 
-        $menu = Menu::whereHas('device', function($device){
+        $menu = Menu::whereHas('device', function ($device) {
             return $device->where('device_id', 1);
         })->orderby('urutan')->get();
 
@@ -54,7 +56,7 @@ class UserController extends Controller
             'permission' => $permission,
         ];
 
-        if(!$user){
+        if (!$user) {
             return response()->json([
                 'status' => 'failed',
                 'message' => 'pengguna tidak ditemukan'
@@ -72,11 +74,11 @@ class UserController extends Controller
     {
         $valdidator = Validator::make($request->all(), [
             'name' => ['required', 'string'],
-            'email'=>['unique:users,email'],
-            'password'=>'required'
+            'email' => ['unique:users,email'],
+            'password' => 'required'
         ]);
 
-        if($valdidator->fails()){
+        if ($valdidator->fails()) {
             return response()->json([
                 'messages' => $valdidator->errors(),
             ]);
@@ -102,7 +104,7 @@ class UserController extends Controller
         $user = $request->user();
         $this->authorize('update akun');
 
-        if(!$user){
+        if (!$user) {
             return response()->json([
                 'status' => 'failed',
                 'message' => 'Tidak ada akses'
@@ -111,53 +113,92 @@ class UserController extends Controller
 
         $user = User::find($user->id);
 
-        $valdidator = Validator::make($request->all(), [
+        $validator = Validator::make($request->all(), [
             'name' => ['string', 'nullable'],
-            'email'=> ['unique:users,email', 'nullable'],
-            'password'=> 'nullable',
-            'phone'=> 'nullable',
-            'isOnline' => ['nullable'],
+            'email' => ['nullable', Rule::unique('users')->ignore($user->id)],
+            'password' => 'nullable',
+            'phone' => 'nullable',
+            'isOnline' => ['nullable', 'boolean'],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
         ]);
 
-        if($valdidator->fails()){
-            return response()->json($valdidator->errors());
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
         }
 
         $url = $user->image;
         if ($request->hasFile('image')) {
             $image = $request->file('image');
-
             $path = $image->store('public/images');
-
             $url = Storage::url($path);
         }
 
-        try{
+        try {
+            // Siapkan data update
             $data = [
                 "name" => $request->name ?? $user->name,
                 "email" => $request->email ?? $user->email,
                 "password" => $request->password ? Hash::make($request->password) : $user->password,
                 "phone" => $request->phone ?? $user->phone,
-                "isOnline" => $request->isOnline ?? $user->isOnline,
-                "image" => @$url ?? $user->image,
+                "image" => $url ?? $user->image,
             ];
-    
-            $user->update($data);  
+            if ($request->has('isOnline')) {
+                // Cegah jika masih ada transaksi aktif
+                if ($request->has('isOnline') && $request->isOnline == 0) {
+                    if ($user->hasRole('tenant')) {
+                        $tenant = $user->tenant;
 
-            if(!$user){
-                return response()->json(['messages' => 'Update Gagal']);
-            }else{
-                return response()->json([
-                    'messages' => 'Update Berhasil',
-                    'data' => $user
-                ]);
+                        $hasProcessingOrders = Transaksi::where('status', 'pesanan_diproses')
+                            ->whereHas('listTransaksiDetail', function ($q) use ($tenant) {
+                                $q->whereHas('menus', function ($q2) use ($tenant) {
+                                    $q2->where('tenant_id', $tenant->id);
+                                });
+                            })->exists();
+
+                        if ($hasProcessingOrders) {
+                            return response()->json([
+                                'status' => 'failed',
+                                'message' => 'Tidak dapat offline karena masih ada pesanan yang sedang diproses.'
+                            ], 400);
+                        }
+                    }
+
+                    if ($user->hasRole('masbro')) {
+                        $hasDeliveryOrders = Transaksi::where('driver_id', $user->id)
+                            ->where('status', 'diantar')
+                            ->exists();
+
+                        if ($hasDeliveryOrders) {
+                            return response()->json([
+                                'status' => 'failed',
+                                'message' => 'Tidak dapat offline karena masih ada pesanan yang sedang diantar.'
+                            ], 400);
+                        }
+                    }
+                }
+
+                $data['isOnline'] = $request->isOnline;
+
+                if ($user->hasRole('tenant')) {
+                    $data['manual_offline'] = $request->isOnline == 0 ? true : false;
+                    $data['manual_override'] = true;
+                }
             }
-        }catch(Exception $e){
+
+            // ✅ Update dilakukan setelah pengecekan selesai
+            $user->update($data);
+
+            return response()->json([
+                'messages' => 'Update Berhasil',
+                'data' => $user
+            ]);
+        } catch (\Throwable $e) {
             return ResponseApi::serverError();
         }
     }
-    
+
+
+
     public function updateFcmToken(Request $request, Firebases $firebases)
     {
         $user = $request->user();
@@ -166,15 +207,15 @@ class UserController extends Controller
             'fcm_token' => 'string'
         ]);
 
-        if($valdidator->fails()){
+        if ($valdidator->fails()) {
             return response()->json($valdidator->errors()->all());
         }
 
         $updated = $firebases->updateFcmToken($user->id, $request->token);
 
-        if(!$updated){
+        if (!$updated) {
             return response()->json(['messages' => 'Update Gagal']);
-        }else{
+        } else {
             return response()->json([
                 'messages' => 'Update Berhasil',
                 'data' => $updated
@@ -185,9 +226,9 @@ class UserController extends Controller
     public function destroy($id)
     {
         $deleted = User::findOrFail($id)->delete();
-        if(!$deleted){
+        if (!$deleted) {
             return response()->json(['messages' => 'Update Gagal']);
-        }else{
+        } else {
             return response()->json([
                 'messages' => 'Delete Berhasil',
                 'data' => $deleted

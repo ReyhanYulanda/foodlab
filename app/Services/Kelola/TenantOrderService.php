@@ -93,74 +93,115 @@ class TenantOrderService
             ->pluck('fcm_token')
             ->toArray();
 
-        $send = function ($tokens, $title, $body, $type) use ($firebases, $transaksi) {
-            $firebases->withNotification('', '')
-                ->withData([
-                    'title' => $title,
-                    'body' => $body,
-                    'type' => $type,
-                    'transaksi_id' => $transaksi->id
-                ])->sendMessages($tokens);
+        $user = User::find($transaksi->user_id);
+
+        // Pastikan token user pembeli dalam bentuk array
+        $userToken = $user && $user->fcm_token ? [$user->fcm_token] : [];
+
+        // SEND TO USER (Pembeli)
+        $sendToUser = function ($title, $body, $type) use ($firebases, $transaksi, $userToken) {
+            if (!empty($userToken)) {
+                $firebases->withNotification($title, $body)
+                    ->withData([
+                        'title' => $title,
+                        'body' => $body,
+                        'type' => $type,
+                        'transaksi_id' => $transaksi->id,
+                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                    ])
+                    ->sendToFallback($userToken);
+            }
         };
 
-        if ($transaksi->status == 'pesanan_diproses') {
-            $send(
-                $transaksi->user->fcm_token,
+        // SEND TO TENANT
+        $sendToTenant = function ($title, $body, $type) use ($firebases, $transaksi) {
+            $tenantToken = optional($transaksi->tenant->user)->fcm_token;
+            if ($tenantToken) {
+                $firebases->withNotification($title, $body)
+                    ->withData([
+                        'title' => $title,
+                        'body' => $body,
+                        'type' => $type,
+                        'transaksi_id' => $transaksi->id,
+                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                    ])
+                    ->sendToTenant([$tenantToken]);
+            }
+        };
+
+        // SEND TO DRIVER/MASBRO
+        $sendToDrivers = function ($title, $body, $type) use ($firebases, $transaksi, $masbroTokens) {
+            if (!empty($masbroTokens)) {
+                $firebases->withNotification($title, $body)
+                    ->withData([
+                        'title' => $title,
+                        'body' => $body,
+                        'type' => $type,
+                        'transaksi_id' => $transaksi->id,
+                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                    ])
+                    ->sendToDriver($masbroTokens);
+            }
+        };
+
+        // === LOGIKA NOTIFIKASI BERDASARKAN STATUS ===
+        if ($transaksi->status === 'pesanan_diproses') {
+            $sendToUser(
                 'Pesanan Sedang Diproses',
                 "Pesanan {$transaksi->id} sedang dibuat oleh tenant. Mohon ditunggu, ya!",
                 'pesanan_diproses'
             );
         }
 
-        if ($transaksi->status == 'siap_diantar') {
-            $firebases->withData([
-                'title' => 'Pesanan Sudah Siap',
-                'body' => "Pesanan {$transaksi->id} selesai dibuat. Kami sedang mencari driver untuk mengantar pesananmu"
-            ])->sendMessages($transaksi->user->fcm_token);
+        if ($transaksi->status === 'siap_diantar') {
+            $sendToUser(
+                'Pesanan Sudah Siap',
+                "Pesanan {$transaksi->id} selesai dibuat. Kami sedang mencari driver untuk mengantar pesananmu",
+                'siap_diantar'
+            );
 
-            foreach ($masbroTokens as $token) {
-                $firebases->withData([
-                    'title' => 'Ada Pesanan Siap Diantar',
-                    'body' => "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!"
-                ])->sendMessages([$token]); // Kirim ke satu token masbro
-            }
-            // log response
-            foreach ($masbroTokens as $token) {
-                Log::info("Pesan terkirim ke masbro dengan token: $token");
-            }
+            $sendToDrivers(
+                'Ada Pesanan Siap Diantar',
+                "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!",
+                'siap_diantar_driver'
+            );
         }
 
-        if ($transaksi->status == 'siap_diambil') {
-            $send(
-                $transaksi->user->fcm_token,
+        if ($transaksi->status === 'siap_diambil') {
+            $sendToUser(
                 'Pesanan Sudah Siap',
                 "Pesanan {$transaksi->id} selesai dibuat. Yuk ambil pesanananmu sekarang",
                 'siap_diambil'
             );
         }
 
-        if ($transaksi->status == 'diantar') {
-            $send(
-                $transaksi->user->fcm_token,
+        if ($transaksi->status === 'diantar') {
+            $sendToUser(
                 'Pesanan Sedang Diantar',
                 "Pesanan {$transaksi->id} sedang diantar oleh driver. Silakan tunggu sebentar.",
                 'diantar'
             );
 
-            $send(
-                $masbroTokens,
+            $sendToDrivers(
                 'Ada Pesanan Baru',
                 "Pesanan {$transaksi->id} sedang diantar. Yuk, bantu antar!",
                 'diantar_driver'
             );
         }
 
-        if ($transaksi->status == 'selesai') {
-            $send(
-                $transaksi->user->fcm_token,
+        if ($transaksi->status === 'selesai') {
+            $sendToUser(
                 'Pesanan Selesai',
                 "Pesanan {$transaksi->id} telah selesai. Ambil dan terima pesananmu. Selamat menikmati! 🍽",
                 'selesai'
+            );
+        }
+
+        if ($transaksi->status === 'pesanan_masuk') {
+            $sendToTenant(
+                'Pesanan Masuk',
+                'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!',
+                'pesanan_masuk'
             );
         }
     }

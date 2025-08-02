@@ -60,8 +60,10 @@ class NotifikasiController extends Controller
             ->withData([
                 'title' => $request->judul,
                 'body' => $request->isi,
+                // 'channel_id' => 'driver_fdlb_channel',
+                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
             ])
-            ->sendMessages($tokens);
+            ->sendToFallback($tokens);
 
         return redirect()->route('notifikasi.index')->with('success', 'Notifikasi berhasil dikirim!');
     }
