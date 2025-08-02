@@ -126,8 +126,9 @@ class PesananController extends Controller
                 $transaksi->save();
                 $status = str_replace('_', ' ', $transaksi->status);
 
-                $fcmuser = User::find($transaksi->user_id);
-                $fcmuserToken = $fcmuser && $fcmuser->fcm_token ? [$fcmuser->fcm_token] : [];
+                $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+                $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+
 
                 if ($transaksi->metode_pembayaran != 'transfer') {
                     $transaksi->listTransaksiDetail()->update(['status' => $transaksi->status]);
@@ -139,7 +140,7 @@ class PesananController extends Controller
                             'title' => 'Pesanan Sedang Diantar',
                             'status' => "Pesanan {$transaksi->id} sedang diantar oleh driver. Mohon tunggu sebentar!",
                             'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                        ])->sendToFallback($fcmuserToken);
+                        ])->sendToFallback($fcmUserToken);
                 }
 
                 if ($transaksi->status == 'selesai') {
@@ -150,7 +151,7 @@ class PesananController extends Controller
                             'body' => "Pesanan {$transaksi->id} telah selesai. Ambil dan terima pesananmu. Selamat menikmati! 🍽",
                             'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                         ])
-                        ->sendToFallback($fcmuserToken);
+                        ->sendToFallback($fcmUserToken);
 
                     $ongkirAsli = $transaksi->ongkos_kirim;
 

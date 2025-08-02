@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Helper\RoleHelper;
 use App\Http\Controllers\Controller;
+use App\Models\FcmToken;
 use App\Models\Konfigurrasi\Menu;
 use App\Models\Role;
 use App\Models\User;
@@ -114,7 +115,12 @@ class AuthController extends Controller
         ];
 
         if ($request->filled('fcm_token')) {
-            $firebases->updateFcmToken($user, $request->fcm_token);
+            FcmToken::updateOrCreate([
+                'user_id' => $user->id,
+                'fcm_token' => $request->fcm_token,
+            ], [
+                'device_id' => $request->device_id ?? null,
+            ]);
         }
 
         return ResponseApi::success($data, 'berhasil mendapatkan data');

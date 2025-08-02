@@ -31,8 +31,9 @@ class AutoCancelOrder extends Command
             DB::beginTransaction();
             try {
                 $user = $transaksi->user;
-                $fcmUser = User::find($transaksi->user_id);
-                $fcmUserToken = $fcmUser && $fcmUser->fcm_token ? [$fcmUser->fcm_token] : [];
+                $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+                $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+
 
                 $transaksi->status = 'pesanan_ditolak';
                 $transaksi->save();
@@ -54,20 +55,30 @@ class AutoCancelOrder extends Command
                     ->with('menus.tenants.pemilik')
                     ->get()
                     ->pluck('menus.tenants')
+                    ->flatten()
                     ->unique('id');
 
                 foreach ($tenants as $tenant) {
-                    if ($tenant && $tenant->pemilik && $tenant->pemilik->fcm_token) {
-                        $firebases
-                            ->withNotification(
-                                'Pesanan Dibatalkan Otomatis',
-                                'Pesanan #' . $transaksi->id . ' dibatalkan karena tidak direspons tepat waktu.'
-                            )
-                            ->withData([
-                                'title' => 'Pesanan Dibatalkan Otomatis',
-                                'body' => 'Pesanan #' . $transaksi->id . ' dibatalkan karena tidak direspons tepat waktu.',
-                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
-                            ])->sendToTenant($tenant->pemilik->fcm_token);
+                    if ($tenant && $tenant->pemilik) {
+                        $pemilikUser = User::with('fcmTokens')->find($tenant->pemilik->id);
+
+                        $fcmTenantTokens = $pemilikUser
+                            ? $pemilikUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray()
+                            : [];
+
+                        if (!empty($fcmTenantTokens)) {
+                            $firebases
+                                ->withNotification(
+                                    'Pesanan Dibatalkan Otomatis',
+                                    'Pesanan #' . $transaksi->id . ' dibatalkan karena tidak direspons tepat waktu.'
+                                )
+                                ->withData([
+                                    'title' => 'Pesanan Dibatalkan Otomatis',
+                                    'body' => 'Pesanan #' . $transaksi->id . ' dibatalkan karena tidak direspons tepat waktu.',
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                                ])
+                                ->sendToTenant($fcmTenantTokens); // sekarang bisa array
+                        }
                     }
                 }
 

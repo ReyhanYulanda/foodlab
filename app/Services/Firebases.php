@@ -92,9 +92,12 @@ class Firebases
         }
     }
 
-    public function updateFcmToken(User $user, string $token = '')
+    public function updateFcmToken(User $user, string $token = '', string $device_id = null)
     {
-        return $user->update(['fcm_token' => $token]);
+        return \App\Models\FcmToken::updateOrCreate(
+            ['user_id' => $user->id, 'fcm_token' => $token],
+            ['device_id' => $device_id]
+        );
     }
 
     public function sendToTenant($tokens)

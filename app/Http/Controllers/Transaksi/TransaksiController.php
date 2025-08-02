@@ -243,11 +243,13 @@ class TransaksiController extends Controller
         DB::beginTransaction();
         try {
             $menu_id = $request->menus[0]['id'];
-            $tenantUser = User::whereHas('tenant', function ($tenant) use ($menu_id) {
+            $tenantUser = User::with('fcmTokens')->whereHas('tenant', function ($tenant) use ($menu_id) {
                 $tenant->whereHas('listMenu', function ($kelola) use ($menu_id) {
                     $kelola->where('id', $menu_id);
                 });
             })->first();
+
+            $fcmTenantToken = $tenantUser ? $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
 
             if (!$tenantUser) {
                 Log::warning('User tenant tidak ditemukan berdasarkan menu_id', ['menu_id' => $menu_id]);
@@ -316,7 +318,7 @@ class TransaksiController extends Controller
                             'title' => 'Pesanan Masuk',
                             'body' => 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!',
                             'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                        ])->sendToTenant($tenantUser->fcm_token);
+                        ])->sendToTenant($fcmTenantToken);
                 }
 
                 if ($status == 'selesai') {
@@ -494,8 +496,9 @@ class TransaksiController extends Controller
             $transaksi->status = 'pesanan_ditolak';
             $transaksi->save();
 
-            $user = User::find($transaksi->user_id);
-            $userToken = $user && $user->fcm_token ? [$user->fcm_token] : [];
+            $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+            $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+
 
             $userTransaksi = $transaksi->user;
             if ($userTransaksi && $userTransaksi->fcm_token) {
@@ -505,7 +508,7 @@ class TransaksiController extends Controller
                         'title' => 'Pesanan Dibatalkan',
                         'body' => "Maaf, pesanan {$transaksi->id} dibatalkan oleh tenant.",
                         'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
-                    ])->sendToFallback($userToken);
+                    ])->sendToFallback($fcmUserToken);
             }
 
             try {
@@ -528,7 +531,7 @@ class TransaksiController extends Controller
                             'title' => 'Refund Berhasil',
                             'body' => 'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.',
                             'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
-                        ])->sendToFallback($userToken);
+                        ])->sendToFallback($fcmUserToken);
                 }
 
                 DB::commit();

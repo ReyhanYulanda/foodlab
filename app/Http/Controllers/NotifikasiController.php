@@ -47,23 +47,28 @@ class NotifikasiController extends Controller
             'user_ids' => 'required|array',
         ]);
 
-        $selectedIds = explode(',', $request->selected_ids);
-
-        // Query fcm_token
-        $tokens = User::whereIn('id', $selectedIds)
-            ->whereNotNull('fcm_token')
-            ->pluck('fcm_token')
+        // Ambil user dan relasi fcmTokens-nya
+        $tokens = User::with('fcmTokens')
+            ->whereIn('id', $request->user_ids)
+            ->get()
+            ->flatMap(function ($user) {
+                return $user->fcmTokens->pluck('fcm_token');
+            })
+            ->filter()
+            ->unique()
+            ->values()
             ->toArray();
 
-        $firebases
-            ->withNotification($request->judul, $request->isi)
-            ->withData([
-                'title' => $request->judul,
-                'body' => $request->isi,
-                // 'channel_id' => 'driver_fdlb_channel',
-                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-            ])
-            ->sendToFallback($tokens);
+        if (!empty($tokens)) {
+            $firebases
+                ->withNotification($request->judul, $request->isi)
+                ->withData([
+                    'title' => $request->judul,
+                    'body' => $request->isi,
+                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                ])
+                ->sendToFallback($tokens);
+        }
 
         return redirect()->route('notifikasi.index')->with('success', 'Notifikasi berhasil dikirim!');
     }

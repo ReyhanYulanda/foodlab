@@ -28,7 +28,7 @@ class SaldoKoinController extends Controller
 
         if ($pendingTopUps->count() > 0) {
             Log::info('Saldo sebelum top-up:', ['user_id' => $userId]);
-            // Log::info('Pending TopUps:', $pendingTopUps->toArray());
+
             $saldo = SaldoKoin::firstOrCreate(['user_id' => $userId], ['jumlah' => 0]);
 
             $totalTopup = $pendingTopUps->sum('nominal');
@@ -36,37 +36,33 @@ class SaldoKoinController extends Controller
             $saldo->save();
             Log::info('Total yang ditambah ke saldo:', [$totalTopup]);
 
-            // ✅ Catat transaksi
             TransaksiSaldoKoin::create([
                 'user_id' => $userId,
                 'jumlah' => $totalTopup,
                 'tipe' => 'masuk',
                 'deskripsi' => 'Top-up berhasil melalui Virtual Account'
             ]);
-            // Log::info('Transaksi Saldo Koin berhasil dicatat untuk user ID:', [$userId]);
-            // ✅ Log saldo setelah top-up
             Log::info('Saldo setelah top-up:', ['user_id' => $userId, 'saldo' => $saldo->jumlah]);
 
-            // ✅ Kirim notifikasi (opsional)
-            $user = User::find($userId);
-            if ($user && $user->fcm_token) {
+            // ✅ Kirim notifikasi (menggunakan fcmTokens relasi)
+            $user = User::with('fcmTokens')->find($userId);
+            $fcmUserToken = $user ? $user->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+
+            if (!empty($fcmUserToken)) {
                 $firebases = new Firebases();
                 $firebases->withData([
                     'title' => 'Top-up Berhasil',
                     'body' => 'Saldo sebesar Rp ' . number_format($totalTopup, 0, ',', '.') . ' telah ditambahkan ke akun Anda.',
                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
-                ])->sendToFallback($user->fcm_token);
+                ])->sendToFallback($fcmUserToken);
             }
-            
 
-            // ✅ Update status isTf
             TopUp::where('user_id', $userId)
                 ->where('status_bayar', 1)
                 ->where('isTf', 0)
                 ->update(['isTf' => 1]);
         } else {
             $saldo = SaldoKoin::firstOrCreate(['user_id' => $userId], ['jumlah' => 0]);
-            // Log::info('Tidak ada top-up yang pending untuk user ID:', [$userId]);
         }
 
         return response()->json([

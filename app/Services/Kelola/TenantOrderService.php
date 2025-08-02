@@ -89,18 +89,23 @@ class TenantOrderService
     {
         $masbroTokens = User::role('masbro')
             ->where('isOnline', 1)
-            ->whereNotNull('fcm_token')
-            ->pluck('fcm_token')
+            ->with('fcmTokens')
+            ->get()
+            ->flatMap(fn($user) => $user->fcmTokens->pluck('fcm_token'))
+            ->filter()
+            ->unique()
+            ->values()
             ->toArray();
 
         $user = User::find($transaksi->user_id);
 
         // Pastikan token user pembeli dalam bentuk array
-        $userToken = $user && $user->fcm_token ? [$user->fcm_token] : [];
+        $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+        $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
 
         // SEND TO USER (Pembeli)
-        $sendToUser = function ($title, $body, $type) use ($firebases, $transaksi, $userToken) {
-            if (!empty($userToken)) {
+        $sendToUser = function ($title, $body, $type) use ($firebases, $transaksi, $fcmUserToken) {
+            if (!empty($fcmUserToken)) {
                 $firebases->withNotification($title, $body)
                     ->withData([
                         'title' => $title,
@@ -109,23 +114,28 @@ class TenantOrderService
                         'transaksi_id' => $transaksi->id,
                         'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                     ])
-                    ->sendToFallback($userToken);
+                    ->sendToFallback($fcmUserToken);
             }
         };
 
         // SEND TO TENANT
         $sendToTenant = function ($title, $body, $type) use ($firebases, $transaksi) {
-            $tenantToken = optional($transaksi->tenant->user)->fcm_token;
-            if ($tenantToken) {
-                $firebases->withNotification($title, $body)
-                    ->withData([
-                        'title' => $title,
-                        'body' => $body,
-                        'type' => $type,
-                        'transaksi_id' => $transaksi->id,
-                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                    ])
-                    ->sendToTenant([$tenantToken]);
+            $pemilik = optional($transaksi->tenant)->pemilik;
+
+            if ($pemilik) {
+                $tokens = $pemilik->fcmTokens()->pluck('fcm_token')->filter()->unique()->toArray();
+
+                if (!empty($tokens)) {
+                    $firebases->withNotification($title, $body)
+                        ->withData([
+                            'title' => $title,
+                            'body' => $body,
+                            'type' => $type,
+                            'transaksi_id' => $transaksi->id,
+                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                        ])
+                        ->sendToTenant($tokens);
+                }
             }
         };
 
