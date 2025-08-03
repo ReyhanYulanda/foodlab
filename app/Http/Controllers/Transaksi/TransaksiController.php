@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Transaksi;
 
 use App\Helper\TransaksiCek;
 use App\Http\Controllers\Controller;
+use App\Jobs\CekTopupStatusJob;
 use App\Models\Tenants;
 use App\Models\Transaksi;
 use App\Models\TransaksiDetail;
@@ -679,6 +680,8 @@ class TransaksiController extends Controller
             'kode_bayar' => $ubismaData['kode_bayar_mandiri_'] ?? null,
             'tgl_akhir_tagihan' => $timeout,
         ]);
+
+        CekTopupStatusJob::dispatch($topup);
 
         return response()->json([
             'status' => 'success',
