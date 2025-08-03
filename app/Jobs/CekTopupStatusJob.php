@@ -19,7 +19,7 @@ class CekTopupStatusJob implements ShouldQueue
 
     public TopUp $topup;
     public int $tries = 7;
-    public array $backoff = [5, 5, 5, 5];
+    public array $backoff = [600, 600, 600, 600, 600, 600];
 
     public function __construct(TopUp $topup)
     {
@@ -81,7 +81,7 @@ class CekTopupStatusJob implements ShouldQueue
             Log::info("TopUp ID {$this->topup->id} diupdate: status_bayar=1, tgl_bayar={$tglBayar}");
         } else {
             Log::info("TopUp ID {$this->topup->id} belum dibayar. Akan dicoba ulang jika retry masih tersedia.");
-            throw new \Exception("TopUp belum dibayar. Akan dicoba lagi.");
+            return;
         }
     }
 }
