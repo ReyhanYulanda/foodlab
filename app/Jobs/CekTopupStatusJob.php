@@ -19,7 +19,7 @@ class CekTopupStatusJob implements ShouldQueue
 
     public TopUp $topup;
     public int $tries = 7;
-    public array $backoff = [600, 600, 600, 600, 600, 600];
+    public array $backoff = [5, 5, 5, 5];
 
     public function __construct(TopUp $topup)
     {
