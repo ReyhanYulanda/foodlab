@@ -164,27 +164,26 @@ class TransaksiTenantController extends Controller
         ];
 
         return response()->stream(function () use ($transaksiTenant, $handle) {
+            // Header CSV
             fputcsv($handle, [
                 "No",
                 "Tanggal",
                 "Nama Tenant",
-                "Pendapatan Kotor (Pesan Antar)",
-                "Ongkir",
-                "Pendapatan Bersih (Pesan Antar)",
-                "Pendapatan Kotor (Ambil Sendiri)",
-                "Pendapatan Bersih (Ambil Sendiri)"
+                "Pendapatan Kotor (Pesan Antar + Ambil Sendiri)",
+                "Pendapatan Bersih (Pesan Antar + Ambil Sendiri)"
             ]);
 
             foreach ($transaksiTenant as $index => $p) {
+                // Penjumlahan kolom pendapatan kotor & bersih
+                $totalKotor = $p->pendapatan_kotor_1 + $p->pendapatan_kotor_2;
+                $totalBersih = $p->pendapatan_bersih_1 + $p->pendapatan_bersih_2;
+
                 fputcsv($handle, [
                     $index + 1,
                     $p->tanggal,
                     $p->nama_tenant,
-                    $p->pendapatan_kotor_1,
-                    $p->total_ongkir,
-                    $p->pendapatan_bersih_1,
-                    $p->pendapatan_kotor_2,
-                    $p->pendapatan_bersih_2
+                    $totalKotor,
+                    $totalBersih
                 ]);
             }
 
