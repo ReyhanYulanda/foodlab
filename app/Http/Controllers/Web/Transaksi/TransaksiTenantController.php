@@ -119,25 +119,33 @@ class TransaksiTenantController extends Controller
 
     public function exportCsv(Request $request)
     {
+        $filterDate = $request->input('filter_date');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
         $query = TransaksiDetail::selectRaw("
-                DATE(transaksi.created_at) as tanggal,
-                tenants.nama_tenant,
-                tenants.id,
-                SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_1,
-                SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_2,
-                SUM(transaksi.ongkos_kirim) as total_ongkir,
-                (SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) - (0.1 * SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_1,
-                (SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) - (0.1 * SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_2
-            ")
+            DATE(transaksi.created_at) as tanggal,
+            tenants.nama_tenant,
+            tenants.id,
+            SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_1,
+            SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_2,
+            SUM(transaksi.ongkos_kirim) as total_ongkir,
+            (SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) - (0.1 * SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_1,
+            (SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) - (0.1 * SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_2
+        ")
             ->join('menus', 'transaksi_detail.menu_id', '=', 'menus.id')
             ->join('tenants', 'menus.tenant_id', '=', 'tenants.id')
-            ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id');
+            ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id')
+            ->where('transaksi.status', 'selesai');
 
-        if ($startDate && $endDate) {
-            $query->whereBetween('transaksi.created_at', [$startDate, $endDate]);
+        if ($filterDate) {
+            $start = Carbon::parse($filterDate)->subDay()->setTime(18, 0, 0);
+            $end = Carbon::parse($filterDate)->setTime(17, 59, 59);
+            $query->whereBetween('transaksi.created_at', [$start, $end]);
+        } elseif ($startDate && $endDate) {
+            $start = Carbon::parse($startDate)->subDay()->setTime(18, 0, 0);
+            $end = Carbon::parse($endDate)->setTime(17, 59, 59);
+            $query->whereBetween('transaksi.created_at', [$start, $end]);
         }
 
         $transaksiTenant = $query
@@ -156,7 +164,16 @@ class TransaksiTenantController extends Controller
         ];
 
         return response()->stream(function () use ($transaksiTenant, $handle) {
-            fputcsv($handle, ["No", "Nama Tenant", "Pendapatan Kotor (Pesan Antar)", "Ongkir", "Pendapatan Bersih (Pesan Antar)", "Pendapatan Kotor (Ambil Sendiri)", "Pendapatan Bersih (Ambil Sendiri)"]);
+            fputcsv($handle, [
+                "No",
+                "Tanggal",
+                "Nama Tenant",
+                "Pendapatan Kotor (Pesan Antar)",
+                "Ongkir",
+                "Pendapatan Bersih (Pesan Antar)",
+                "Pendapatan Kotor (Ambil Sendiri)",
+                "Pendapatan Bersih (Ambil Sendiri)"
+            ]);
 
             foreach ($transaksiTenant as $index => $p) {
                 fputcsv($handle, [
