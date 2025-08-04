@@ -169,8 +169,8 @@ class TransaksiTenantController extends Controller
 
             $no = 1;
             foreach ($transaksiTenant as $p) {
-                if ($p->nama_tenant === 'Kedai Pak Agil') {
-                    continue; // Skip tenant ini
+                if (in_array($p->nama_tenant, ['Kedai Pak Agil', 'Test Tenant'])) {
+                    continue;
                 }
 
                 $totalKotor = ($p->pendapatan_kotor_1 ?? 0) + ($p->pendapatan_kotor_2 ?? 0);
