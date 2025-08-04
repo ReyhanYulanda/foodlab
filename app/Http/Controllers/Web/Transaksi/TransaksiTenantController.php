@@ -104,8 +104,8 @@ class TransaksiTenantController extends Controller
 
         $pesanan = $transaksi->listTransaksiDetail->map(function ($detail) {
             $menuNama = $detail->menus->nama ?? 'Menu Tidak Ditemukan';
-            $menuHarga = $detail->harga ?? 0; 
-            $quantity = $detail->jumlah ?? 0;  
+            $menuHarga = $detail->harga ?? 0;
+            $quantity = $detail->jumlah ?? 0;
 
             return [
                 'nama_menu' => $menuNama,
@@ -123,6 +123,7 @@ class TransaksiTenantController extends Controller
         $endDate = $request->input('end_date');
 
         $query = TransaksiDetail::selectRaw("
+                DATE(transaksi.created_at) as tanggal,
                 tenants.nama_tenant,
                 tenants.id,
                 SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_1,
@@ -139,7 +140,9 @@ class TransaksiTenantController extends Controller
             $query->whereBetween('transaksi.created_at', [$startDate, $endDate]);
         }
 
-        $transaksiTenant = $query->groupBy('menus.tenant_id', 'tenants.nama_tenant')->get();
+        $transaksiTenant = $query
+            ->groupByRaw('DATE(transaksi.created_at), menus.tenant_id, tenants.nama_tenant')
+            ->get();
 
         $fileName = "transaksi_tenant_" . date('YmdHis') . ".csv";
 
@@ -158,6 +161,7 @@ class TransaksiTenantController extends Controller
             foreach ($transaksiTenant as $index => $p) {
                 fputcsv($handle, [
                     $index + 1,
+                    $p->tanggal,
                     $p->nama_tenant,
                     $p->pendapatan_kotor_1,
                     $p->total_ongkir,
