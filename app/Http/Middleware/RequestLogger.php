@@ -62,7 +62,7 @@ class RequestLogger
 
         // Log response
         Log::info('API Response', [
-            'status' => $response->status(),
+            'status' => method_exists($response, 'getStatusCode') ? $response->getStatusCode() : null,
         ]);
 
         return $response;
