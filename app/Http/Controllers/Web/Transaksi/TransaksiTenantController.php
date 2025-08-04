@@ -124,15 +124,11 @@ class TransaksiTenantController extends Controller
         $endDate = $request->input('end_date');
 
         $query = TransaksiDetail::selectRaw("
-            DATE(transaksi.created_at) as tanggal,
-            tenants.nama_tenant,
-            tenants.id,
-            SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_1,
-            SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_2,
-            SUM(transaksi.ongkos_kirim) as total_ongkir,
-            (SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) - (0.1 * SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_1,
-            (SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) - (0.1 * SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_2
-        ")
+        tenants.nama_tenant,
+        tenants.id,
+        SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_1,
+        SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_2
+    ")
             ->join('menus', 'transaksi_detail.menu_id', '=', 'menus.id')
             ->join('tenants', 'menus.tenant_id', '=', 'tenants.id')
             ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id')
@@ -149,7 +145,7 @@ class TransaksiTenantController extends Controller
         }
 
         $transaksiTenant = $query
-            ->groupByRaw('DATE(transaksi.created_at), menus.tenant_id, tenants.nama_tenant')
+            ->groupBy('tenants.id', 'tenants.nama_tenant')
             ->get();
 
         $fileName = "transaksi_tenant_" . date('YmdHis') . ".csv";
@@ -167,23 +163,17 @@ class TransaksiTenantController extends Controller
             // Header CSV
             fputcsv($handle, [
                 "No",
-                "Tanggal",
                 "Nama Tenant",
                 "Pendapatan Kotor (Pesan Antar + Ambil Sendiri)",
-                // "Pendapatan Bersih (Pesan Antar + Ambil Sendiri)"
             ]);
 
             foreach ($transaksiTenant as $index => $p) {
-                // Penjumlahan kolom pendapatan kotor & bersih
                 $totalKotor = $p->pendapatan_kotor_1 + $p->pendapatan_kotor_2;
-                // $totalBersih = $p->pendapatan_bersih_1 + $p->pendapatan_bersih_2;
 
                 fputcsv($handle, [
                     $index + 1,
-                    $p->tanggal,
                     $p->nama_tenant,
                     $totalKotor,
-                    // $totalBersih
                 ]);
             }
 
