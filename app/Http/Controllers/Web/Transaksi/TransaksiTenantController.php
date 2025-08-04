@@ -167,11 +167,16 @@ class TransaksiTenantController extends Controller
                 "Pendapatan Kotor (Pesan Antar + Ambil Sendiri)",
             ]);
 
-            foreach ($transaksiTenant as $index => $p) {
-                $totalKotor = $p->pendapatan_kotor_1 + $p->pendapatan_kotor_2;
+            $no = 1;
+            foreach ($transaksiTenant as $p) {
+                if ($p->nama_tenant === 'Kedai Pak Agil') {
+                    continue; // Skip tenant ini
+                }
+
+                $totalKotor = ($p->pendapatan_kotor_1 ?? 0) + ($p->pendapatan_kotor_2 ?? 0);
 
                 fputcsv($handle, [
-                    $index + 1,
+                    $no++,
                     $p->nama_tenant,
                     $totalKotor,
                 ]);
