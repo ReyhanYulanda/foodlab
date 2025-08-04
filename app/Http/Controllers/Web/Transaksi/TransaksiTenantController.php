@@ -170,20 +170,20 @@ class TransaksiTenantController extends Controller
                 "Tanggal",
                 "Nama Tenant",
                 "Pendapatan Kotor (Pesan Antar + Ambil Sendiri)",
-                "Pendapatan Bersih (Pesan Antar + Ambil Sendiri)"
+                // "Pendapatan Bersih (Pesan Antar + Ambil Sendiri)"
             ]);
 
             foreach ($transaksiTenant as $index => $p) {
                 // Penjumlahan kolom pendapatan kotor & bersih
                 $totalKotor = $p->pendapatan_kotor_1 + $p->pendapatan_kotor_2;
-                $totalBersih = $p->pendapatan_bersih_1 + $p->pendapatan_bersih_2;
+                // $totalBersih = $p->pendapatan_bersih_1 + $p->pendapatan_bersih_2;
 
                 fputcsv($handle, [
                     $index + 1,
                     $p->tanggal,
                     $p->nama_tenant,
                     $totalKotor,
-                    $totalBersih
+                    // $totalBersih
                 ]);
             }
 
