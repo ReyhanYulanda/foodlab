@@ -163,17 +163,17 @@ class TransaksiTenantController extends Controller
             $rekeningSumber = '1400054005005';
             $tanggal = now()->format('Ymd');
             $skipTenants = ['Kedai Pak Agil', 'Test Tenant'];
-            
-            
+
+
             $totalBaris = 0;
             $totalAmount = 0;
             $rows = [];
-            
+
             foreach ($transaksiTenant as $p) {
                 if (in_array($p->nama_tenant, $skipTenants)) {
                     continue;
                 }
-                
+
                 $namaTenant = str_replace('"', '', $p->nama_tenant);
                 $totalKotor = ($p->pendapatan_kotor_1 ?? 0) + ($p->pendapatan_kotor_2 ?? 0);
                 $totalBaris++;
@@ -228,19 +228,15 @@ class TransaksiTenantController extends Controller
                 ];
             }
 
-            // Write header row
-            fputcsv($handle, [
+            fwrite($handle, implode(',', array_map(function ($item) {
+                return str_replace('"', '', $item); // hilangkan tanda kutip
+            }, [
                 'P',
                 $tanggal,
                 $rekeningSumber,
                 $totalBaris,
                 $totalAmount
-            ]);
-
-            // Write all tenant rows
-            foreach ($rows as $row) {
-                fputcsv($handle, $row);
-            }
+            ])) . "\n");
 
             fclose($handle);
         }, 200, $headers);
