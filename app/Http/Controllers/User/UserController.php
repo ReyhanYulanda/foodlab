@@ -144,7 +144,7 @@ class UserController extends Controller
                 "image" => $url ?? $user->image,
             ];
 
-            if ($request->has('delete_image') && $request->delete_image) {
+            if ($request->has('delete_image')) {
                 if ($user->image) {
                     Storage::delete($user->image);
                     $user->image = null;
