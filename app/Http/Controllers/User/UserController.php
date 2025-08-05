@@ -99,7 +99,7 @@ class UserController extends Controller
         return response()->json(compact('user'));
     }
 
-    public function update(Request $request)
+    public function update(Request $request, Firebases $firebases)
     {
         $user = $request->user();
         $this->authorize('update akun');
@@ -178,6 +178,28 @@ class UserController extends Controller
                 }
 
                 $data['isOnline'] = $request->isOnline;
+
+                if ($user->hasRole('masbro') && $request->isOnline == 1) {
+                    $readyOrders = Transaksi::where('status', 'siap_diambil')->get();
+
+                    if ($readyOrders->count() > 0) {
+                        $tokens = $user->loadMissing('fcmTokens')->fcmTokens->pluck('fcm_token')->filter()->unique()->values()->toArray();
+
+                        foreach ($readyOrders as $transaksi) {
+                            $firebases
+                                ->withNotification(
+                                    'Pesanan Sudah Siap',
+                                    "Pesanan {$transaksi->id} selesai dibuat. Kami sedang mencari driver untuk mengantar pesananmu"
+                                )
+                                ->withData([
+                                    'title' => 'Pesanan Sudah Siap',
+                                    'body' => "Pesanan {$transaksi->id} selesai dibuat. Kami sedang mencari driver untuk mengantar pesananmu",
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                ])
+                                ->sendToDriver($tokens);
+                        }
+                    }
+                }
 
                 if ($user->hasRole('tenant')) {
                     $data['manual_offline'] = $request->isOnline == 0 ? true : false;
