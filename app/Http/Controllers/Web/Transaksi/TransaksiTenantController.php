@@ -163,23 +163,25 @@ class TransaksiTenantController extends Controller
             $rekeningSumber = '1400054005005';
             $tanggal = now()->format('Ymd');
             $skipTenants = ['Kedai Pak Agil', 'Test Tenant'];
-
+            
+            
             $totalBaris = 0;
             $totalAmount = 0;
             $rows = [];
-
+            
             foreach ($transaksiTenant as $p) {
                 if (in_array($p->nama_tenant, $skipTenants)) {
                     continue;
                 }
-
+                
+                $namaTenant = str_replace('"', '', $p->nama_tenant);
                 $totalKotor = ($p->pendapatan_kotor_1 ?? 0) + ($p->pendapatan_kotor_2 ?? 0);
                 $totalBaris++;
                 $totalAmount += $totalKotor;
 
                 $rows[] = [
                     $p->no_rekening_toko ?? 'belum ada rekening',
-                    $p->nama_tenant,
+                    $namaTenant,
                     '',
                     '',
                     '',
