@@ -57,8 +57,8 @@
                             @foreach ($transaksiDetails as $key => $detail)
                                 <tr>
                                     <td>{{ ($transaksiDetails->currentPage() - 1) * $transaksiDetails->perPage() + $loop->iteration }}</td>
-                                    <td>{{ $detail->created_at->format('d-m-Y') }}</td>
-                                    <td>{{ $detail->created_at->format('H:i:s') }}</td> 
+                                    <td>{{ $detail->updated_at->format('d-m-Y') }}</td>
+                                    <td>{{ $detail->updated_at->format('H:i:s') }}</td> 
                                     <td>{{ $detail->id }}</td>
                                     <td>{{ $detail->user->name ?? '-' }}</td> 
                                     <td>{{ $detail->driver->name ?? '-' }}</td> 
