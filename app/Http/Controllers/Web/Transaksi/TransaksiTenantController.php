@@ -196,7 +196,6 @@ class TransaksiTenantController extends Controller
                     '',
                     '',
                     '',
-                    '',
                     'N',
                     '',
                     '',
