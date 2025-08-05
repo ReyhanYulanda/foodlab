@@ -211,11 +211,18 @@ class TransaksiTenantController extends Controller
                     '',
                     '',
                     '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
                     'OUR',
                     '1',
                     'E',
                     '',
-                    ''
+                    '',
+                    '',
                 ];
             }
 
