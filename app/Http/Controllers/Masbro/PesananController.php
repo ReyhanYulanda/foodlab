@@ -130,6 +130,8 @@ class PesananController extends Controller
                 $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
 
 
+
+
                 if ($transaksi->metode_pembayaran != 'transfer') {
                     $transaksi->listTransaksiDetail()->update(['status' => $transaksi->status]);
                 }
@@ -143,6 +145,7 @@ class PesananController extends Controller
                         ])->sendToFallback($fcmUserToken);
                 }
 
+
                 if ($transaksi->status == 'selesai') {
                     $firebases
                         ->withNotification('Pesanan Selesai', "Pesanan {$transaksi->id} telah selesai. Ambil dan terima pesananmu. Selamat menikmati! 🍽")
@@ -152,6 +155,19 @@ class PesananController extends Controller
                             'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                         ])
                         ->sendToFallback($fcmUserToken);
+
+                    $fcmTenant = User::with('fcmTokens')->find($transaksi->listTransaksiDetail->first()->menus->tenant_id);
+                    $fcmTenantToken = $fcmTenant ? $fcmTenant->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                    if ($fcmTenantToken) {
+                        $firebases
+                            ->withNotification('Pesanan Selesai', "Pesanan telah diterima oleh pembeli. #{$transaksi->kode_pemesanan}.")
+                            ->withData([
+                                'title' => 'Pesanan Selesai',
+                                'body' => "Pesanan telah diterima oleh pembeli. #{$transaksi->kode_pemesanan}.",
+                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                            ])
+                            ->sendToTenant($fcmTenantToken);
+                    }
 
                     $ongkirAsli = $transaksi->ongkos_kirim;
 
