@@ -239,7 +239,10 @@ class TransaksiTenantController extends Controller
 
             // Write all tenant rows
             foreach ($rows as $row) {
-                fputcsv($handle, $row);
+                $cleanedRow = array_map(function ($item) {
+                    return str_replace(['"', ','], '', $item); // bersihkan tanda kutip dan koma jika perlu
+                }, $row);
+                fwrite($handle, implode(',', $cleanedRow) . "\n");
             }
 
             fclose($handle);
