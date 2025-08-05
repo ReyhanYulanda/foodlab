@@ -12,6 +12,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -161,6 +162,7 @@ class UserController extends Controller
                                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                                 ])
                                 ->sendToDriver($tokens);
+                                Log::info("Mengirim notifikasi ke driver {$user->id} untuk pesanan siap diambil");
                         }
                     }
                 }
