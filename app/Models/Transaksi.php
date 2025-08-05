@@ -66,19 +66,6 @@ class Transaksi extends Model
         return $firstTenant ?? '-';
     }
 
-    public function getIdTenant()
-    {
-        $firstTenant = $this->listTransaksiDetail
-            ->map(function ($detail) {
-                return optional($detail->menus->tenants->user_id)->id;
-            })
-            ->filter()
-            ->unique()
-            ->first();
-
-        return $firstTenant ?? '-';
-    }
-
     public function getNamaPembeliAttribute()
     {
         return @$this->user()->first()->name;
