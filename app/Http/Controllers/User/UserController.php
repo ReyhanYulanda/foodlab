@@ -153,16 +153,16 @@ class UserController extends Controller
                         foreach ($readyOrders as $transaksi) {
                             $firebases
                                 ->withNotification(
-                                    'Pesanan Sudah Siap',
-                                    "Pesanan {$transaksi->id} selesai dibuat. Kami sedang mencari driver untuk mengantar pesananmu"
+                                    'Ada Pesanan Siap Diantar',
+                                    "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!"
                                 )
                                 ->withData([
-                                    'title' => 'Pesanan Sudah Siap',
-                                    'body' => "Pesanan {$transaksi->id} selesai dibuat. Kami sedang mencari driver untuk mengantar pesananmu",
+                                    'title' => 'Ada Pesanan Siap Diantar',
+                                    'body' => "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!",
                                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                                 ])
                                 ->sendToDriver($tokens);
-                                Log::info("Mengirim notifikasi ke driver {$user->id} untuk pesanan siap diambil");
+                            Log::info("Mengirim notifikasi ke driver {$user->id} untuk pesanan siap diambil");
                         }
                     }
                 }
