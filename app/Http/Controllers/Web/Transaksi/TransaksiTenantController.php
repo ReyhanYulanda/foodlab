@@ -126,6 +126,7 @@ class TransaksiTenantController extends Controller
         $query = TransaksiDetail::selectRaw("
         tenants.nama_tenant,
         tenants.id,
+        tenants.no_rekening_toko,
         SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_1,
         SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_2
     ")
@@ -145,11 +146,10 @@ class TransaksiTenantController extends Controller
         }
 
         $transaksiTenant = $query
-            ->groupBy('tenants.id', 'tenants.nama_tenant')
+            ->groupBy('tenants.id', 'tenants.nama_tenant', 'tenants.no_rekening_toko')
             ->get();
 
-        $fileName = "transaksi_tenant_" . date('YmdHis') . ".csv";
-
+        $fileName = "mandiri_transfer_" . date('YmdHis') . ".csv";
         $handle = fopen('php://output', 'w');
 
         $headers = [
@@ -160,26 +160,77 @@ class TransaksiTenantController extends Controller
         ];
 
         return response()->stream(function () use ($transaksiTenant, $handle) {
-            // Header CSV
-            fputcsv($handle, [
-                "No",
-                "Nama Tenant",
-                "Pendapatan Kotor (Pesan Antar + Ambil Sendiri)",
-            ]);
+            $rekeningSumber = '1400054005005';
+            $tanggal = now()->format('Ymd');
+            $skipTenants = ['Kedai Pak Agil', 'Test Tenant'];
 
-            $no = 1;
+            $totalBaris = 0;
+            $totalAmount = 0;
+            $rows = [];
+
             foreach ($transaksiTenant as $p) {
-                if (in_array($p->nama_tenant, ['Kedai Pak Agil', 'Test Tenant'])) {
+                if (in_array($p->nama_tenant, $skipTenants)) {
                     continue;
                 }
 
                 $totalKotor = ($p->pendapatan_kotor_1 ?? 0) + ($p->pendapatan_kotor_2 ?? 0);
+                $totalBaris++;
+                $totalAmount += $totalKotor;
 
-                fputcsv($handle, [
-                    $no++,
+                $rows[] = [
+                    $p->no_rekening_toko ?? 'belum ada rekening',
                     $p->nama_tenant,
+                    '',
+                    '',
+                    '',
+                    'IDR',
                     $totalKotor,
-                ]);
+                    '',
+                    '',
+                    'IBU',
+                    '',
+                    'MANDIRI',
+                    'Surabaya',
+                    '',
+                    '',
+                    '',
+                    '',
+                    'N',
+                    '',
+                    '',
+                    '',
+                    '',
+                    'Y',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    'OUR',
+                    '1',
+                    'E',
+                    '',
+                    ''
+                ];
+            }
+
+            // Write header row
+            fputcsv($handle, [
+                'P',
+                $tanggal,
+                $rekeningSumber,
+                $totalBaris,
+                $totalAmount
+            ]);
+
+            // Write all tenant rows
+            foreach ($rows as $row) {
+                fputcsv($handle, $row);
             }
 
             fclose($handle);
