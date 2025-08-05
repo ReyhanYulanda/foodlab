@@ -145,7 +145,7 @@ class UserController extends Controller
             ];
             if ($request->has('isOnline')) {
                 if ($user->hasRole('masbro') && $request->isOnline == 1) {
-                    $readyOrders = Transaksi::where('status', 'siap_diambil')->get();
+                    $readyOrders = Transaksi::where('status', 'siap_diantar')->get();
 
                     if ($readyOrders->count() > 0) {
                         $tokens = $user->loadMissing('fcmTokens')->fcmTokens->pluck('fcm_token')->filter()->unique()->values()->toArray();
