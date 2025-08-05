@@ -42,12 +42,12 @@ class TransaksiTenantController extends Controller
             $start = Carbon::parse($filterDate)->subDay()->setTime(18, 0, 0);
             $end = Carbon::parse($filterDate)->setTime(17, 59, 59);
 
-            $query->whereBetween('transaksi.created_at', [$start, $end]);
+            $query->whereBetween('transaksi.updated_at', [$start, $end]);
         } elseif ($startDate && $endDate) {
             $start = Carbon::parse($startDate)->subDay()->setTime(18, 0, 0);
             $end = Carbon::parse($endDate)->setTime(17, 59, 59);
 
-            $query->whereBetween('transaksi.created_at', [$start, $end]);
+            $query->whereBetween('transaksi.updated_at', [$start, $end]);
         }
 
         $transaksiTenant = $query->groupBy('tenants.id', 'tenants.nama_tenant')->paginate($perPage);
@@ -73,7 +73,7 @@ class TransaksiTenantController extends Controller
         if ($filterDate) {
             $start = Carbon::parse($filterDate)->subDay()->setTime(18, 0, 0);
             $end = Carbon::parse($filterDate)->setTime(17, 59, 59);
-            $query->whereBetween('created_at', [$start, $end]);
+            $query->whereBetween('updated_at', [$start, $end]);
         }
 
         if ($searchKeyword) {
@@ -138,11 +138,11 @@ class TransaksiTenantController extends Controller
         if ($filterDate) {
             $start = Carbon::parse($filterDate)->subDay()->setTime(18, 0, 0);
             $end = Carbon::parse($filterDate)->setTime(17, 59, 59);
-            $query->whereBetween('transaksi.created_at', [$start, $end]);
+            $query->whereBetween('transaksi.updated_at', [$start, $end]);
         } elseif ($startDate && $endDate) {
             $start = Carbon::parse($startDate)->subDay()->setTime(18, 0, 0);
             $end = Carbon::parse($endDate)->setTime(17, 59, 59);
-            $query->whereBetween('transaksi.created_at', [$start, $end]);
+            $query->whereBetween('transaksi.updated_at', [$start, $end]);
         }
 
         $transaksiTenant = $query
