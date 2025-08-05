@@ -143,6 +143,14 @@ class UserController extends Controller
                 "phone" => $request->phone ?? $user->phone,
                 "image" => $url ?? $user->image,
             ];
+
+            if ($request->has('delete_image') && $request->delete_image) {
+                if ($user->image) {
+                    Storage::delete($user->image);
+                    $user->image = null;
+                }
+            }
+
             if ($request->has('isOnline')) {
                 if ($user->hasRole('masbro') && $request->isOnline == 1) {
                     $readyOrder = Transaksi::where('status', 'siap_diantar')->first();
