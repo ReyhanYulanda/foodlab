@@ -160,6 +160,10 @@ class PesananController extends Controller
 
                     if ($firstDetail && $firstDetail->menus && $firstDetail->menus->tenant_id) {
                         $fcmTenant = User::with('fcmTokens')->find($firstDetail->menus->tenant_id);
+                        Log::info("Mengirim notifikasi ke tenant untuk transaksi selesai", [
+                            'transaksi_id' => $transaksi->id,
+                            'tenant_id' => $firstDetail->menus->tenant_id,
+                        ]);
 
                         if ($fcmTenant) {
                             $fcmTenantToken = $fcmTenant->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray();
