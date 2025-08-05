@@ -166,10 +166,10 @@ class PesananController extends Controller
                     $fcmTenantToken = $tenantUser ? $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
                     if (!empty($fcmTenantToken)) {
                         $firebases
-                            ->withNotification('Pesanan Selesai', "Pesanan {$transaksi->id} telah selesai. Silakan cek dan pastikan pesanan sudah diterima.")
+                            ->withNotification('Pesanan Selesai', "Pesanan telah diterima oleh pembeli. #{$transaksi->kode_pemesanan}.")
                             ->withData([
                                 'title' => 'Pesanan Selesai',
-                                'body' => "Pesanan {$transaksi->id} telah selesai. Silakan cek dan pastikan pesanan sudah diterima.",
+                                'body' => "Pesanan telah diterima oleh pembeli. #{$transaksi->kode_pemesanan}.",
                                 'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                             ])
                             ->sendToTenant($fcmTenantToken);
