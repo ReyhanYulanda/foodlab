@@ -174,7 +174,7 @@ class TransaksiTenantController extends Controller
                     continue;
                 }
 
-                $namaTenant = str_replace('"', '', $p->nama_tenant);
+                $namaTenant = str_replace(['"', ','], '', $p->nama_tenant);
                 $totalKotor = ($p->pendapatan_kotor_1 ?? 0) + ($p->pendapatan_kotor_2 ?? 0);
                 $totalBaris++;
                 $totalAmount += $totalKotor;
@@ -228,15 +228,19 @@ class TransaksiTenantController extends Controller
                 ];
             }
 
-            fwrite($handle, implode(',', array_map(function ($item) {
-                return str_replace('"', '', $item); // hilangkan tanda kutip
-            }, [
+            // Write header row
+            fputcsv($handle, [
                 'P',
                 $tanggal,
                 $rekeningSumber,
                 $totalBaris,
                 $totalAmount
-            ])) . "\n");
+            ]);
+
+            // Write all tenant rows
+            foreach ($rows as $row) {
+                fputcsv($handle, $row);
+            }
 
             fclose($handle);
         }, 200, $headers);
