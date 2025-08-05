@@ -141,14 +141,13 @@ class UserController extends Controller
                 "email" => $request->email ?? $user->email,
                 "password" => $request->password ? Hash::make($request->password) : $user->password,
                 "phone" => $request->phone ?? $user->phone,
-                "image" => $url ?? $user->image,
+                "image" => $request->has('delete_image') ? null : $url ?? $user->image,
             ];
 
             if ($request->has('delete_image')) {
-                if ($user->image) {
                     Storage::delete($user->image);
                     $user->image = null;
-                }
+                
             }
 
             if ($request->has('isOnline')) {
