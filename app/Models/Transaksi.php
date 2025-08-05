@@ -30,16 +30,17 @@ class Transaksi extends Model
         'catatan_penolakan',
     ];
 
-    protected $appends = ['sub_total', 'gedung', 'nama_ruangan', 'nama_pembeli', 'nama_tenant','order_id'];
+    protected $appends = ['sub_total', 'gedung', 'nama_ruangan', 'nama_pembeli', 'nama_tenant', 'order_id'];
 
     protected function serializeDate(DateTimeInterface $date)
     {
         return Carbon::instance($date)->setTimezone('Asia/Jakarta')->toIso8601String();
     }
 
-    public function getOrderIdAttribute(){
+    public function getOrderIdAttribute()
+    {
         $tanggal = $tanggal = Carbon::parse($this->created_at)->format("Ymd");
-        return "ORDER".$tanggal."000{$this->id}";
+        return "ORDER" . $tanggal . "000{$this->id}";
     }
 
     public function getSubTotalAttribute()
@@ -57,6 +58,19 @@ class Transaksi extends Model
         $firstTenant = $this->listTransaksiDetail
             ->map(function ($detail) {
                 return optional($detail->menus->tenants)->nama_tenant;
+            })
+            ->filter()
+            ->unique()
+            ->first();
+
+        return $firstTenant ?? '-';
+    }
+
+    public function getIdTenant()
+    {
+        $firstTenant = $this->listTransaksiDetail
+            ->map(function ($detail) {
+                return optional($detail->menus->tenants->user_id)->id;
             })
             ->filter()
             ->unique()
@@ -85,8 +99,9 @@ class Transaksi extends Model
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
 
-    public function ruangan(){
-        return $this->belongsTo(Ruangan::class,'ruangan_id','id');
+    public function ruangan()
+    {
+        return $this->belongsTo(Ruangan::class, 'ruangan_id', 'id');
     }
 
     public function driver()

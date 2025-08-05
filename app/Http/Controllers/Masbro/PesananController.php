@@ -158,17 +158,20 @@ class PesananController extends Controller
 
                     $firstDetail = $transaksi->listTransaksiDetail->first();
 
-                    if ($firstDetail && $firstDetail->menus && $firstDetail->menus->tenant_id) {
-                        $fcmTenant = User::with('fcmTokens')->find($firstDetail->menus->tenant_id);
+                    $tenantId = $transaksi->getIdTenant();  // Replace $modelInstance with the actual model instance
+
+                    if ($tenantId && $tenantId !== '-') {
+                        $fcmTenant = User::with('fcmTokens')->find($tenantId);
+
                         Log::info("Mengirim notifikasi ke tenant untuk transaksi selesai", [
                             'transaksi_id' => $transaksi->id,
-                            'tenant_id' => $firstDetail->menus->tenant_id,
+                            'tenant_id' => $tenantId,
                         ]);
 
                         if ($fcmTenant) {
-                            $fcmTenantToken = $fcmTenant->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray();
+                            $tokens = $fcmTenant->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray();
 
-                            if (!empty($fcmTenantToken)) {
+                            if (!empty($tokens)) {
                                 $firebases
                                     ->withNotification('Pesanan Selesai', "Pesanan telah diterima oleh pembeli. #{$transaksi->kode_pemesanan}.")
                                     ->withData([
@@ -176,12 +179,12 @@ class PesananController extends Controller
                                         'body' => "Pesanan telah diterima oleh pembeli. #{$transaksi->kode_pemesanan}.",
                                         'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                                     ])
-                                    ->sendToTenant($fcmTenantToken);
+                                    ->sendToTenant($tokens);
                             } else {
-                                Log::warning("FCM Token tenant kosong", ['tenant_id' => $fcmTenant->id]);
+                                Log::warning("FCM Token tenant kosong", ['tenant_id' => $tenantId]);
                             }
                         } else {
-                            Log::warning("User tenant tidak ditemukan", ['tenant_id' => $firstDetail->menus->tenant_id]);
+                            Log::warning("User tenant tidak ditemukan", ['tenant_id' => $tenantId]);
                         }
                     } else {
                         Log::warning("Gagal ambil tenant dari transaksi detail", [
