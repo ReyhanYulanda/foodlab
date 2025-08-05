@@ -145,25 +145,24 @@ class UserController extends Controller
             ];
             if ($request->has('isOnline')) {
                 if ($user->hasRole('masbro') && $request->isOnline == 1) {
-                    $readyOrders = Transaksi::where('status', 'siap_diantar')->get();
+                    $readyOrder = Transaksi::where('status', 'siap_diantar')->first();
 
-                    if ($readyOrders->count() > 0) {
+                    if ($readyOrder) {
                         $tokens = $user->loadMissing('fcmTokens')->fcmTokens->pluck('fcm_token')->filter()->unique()->values()->toArray();
 
-                        foreach ($readyOrders as $transaksi) {
-                            $firebases
-                                ->withNotification(
-                                    'Ada Pesanan Siap Diantar',
-                                    "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!"
-                                )
-                                ->withData([
-                                    'title' => 'Ada Pesanan Siap Diantar',
-                                    'body' => "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!",
-                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                                ])
-                                ->sendToDriver($tokens);
-                            Log::info("Mengirim notifikasi ke driver {$user->id} untuk pesanan siap diambil");
-                        }
+                        $firebases
+                            ->withNotification(
+                                'Ada Pesanan Siap Diantar',
+                                "Pesanan {$readyOrder->id} sudah siap. Yuk, ambil dan antar sekarang!"
+                            )
+                            ->withData([
+                                'title' => 'Ada Pesanan Siap Diantar',
+                                'body' => "Pesanan {$readyOrder->id} sudah siap. Yuk, ambil dan antar sekarang!",
+                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                            ])
+                            ->sendToDriver($tokens);
+
+                        Log::info("Mengirim notifikasi ke driver {$user->id} untuk pesanan siap diantar (Transaksi ID: {$readyOrder->id})");
                     }
                 }
                 // Cegah jika masih ada transaksi aktif
