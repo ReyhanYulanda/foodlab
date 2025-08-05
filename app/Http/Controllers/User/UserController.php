@@ -153,11 +153,11 @@ class UserController extends Controller
                         $firebases
                             ->withNotification(
                                 'Ada Pesanan Siap Diantar',
-                                "Pesanan {$readyOrder->id} sudah siap. Yuk, ambil dan antar sekarang!"
+                                "Ada pesanan siap diantar! Yuk, ambil dan antar sekarang!"
                             )
                             ->withData([
                                 'title' => 'Ada Pesanan Siap Diantar',
-                                'body' => "Pesanan {$readyOrder->id} sudah siap. Yuk, ambil dan antar sekarang!",
+                                'body' => "Ada pesanan siap diantar! Yuk, ambil dan antar sekarang!",
                                 'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                             ])
                             ->sendToDriver($tokens);
