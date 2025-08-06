@@ -35,7 +35,6 @@ class CekTopupStatusJob implements ShouldQueue
             return;
         }
 
-        // Check timeout: lebih dari 1 jam dari tgl_akhir_tagihan
         $expired = Carbon::parse($this->topup->tgl_akhir_tagihan)->lt(now());
         if ($expired) {
             Log::warning("TopUp ID {$this->topup->id} sudah kadaluarsa, tidak dicek lagi.");
@@ -49,10 +48,18 @@ class CekTopupStatusJob implements ShouldQueue
             'tanggal_akhir_tagihan_' => Carbon::parse($this->topup->tgl_akhir_tagihan)->format('d-m-Y H:i:s'),
         ];
 
+        $apiKey = config('custom.ubisma_api_key');
+        $apiUrl = config('custom.ubisma_api_url');
+
+        if (empty($apiUrl)) {
+            Log::error("UBISMA API URL belum dikonfigurasi. Tidak bisa mengirim request.");
+            return;
+        }
+
         $response = Http::withHeaders([
-            'x-api-key' => env('UBISMA_API_KEY'),
+            'x-api-key' => $apiKey,
             'Accept' => 'application/json',
-        ])->asJson()->post(env('UBISMA_API_URL'), [
+        ])->asJson()->post($apiUrl, [
             'data' => [$dataToSend],
         ]);
 
@@ -81,7 +88,6 @@ class CekTopupStatusJob implements ShouldQueue
             Log::info("TopUp ID {$this->topup->id} diupdate: status_bayar=1, tgl_bayar={$tglBayar}");
         } else {
             Log::info("TopUp ID {$this->topup->id} belum dibayar. Akan dicoba ulang jika retry masih tersedia.");
-            return;
         }
     }
 }

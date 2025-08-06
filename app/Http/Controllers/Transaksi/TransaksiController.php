@@ -596,14 +596,23 @@ class TransaksiController extends Controller
 
         $payload = [
             'procedure' => 'pfoodlab_topup',
-            'data' => [$data]
+            'data' => [$data],
         ];
 
-        // ✅ Kirim dengan format JSON dan header yang benar
+        $apiKey = config('custom.mis_api_key');
+        $apiUrl = config('custom.mis_api_url');
+
+        if (is_null($apiUrl) || empty($apiUrl)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'MIS API URL belum diset di konfigurasi.',
+            ], 500);
+        }
+
         $response = Http::withHeaders([
-            'x-api-key' => env('MIS_API_KEY'),
+            'x-api-key' => $apiKey,
             'Accept' => 'application/json',
-        ])->asJson()->post(env('MIS_API_URL'), $payload);
+        ])->asJson()->post($apiUrl, $payload);
 
         return response()->json([
             'status' => $response->json('status'),
@@ -643,8 +652,8 @@ class TransaksiController extends Controller
             'tanggal_akhir_tagihan_' => $timeout->format('d-m-Y H:i:s'),
         ];
 
-        $apiKey = env('UBISMA_API_KEY');
-        $apiUrl = env('UBISMA_API_URL');
+        $apiKey = config('custom.ubisma_api_key');
+        $apiUrl = config('custom.ubisma_api_url');
 
         $response = Http::withHeaders([
             'x-api-key' => $apiKey,
@@ -694,7 +703,6 @@ class TransaksiController extends Controller
 
     public function getTopUp($kodeBayar)
     {
-        // 1. Cari record berdasarkan kode_bayar
         $topup = TopUp::where('kode_bayar', $kodeBayar)->first();
 
         if (!$topup) {
@@ -704,7 +712,6 @@ class TransaksiController extends Controller
             ], 404);
         }
 
-        // 2. Cek apakah topup ini dimiliki oleh user yang sedang login
         if ($topup->user_id !== auth()->id()) {
             return response()->json([
                 'status' => 'error',
@@ -712,7 +719,6 @@ class TransaksiController extends Controller
             ], 403);
         }
 
-        // 2. Bangun ulang payload berdasarkan data yang sudah tersimpan
         $dataToSend = [
             'request_id_' => $topup->request_id,
             'nama_' => $topup->user->name,
@@ -720,11 +726,21 @@ class TransaksiController extends Controller
             'tanggal_akhir_tagihan_' => Carbon::parse($topup->tgl_akhir_tagihan)->format('d-m-Y H:i:s'),
         ];
 
-        // 3. Kirim request ke UBISMA
+        // ✅ Ganti dari env() ke config()
+        $apiUrl = config('custom.ubisma_api_url');
+        $apiKey = config('custom.ubisma_api_key');
+
+        if (empty($apiUrl)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'UBISMA API URL belum dikonfigurasi.',
+            ], 500);
+        }
+
         $response = Http::withHeaders([
-            'x-api-key' => env('UBISMA_API_KEY'),
+            'x-api-key' => $apiKey,
             'Accept' => 'application/json',
-        ])->asJson()->post(env('UBISMA_API_URL'), [
+        ])->asJson()->post($apiUrl, [
             'data' => [$dataToSend]
         ]);
 
@@ -736,10 +752,8 @@ class TransaksiController extends Controller
             ], $response->status());
         }
 
-        // 4. Ambil data dari response
         $ubismaData = $response->json('data') ?? [];
 
-        // 5. Update status_bayar dan tgl_bayar jika tersedia
         try {
             if (!empty($ubismaData['tanggal_bayar_'])) {
                 $tglBayar = Carbon::parse($ubismaData['tanggal_bayar_']);
@@ -761,7 +775,6 @@ class TransaksiController extends Controller
             'data' => $topup
         ]);
     }
-
 
     // Start dari 102 dan terus naik
     protected function generateRequestId()
