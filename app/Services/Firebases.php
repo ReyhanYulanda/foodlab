@@ -126,4 +126,5 @@ class Firebases
     {
         return $this->sendMessages($tokens, 'fcm_fallback_notification_channel');
     }
+    
 }
