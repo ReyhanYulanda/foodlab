@@ -766,7 +766,7 @@ class TransaksiController extends Controller
     // Start dari 102 dan terus naik
     protected function generateRequestId()
     {
-        $starting = env('REQUEST_ID_START');
+        $starting = config('custom.request_id_start');
 
         if (is_null($starting)) {
             throw new \Exception("REQUEST_ID_START belum diset di environment");
