@@ -87,7 +87,10 @@ class CekTopupStatusJob implements ShouldQueue
 
             Log::info("TopUp ID {$this->topup->id} diupdate: status_bayar=1, tgl_bayar={$tglBayar}");
         } else {
-            Log::info("TopUp ID {$this->topup->id} belum dibayar. Akan dicoba ulang jika retry masih tersedia.");
+            if ($this->topup->status_bayar !== '1') {
+                Log::info("TopUp ID {$this->topup->id} belum dibayar. Akan dicoba ulang jika retry masih tersedia.");
+                throw new \Exception("TopUp belum dibayar. Akan dicoba lagi.");
+            }
         }
     }
 }
