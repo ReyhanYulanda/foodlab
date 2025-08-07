@@ -28,6 +28,7 @@ Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function 
     Route::get('/transaksi/get-top-up/{kodeBayar}', [TransaksiController::class, 'getTopUp']);
     Route::post('/tenant/menucoba/{id}', [KelolaTenantController::class, 'updateMenu']);
     Route::post('/transaksi/topup/midtrans', [TransaksiController::class, 'midtransTopUp']);
+    Route::post('/transaksi/topup/midtrans/test', [TransaksiController::class, 'testCurlMidtrans']);
 
     Route::get('/auth', [UserController::class, 'index']);
     Route::post('/update-user', [UserController::class, 'update']);

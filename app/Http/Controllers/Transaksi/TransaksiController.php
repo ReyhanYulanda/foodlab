@@ -923,4 +923,51 @@ class TransaksiController extends Controller
     {
         return Carbon::now()->addHour();
     }
+
+    public function testCurlMidtrans(Request $request)
+    {
+        $orderId = 'foodlab-test-01';
+        $grossAmount = 10000;
+        $serverKey = 'Mid-server-8kx4Btz4s2A1YhS90gON9CAm';
+        $auth = base64_encode($serverKey . ':');
+
+        $payload = json_encode([
+            'payment_type' => 'qris',
+            'transaction_details' => [
+                'order_id' => $orderId,
+                'gross_amount' => $grossAmount,
+            ],
+        ]);
+
+        $ch = curl_init();
+
+        curl_setopt($ch, CURLOPT_URL, 'https://api.midtrans.com/v2/charge');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Accept: application/json',
+            'Content-Type: application/json',
+            'Authorization: Basic ' . $auth,
+            'User-Agent: curl/7.81.0'
+        ]);
+
+        $result = curl_exec($ch);
+        $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if (curl_errno($ch)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => curl_error($ch),
+            ], 500);
+        }
+
+        curl_close($ch);
+
+        return response()->json([
+            'status' => 'success',
+            'http_code' => $httpcode,
+            'response' => json_decode($result, true),
+        ]);
+    }
 }
