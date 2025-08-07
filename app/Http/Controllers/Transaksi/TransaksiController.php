@@ -726,11 +726,14 @@ class TransaksiController extends Controller
             ],
         ];
 
-        $apiAuth = 'TWlkLXNlcnZlci04a3g0QnR6NHMyQTFZaFM5MGdPTjlDQW06';
+        // $apiAuth = 'TWlkLXNlcnZlci04a3g0QnR6NHMyQTFZaFM5MGdPTjlDQW06';
         $apiUrl = 'https://api.midtrans.com/v2/charge';
 
+        $serverKey = 'Mid-server-8kx4Btz4s2A1YhS90gON9CAm';
+        $authHeader = 'Basic ' . base64_encode($serverKey . ':');
+
         $response = Http::withHeaders([
-            'Authorization' => 'Basic ' . ($apiAuth ?? ''),
+            'Authorization' => $authHeader,
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
         ])->asJson()->post($apiUrl, $dataToSend);
