@@ -719,64 +719,64 @@ class TransaksiController extends Controller
         $midtransRequestId = $this->generateMidtransRequestId();
 
         $dataToSend = [
-            'payment_type' => 'gopay',
+            'payment_type' => 'qris',
             'transaction_details' => [
                 'order_id' => $midtransRequestId,
                 'gross_amount' => (int)$request->nominal,
             ],
         ];
 
-        // $apiAuth = 'TWlkLXNlcnZlci04a3g0QnR6NHMyQTFZaFM5MGdPTjlDQW06';
         $apiUrl = 'https://api.midtrans.com/v2/charge';
-
         $serverKey = 'Mid-server-8kx4Btz4s2A1YhS90gON9CAm';
         $authHeader = 'Basic ' . base64_encode($serverKey . ':');
 
-        // $response = Http::withHeaders([
-        //     'Authorization' => $authHeader,
-        //     'Accept' => 'application/json',
-        //     'Content-Type' => 'application/json',
-        //     'User-Agent' => 'curl/7.81.0',
-        // ])->asJson()->post($apiUrl, $dataToSend);
+        // Convert payload to JSON
+        $jsonPayload = json_encode($dataToSend);
 
-        $maxRetries = 3;
-        $retryCount = 0;
-        $response = null;
+        // Init cURL
+        $ch = curl_init($apiUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Authorization: ' . $authHeader,
+            'Content-Type: application/json',
+            'Accept: application/json',
+            'User-Agent: curl/7.81.0', // Sesuaikan dengan versi cURL kamu
+        ]);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonPayload);
 
-        while ($retryCount < $maxRetries) {
-            $response = Http::withHeaders([
-                'Authorization' => $authHeader,
-                'Accept' => 'application/json',
-                'Content-Type' => 'application/json',
-                'User-Agent' => 'curl/7.81.0',
-            ])->asJson()->post($apiUrl, $dataToSend);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-            if ($response->successful()) {
-                break;
-            }
+        if (curl_errno($ch)) {
+            $curlError = curl_error($ch);
+            curl_close($ch);
+            Log::error('cURL error saat request ke Midtrans: ' . $curlError);
 
-            $retryCount++;
-            if ($retryCount < $maxRetries) {
-                sleep(2); // Wait 2 seconds before retrying
-            }
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal menghubungi Midtrans.',
+                'debug' => $curlError
+            ], 500);
         }
 
-        if ($response->failed()) {
-            Log::error('Gagal request ke Midtrans setelah beberapa percobaan', [
+        curl_close($ch);
+
+        $midtransData = json_decode($response, true);
+
+        if ($httpCode >= 400) {
+            Log::error('Gagal request ke Midtrans', [
                 'request_payload' => $dataToSend,
-                'midtrans_response_status' => $response->status(),
-                'midtrans_response_body' => $response->body(),
-                'retry_attempts' => $retryCount
+                'http_code' => $httpCode,
+                'midtrans_response_body' => $midtransData,
             ]);
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'Gagal terhubung ke Midtrans setelah beberapa percobaan.',
-                'debug' => $response->body(),
-            ], 500);
+                'message' => 'Gagal terhubung ke Midtrans.',
+                'debug' => $midtransData,
+            ], $httpCode);
         }
-
-        $midtransData = $response->json();
 
         Log::info('Response dari Midtrans:', $midtransData);
 
@@ -799,8 +799,6 @@ class TransaksiController extends Controller
             'kode_bayar' => $qrCodeUrl,
             'tgl_akhir_tagihan' => $midtransData['expiry_time'] ?? null,
         ]);
-
-        // CekTopupStatusJob::dispatch($topup);
 
         return response()->json([
             'status' => 'success',
