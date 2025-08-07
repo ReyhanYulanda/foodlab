@@ -864,9 +864,9 @@ class TransaksiController extends Controller
             throw new \Exception("MIDTRANS_REQUEST_ID_START belum diset di environment");
         }
 
-        $lastNumber = TopUp::whereNotNull('external_request_id')
-            ->where('external_request_id', 'like', 'foodlab-%')
-            ->selectRaw("MAX(CAST(SUBSTRING_INDEX(external_request_id, '-', -1) AS UNSIGNED)) as max_id")
+        $lastNumber = TopUp::whereNotNull('midtrans_request_id')
+            ->where('midtrans_request_id', 'like', 'foodlab-%')
+            ->selectRaw("MAX(CAST(SUBSTRING_INDEX(midtrans_request_id, '-', -1) AS UNSIGNED)) as max_id")
             ->value('max_id');
 
         $next = ($lastNumber && $lastNumber >= $starting) ? $lastNumber + 1 : $starting;
