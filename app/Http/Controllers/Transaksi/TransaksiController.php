@@ -781,17 +781,29 @@ class TransaksiController extends Controller
         Log::info('Response dari Midtrans:', $midtransData);
 
         // Ambil URL QR dari actions
-        $qrCodeUrl = collect($midtransData['actions'] ?? [])
-            ->firstWhere('name', 'generate-qr-code')['url'] ?? null;
+        $actions = $midtransData['actions'] ?? null;
 
-        if (!$qrCodeUrl) {
+        if (!is_array($actions) || empty($actions)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'URL QR Code tidak ditemukan dalam response Midtrans.',
+                'message' => 'Data actions tidak tersedia dalam response Midtrans.',
                 'debug' => $midtransData
             ], 500);
         }
 
+        $generateQrAction = collect($actions)->firstWhere('name', 'generate-qr-code');
+
+        if (!$generateQrAction || !isset($generateQrAction['url'])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'URL QR Code tidak ditemukan dalam response Midtrans actions.',
+                'debug' => $midtransData
+            ], 500);
+        }
+
+        $qrCodeUrl = $generateQrAction['url'];
+
+        // Simpan data topup
         $topup = TopUp::create([
             'user_id' => $user->id,
             'midtrans_request_id' => $midtransRequestId,
