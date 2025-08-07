@@ -732,25 +732,48 @@ class TransaksiController extends Controller
         $serverKey = 'Mid-server-8kx4Btz4s2A1YhS90gON9CAm';
         $authHeader = 'Basic ' . base64_encode($serverKey . ':');
 
-        $response = Http::withHeaders([
-            'Authorization' => $authHeader,
-            'Accept' => 'application/json',
-            'Content-Type' => 'application/json',
-            'User-Agent' => 'curl/7.81.0',
-        ])->asJson()->post($apiUrl, $dataToSend);
+        // $response = Http::withHeaders([
+        //     'Authorization' => $authHeader,
+        //     'Accept' => 'application/json',
+        //     'Content-Type' => 'application/json',
+        //     'User-Agent' => 'curl/7.81.0',
+        // ])->asJson()->post($apiUrl, $dataToSend);
+
+        $maxRetries = 3;
+        $retryCount = 0;
+        $response = null;
+
+        while ($retryCount < $maxRetries) {
+            $response = Http::withHeaders([
+                'Authorization' => $authHeader,
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
+                'User-Agent' => 'curl/7.81.0',
+            ])->asJson()->post($apiUrl, $dataToSend);
+
+            if ($response->successful()) {
+                break;
+            }
+
+            $retryCount++;
+            if ($retryCount < $maxRetries) {
+                sleep(2); // Wait 2 seconds before retrying
+            }
+        }
 
         if ($response->failed()) {
-            Log::error('Gagal request ke Midtrans', [
+            Log::error('Gagal request ke Midtrans setelah beberapa percobaan', [
                 'request_payload' => $dataToSend,
                 'midtrans_response_status' => $response->status(),
                 'midtrans_response_body' => $response->body(),
+                'retry_attempts' => $retryCount
             ]);
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'Gagal terhubung ke Midtrans.',
+                'message' => 'Gagal terhubung ke Midtrans setelah beberapa percobaan.',
                 'debug' => $response->body(),
-            ], $response->status());
+            ], 500);
         }
 
         $midtransData = $response->json();
