@@ -720,7 +720,7 @@ class TransaksiController extends Controller
 
         $dataToSend = [
             'payment_type' => 'qris',
-            'transaction_detail' => [
+            'transaction_details' => [
                 'order_id' => $midtransRequestId,
                 'gross_amount' => $request->nominal,
             ],
@@ -733,9 +733,7 @@ class TransaksiController extends Controller
             'Authorization' => $apiAuth,
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
-        ])->asJson()->post($apiUrl, [
-            'data' => [$dataToSend]
-        ]);
+        ])->asJson()->post($apiUrl, $dataToSend);
 
         if ($response->failed()) {
             return response()->json([
