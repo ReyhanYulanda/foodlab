@@ -701,6 +701,85 @@ class TransaksiController extends Controller
         ]);
     }
 
+    public function midtransTopUp(Request $request)
+    {
+        $user = Auth::user();
+
+        $validator = Validator::make($request->all(), [
+            'nominal' => 'required|integer|min:1000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $midtransRequestId = $this->generateMidtransRequestId();
+
+        $dataToSend = [
+            'payment_type' => 'qris',
+            'transaction_detail' => [
+                'order_id' => $midtransRequestId,
+                'gross_amount' => $request->nominal,
+            ],
+        ];
+
+        $apiAuth = config('custom.midtrans_authorization');
+        $apiUrl = config('custom.midtrans_post_api_url');
+
+        $response = Http::withHeaders([
+            'Authorization' => $apiAuth,
+            'Accept' => 'application/json',
+            'Content-Type' => 'application/json',
+        ])->asJson()->post($apiUrl, [
+            'data' => [$dataToSend]
+        ]);
+
+        if ($response->failed()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal terhubung ke Midtrans.',
+                'debug' => $response->body(),
+            ], $response->status());
+        }
+
+        $midtransData = $response->json();
+
+        Log::info('Response dari Midtrans:', $midtransData);
+
+        // Ambil URL QR dari actions
+        $qrCodeUrl = collect($midtransData['actions'] ?? [])
+            ->firstWhere('name', 'generate-qr-code')['url'] ?? null;
+
+        if (!$qrCodeUrl) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'URL QR Code tidak ditemukan dalam response Midtrans.',
+                'debug' => $midtransData
+            ], 500);
+        }
+
+        $topup = TopUp::create([
+            'user_id' => $user->id,
+            'midtrans_request_id' => $midtransRequestId,
+            'nominal' => $request->nominal,
+            'kode_bayar' => $qrCodeUrl,
+            'tgl_akhir_tagihan' => $midtransData['expiry_time'] ?? null,
+        ]);
+
+        // CekTopupStatusJob::dispatch($topup);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'topup' => $topup,
+                'midtrans_response' => $midtransData
+            ]
+        ]);
+    }
+
     public function getTopUp($kodeBayar)
     {
         $topup = TopUp::where('kode_bayar', $kodeBayar)->first();
@@ -774,6 +853,24 @@ class TransaksiController extends Controller
             'status' => 'success',
             'data' => $topup
         ]);
+    }
+
+    protected function generateMidtransRequestId()
+    {
+        $starting = config('custom.midtrans_request_id_start');
+
+        if (is_null($starting)) {
+            throw new \Exception("MIDTRANS_REQUEST_ID_START belum diset di environment");
+        }
+
+        $lastNumber = TopUp::whereNotNull('external_request_id')
+            ->where('external_request_id', 'like', 'foodlab-%')
+            ->selectRaw("MAX(CAST(SUBSTRING_INDEX(external_request_id, '-', -1) AS UNSIGNED)) as max_id")
+            ->value('max_id');
+
+        $next = ($lastNumber && $lastNumber >= $starting) ? $lastNumber + 1 : $starting;
+
+        return 'foodlab-' . $next;
     }
 
     // Start dari 102 dan terus naik
