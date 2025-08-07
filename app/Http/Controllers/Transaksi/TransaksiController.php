@@ -722,7 +722,7 @@ class TransaksiController extends Controller
             'payment_type' => 'qris',
             'transaction_details' => [
                 'order_id' => $midtransRequestId,
-                'gross_amount' => $request->nominal,
+                'gross_amount' => (int)$request->nominal,
             ],
         ];
 
