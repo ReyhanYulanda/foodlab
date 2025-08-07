@@ -200,7 +200,9 @@ class UserController extends Controller
                             ->count();
 
                         // Cek apakah masih ada minimal 1 transaksi 'pesanan_diproses'
-                        $adaTransaksiDiproses = Transaksi::whereIn('status', ['pesanan_diproses', 'siap_diantar'])->exists();
+                        $adaTransaksiDiproses = Transaksi::where('isAntar', 1)
+                            ->whereIn('status', ['pesanan_diproses', 'siap_diantar'])
+                            ->exists();
 
                         if ($jumlahDriverOnline === 1 && $adaTransaksiDiproses) {
                             return response()->json([
