@@ -726,11 +726,11 @@ class TransaksiController extends Controller
             ],
         ];
 
-        $apiAuth = 'Basic TWlkLXNlcnZlci04a3g0QnR6NHMyQTFZaFM5MGdPTjlDQW06';
+        $apiAuth = 'TWlkLXNlcnZlci04a3g0QnR6NHMyQTFZaFM5MGdPTjlDQW06';
         $apiUrl = 'https://api.midtrans.com/v2/charge';
 
         $response = Http::withHeaders([
-            'Authorization' => $apiAuth,
+            'Authorization' => 'Basic ' . ($apiAuth ?? ''),
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
         ])->asJson()->post($apiUrl, $dataToSend);
