@@ -20,6 +20,7 @@ return [
     'midtrans_request_id' => env('MIDTRANS_REQUEST_ID', 'midtrans_request_id'),
     'midtrans_post_api_url' => env('MIDTRANS_API_URL', 'https://api.midtrans.com/v2/charge'),
     'midtrans_authorization' => env('MIDTRANS_AUTHORIZATION', 'Basic YOUR_BASE64_ENCODED_SERVER_KEY'),
+    'midtrans_request_id_start' => env('MIDTRANS_REQUEST_ID_START', 4),
     // 'midtrans_get_api_url' => env('MIDTRANS_API_URL', 'https://api.midtrans.com/v2/status'),
 
 ];

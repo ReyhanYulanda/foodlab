@@ -858,6 +858,7 @@ class TransaksiController extends Controller
     protected function generateMidtransRequestId()
     {
         $starting = config('custom.midtrans_request_id_start');
+        Log::info("Starting MIDTRANS_REQUEST_ID_START: " . $starting);
 
         if (is_null($starting)) {
             throw new \Exception("MIDTRANS_REQUEST_ID_START belum diset di environment");
