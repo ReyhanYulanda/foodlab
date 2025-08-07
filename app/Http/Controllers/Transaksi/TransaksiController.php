@@ -719,7 +719,7 @@ class TransaksiController extends Controller
         $midtransRequestId = $this->generateMidtransRequestId();
 
         $dataToSend = [
-            'payment_type' => 'qris',
+            'payment_type' => 'gopay',
             'transaction_details' => [
                 'order_id' => $midtransRequestId,
                 'gross_amount' => (int)$request->nominal,
