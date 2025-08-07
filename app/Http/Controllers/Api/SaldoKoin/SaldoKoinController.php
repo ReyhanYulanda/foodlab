@@ -21,49 +21,63 @@ class SaldoKoinController extends Controller
 
         $userId = Auth::id();
 
-        $pendingTopUps = TopUp::where('user_id', $userId)
-            ->where('isTf', 0)
-            ->whereIn('status_bayar', ['1', 'settlement'])
-            ->get();
-
-        if ($pendingTopUps->count() > 0) {
-            Log::info('Saldo sebelum top-up:', ['user_id' => $userId]);
-
-            $saldo = SaldoKoin::firstOrCreate(['user_id' => $userId], ['jumlah' => 0]);
-
-            $totalTopup = $pendingTopUps->sum('nominal');
-            $saldo->jumlah += $totalTopup;
-            $saldo->save();
-            Log::info('Total yang ditambah ke saldo:', [$totalTopup]);
-
-            TransaksiSaldoKoin::create([
-                'user_id' => $userId,
-                'jumlah' => $totalTopup,
-                'tipe' => 'masuk',
-                'deskripsi' => 'Top-up berhasil melalui Virtual Account'
-            ]);
-            Log::info('Saldo setelah top-up:', ['user_id' => $userId, 'saldo' => $saldo->jumlah]);
-
-            // ✅ Kirim notifikasi (menggunakan fcmTokens relasi)
-            $user = User::with('fcmTokens')->find($userId);
-            $fcmUserToken = $user ? $user->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
-
-            if (!empty($fcmUserToken)) {
-                $firebases = new Firebases();
-                $firebases->withData([
-                    'title' => 'Top-up Berhasil',
-                    'body' => 'Saldo sebesar Rp ' . number_format($totalTopup, 0, ',', '.') . ' telah ditambahkan ke akun Anda.',
-                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
-                ])->sendToFallback($fcmUserToken);
-            }
-
-            TopUp::where('user_id', $userId)
-                ->whereIn('status_bayar', ['1', 'settlement'])
+        DB::transaction(function () use ($userId) {
+            // Lock TopUp yang status_bayar valid dan belum ditransfer
+            $pendingTopUps = TopUp::where('user_id', $userId)
                 ->where('isTf', 0)
-                ->update(['isTf' => 1]);
-        } else {
-            $saldo = SaldoKoin::firstOrCreate(['user_id' => $userId], ['jumlah' => 0]);
-        }
+                ->whereIn('status_bayar', ['1', 'settlement'])
+                ->lockForUpdate()
+                ->get();
+
+            if ($pendingTopUps->count() > 0) {
+                Log::info('Saldo sebelum top-up:', ['user_id' => $userId]);
+
+                $saldo = SaldoKoin::firstOrCreate(
+                    ['user_id' => $userId],
+                    ['jumlah' => 0]
+                );
+
+                $totalTopup = $pendingTopUps->sum('nominal');
+                $saldo->jumlah += $totalTopup;
+                $saldo->save();
+
+                Log::info('Total yang ditambah ke saldo:', [$totalTopup]);
+
+                TransaksiSaldoKoin::create([
+                    'user_id' => $userId,
+                    'jumlah' => $totalTopup,
+                    'tipe' => 'masuk',
+                    'deskripsi' => 'Top-up berhasil melalui Virtual Account'
+                ]);
+
+                Log::info('Saldo setelah top-up:', [
+                    'user_id' => $userId,
+                    'saldo' => $saldo->jumlah
+                ]);
+
+                // ✅ Kirim notifikasi (menggunakan fcmTokens relasi)
+                $user = User::with('fcmTokens')->find($userId);
+                $fcmUserToken = $user ? $user->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+
+                if (!empty($fcmUserToken)) {
+                    $firebases = new Firebases();
+                    $firebases->withData([
+                        'title' => 'Top-up Berhasil',
+                        'body' => 'Saldo sebesar Rp ' . number_format($totalTopup, 0, ',', '.') . ' telah ditambahkan ke akun Anda.',
+                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                    ])->sendToFallback($fcmUserToken);
+                }
+
+                // Tandai semua topup tersebut sudah ditransfer
+                TopUp::where('user_id', $userId)
+                    ->whereIn('status_bayar', ['1', 'settlement'])
+                    ->where('isTf', 0)
+                    ->update(['isTf' => 1]);
+            }
+        });
+
+        // Ambil saldo terbaru untuk response
+        $saldo = SaldoKoin::firstOrCreate(['user_id' => $userId], ['jumlah' => 0]);
 
         return response()->json([
             'success' => true,
