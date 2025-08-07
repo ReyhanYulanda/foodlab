@@ -22,8 +22,8 @@ class SaldoKoinController extends Controller
         $userId = Auth::id();
 
         $pendingTopUps = TopUp::where('user_id', $userId)
-            ->where('status_bayar', 1)
             ->where('isTf', 0)
+            ->whereIn('status_bayar', [1, 'settlement'])
             ->get();
 
         if ($pendingTopUps->count() > 0) {
@@ -58,7 +58,7 @@ class SaldoKoinController extends Controller
             }
 
             TopUp::where('user_id', $userId)
-                ->where('status_bayar', 1)
+                ->whereIn('status_bayar', [1, 'settlement'])
                 ->where('isTf', 0)
                 ->update(['isTf' => 1]);
         } else {
