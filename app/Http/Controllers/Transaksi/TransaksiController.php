@@ -823,6 +823,95 @@ class TransaksiController extends Controller
         ]);
     }
 
+    public function midtransGetTopUp($midtransRequestId)
+    {
+        $topup = TopUp::where('midtrans_request_id', $midtransRequestId)->first();
+
+        if (!$topup) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Data topup tidak ditemukan.',
+            ], 404);
+        }
+
+        if ($topup->user_id !== auth()->id()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized: Anda tidak berhak mengakses topup ini.',
+            ], 403);
+        }
+
+        // ✅ Ganti dari env() ke config()
+        $apiUrl = config('custom.midtrans_get_api_url');
+        $serverKey = config('custom.midtrans_server_key');
+        $authHeader = 'Basic ' . base64_encode($serverKey . ':');
+
+        // Init cURL
+        $ch = curl_init($apiUrl . '/' . $midtransRequestId . '/status');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Authorization: ' . $authHeader,
+            'Accept: application/json',
+            // 'User-Agent: curl/7.81.0', // Sesuaikan dengan versi cURL kamu
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if (curl_errno($ch)) {
+            $curlError = curl_error($ch);
+            curl_close($ch);
+            Log::error('cURL error saat request ke Midtrans: ' . $curlError);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal menghubungi Midtrans.',
+                'debug' => $curlError
+            ], 500);
+        }
+
+        curl_close($ch);
+
+        $midtransData = json_decode($response, true);
+
+        if ($httpCode >= 400) {
+            Log::error('Gagal request ke Midtrans', [
+                'request_id' => $midtransRequestId,
+                'http_code' => $httpCode,
+                'midtrans_response_body' => $midtransData,
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal terhubung ke Midtrans.',
+                'debug' => $midtransData,
+            ], $httpCode);
+        }
+        Log::info('Response dari Midtrans:', $midtransData);
+        // Cek apakah data yang dibutuhkan ada
+        if (!isset($midtransData['transaction_status']) || !isset($midtransData['expiry_time'])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Response Midtrans tidak valid atau tidak berisi data yang dibutuhkan.',
+                'debug' => $midtransData
+            ], 500);
+        }
+        try {
+            $tglBayar = Carbon::parse($midtransData['transaction_time']);
+        } catch (\Exception $e) {
+            Log::error('Gagal parsing transaction_time dari Midtrans: ' . json_encode($midtransData['transaction_time'] ?? null));
+            $tglBayar = $topup->tgl_bayar; // fallback ke nilai sebelumnya
+        }
+        $topup->update([
+            'status_bayar' => $midtransData['transaction_status'],
+            'tgl_bayar' => $tglBayar,
+        ]);
+        return response()->json([
+            'status' => 'success',
+            'data' => $topup
+        ]);
+    }
+
     public function getTopUp($kodeBayar)
     {
         $topup = TopUp::where('kode_bayar', $kodeBayar)->first();
