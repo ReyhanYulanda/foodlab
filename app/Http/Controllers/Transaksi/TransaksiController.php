@@ -782,6 +782,7 @@ class TransaksiController extends Controller
 
         // Ambil URL QR dari actions
         $actions = $midtransData['actions'] ?? null;
+        $transactionStatus = $midtransData['transaction_status'] ?? null;
 
         if (!is_array($actions) || empty($actions)) {
             return response()->json([
@@ -810,6 +811,7 @@ class TransaksiController extends Controller
             'nominal' => $request->nominal,
             'kode_bayar' => $qrCodeUrl,
             'tgl_akhir_tagihan' => $midtransData['expiry_time'] ?? null,
+            'status_bayar' => $transactionStatus,
         ]);
 
         return response()->json([
