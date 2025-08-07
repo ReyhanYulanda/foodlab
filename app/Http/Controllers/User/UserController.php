@@ -145,9 +145,8 @@ class UserController extends Controller
             ];
 
             if ($request->has('delete_image')) {
-                    Storage::delete($user->image);
-                    $user->image = null;
-                
+                Storage::delete($user->image);
+                $user->image = null;
             }
 
             if ($request->has('isOnline')) {
@@ -193,14 +192,32 @@ class UserController extends Controller
                     }
 
                     if ($user->hasRole('masbro')) {
-                        $hasDeliveryOrders = Transaksi::where('driver_id', $user->id)
+                        // Cek apakah hanya ada 1 driver online
+                        $jumlahDriverOnline = User::where('isOnline', true)
+                            ->whereHas('roles', function ($q) {
+                                $q->where('name', 'masbro');
+                            })
+                            ->count();
+
+                        // Cek apakah masih ada minimal 1 transaksi 'pesanan_diproses'
+                        $adaTransaksiDiproses = Transaksi::whereIn('status', ['pesanan_diproses', 'siap_diantar'])->exists();
+
+                        if ($jumlahDriverOnline === 1 && $adaTransaksiDiproses) {
+                            return response()->json([
+                                'status' => 'failed',
+                                'message' => 'Masih ada pesanan yang sedang diproses atau siap diantar.'
+                            ], 400);
+                        }
+
+                        // Tetap cek jika ada pesanan status 'diantar' oleh driver ini
+                        $masihAntarPesanan = Transaksi::where('driver_id', $user->id)
                             ->where('status', 'diantar')
                             ->exists();
 
-                        if ($hasDeliveryOrders) {
+                        if ($masihAntarPesanan) {
                             return response()->json([
                                 'status' => 'failed',
-                                'message' => 'Tidak dapat offline karena masih ada pesanan yang sedang diantar.'
+                                'message' => 'Tidak dapat offline karena masih ada pesanan yang sedang Anda antar.'
                             ], 400);
                         }
                     }
