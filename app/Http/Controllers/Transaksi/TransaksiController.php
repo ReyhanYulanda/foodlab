@@ -736,6 +736,12 @@ class TransaksiController extends Controller
         ])->asJson()->post($apiUrl, $dataToSend);
 
         if ($response->failed()) {
+            Log::error('Gagal request ke Midtrans', [
+                'request_payload' => $dataToSend,
+                'midtrans_response_status' => $response->status(),
+                'midtrans_response_body' => $response->body(),
+            ]);
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Gagal terhubung ke Midtrans.',
