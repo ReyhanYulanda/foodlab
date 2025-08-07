@@ -736,6 +736,7 @@ class TransaksiController extends Controller
             'Authorization' => $authHeader,
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
+            'User-Agent' => 'curl/7.81.0',
         ])->asJson()->post($apiUrl, $dataToSend);
 
         if ($response->failed()) {
