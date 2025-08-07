@@ -726,8 +726,8 @@ class TransaksiController extends Controller
             ],
         ];
 
-        $apiUrl = 'https://api.midtrans.com/v2/charge';
-        $serverKey = 'Mid-server-8kx4Btz4s2A1YhS90gON9CAm';
+        $apiUrl = config('custom.midtrans_post_api_url');
+        $serverKey = config('custom.midtrans_server_key');
         $authHeader = 'Basic ' . base64_encode($serverKey . ':');
 
         // Convert payload to JSON
@@ -740,7 +740,7 @@ class TransaksiController extends Controller
             'Authorization: ' . $authHeader,
             'Content-Type: application/json',
             'Accept: application/json',
-            'User-Agent: curl/7.81.0', // Sesuaikan dengan versi cURL kamu
+            // 'User-Agent: curl/7.81.0', // Sesuaikan dengan versi cURL kamu
         ]);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonPayload);
