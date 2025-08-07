@@ -125,10 +125,14 @@ class TransaksiTenantController extends Controller
 
         $query = TransaksiDetail::selectRaw("
         tenants.nama_tenant,
-        tenants.id,
-        tenants.no_rekening_toko,
-        SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_1,
-        SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_2
+    tenants.id,
+    tenants.no_rekening_toko,
+    SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_1,
+    SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_2,
+    (SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) - 
+     (0.1 * SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_1,
+    (SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) - 
+     (0.1 * SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_2
     ")
             ->join('menus', 'transaksi_detail.menu_id', '=', 'menus.id')
             ->join('tenants', 'menus.tenant_id', '=', 'tenants.id')
@@ -175,9 +179,9 @@ class TransaksiTenantController extends Controller
                 }
 
                 $namaTenant = str_replace(['"', ','], '', $p->nama_tenant);
-                $totalKotor = ($p->pendapatan_kotor_1 ?? 0) + ($p->pendapatan_kotor_2 ?? 0);
+                $totalBersih = ($p->pendapatan_bersih_1 ?? 0) + ($p->pendapatan_bersih_2 ?? 0);
                 $totalBaris++;
-                $totalAmount += $totalKotor;
+                $totalAmount += $totalBersih;
 
                 $rows[] = [
                     $p->no_rekening_toko ?? 'belum ada rekening',
@@ -186,7 +190,7 @@ class TransaksiTenantController extends Controller
                     '',
                     '',
                     'IDR',
-                    $totalKotor,
+                    $totalBersih,
                     '',
                     '',
                     'IBU',
