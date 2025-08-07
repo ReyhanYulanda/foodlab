@@ -11,6 +11,7 @@ class TopUp extends Model
     protected $fillable = [
         'user_id',
         'request_id',
+        'midtrans_request_id',
         'nominal',
         'status_bayar',
         'kode_bayar',
