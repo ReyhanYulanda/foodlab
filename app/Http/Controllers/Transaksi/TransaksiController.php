@@ -1055,7 +1055,8 @@ class TransaksiController extends Controller
     public function sendMessage($transaksiId, Request $request)
     {
         $request->validate([
-            'message' => 'required|string|max:1000'
+            'message' => 'required|string|max:1000',
+            'chat_type' => 'required|in:tenant,driver',
         ]);
 
         $transaksi = Transaksi::findOrFail($transaksiId);
@@ -1073,7 +1074,9 @@ class TransaksiController extends Controller
             'transaksi_id' => $transaksiId,
             'sender_id' => Auth::id(),
             'message' => $request->input('message'),
+            'chat_type' => $request->input('chat_type'), // tambahkan ini
         ]);
+
 
         // Tentukan penerima berdasarkan role
         $receiverIds = [];
@@ -1131,40 +1134,17 @@ class TransaksiController extends Controller
 
     public function getMessageDriverToBuyer($transaksiId)
     {
-        $transaksi = Transaksi::findOrFail($transaksiId);
-
-        return ChatMessage::query()
-            ->where('transaksi_id', $transaksiId)
-            ->where(function ($query) use ($transaksi) {
-                // Driver kirim → Buyer
-                $query->where('sender_id', $transaksi->driver_id)
-                    // Buyer kirim → Driver
-                    ->orWhere(function ($q) use ($transaksi) {
-                        $q->where('sender_id', $transaksi->user_id);
-                    });
-            })
+        return ChatMessage::where('transaksi_id', $transaksiId)
+            ->where('chat_type', 'driver')
             ->orderBy('created_at', 'asc')
             ->get();
     }
 
+
     public function getMessageTenantToBuyer($transaksiId)
     {
-        return ChatMessage::query()
-            ->where('transaksi_id', $transaksiId)
-            ->where(function ($query) use ($transaksiId) {
-                $query->whereIn('sender_id', function ($q) use ($transaksiId) {
-                    $q->select('tenant_id')
-                        ->from('transaksi')
-                        ->where('id', $transaksiId)
-                        ->whereNull('deleted_at');
-                })
-                    ->orWhereIn('sender_id', function ($q) use ($transaksiId) {
-                        $q->select('user_id')
-                            ->from('transaksi')
-                            ->where('id', $transaksiId)
-                            ->whereNull('deleted_at');
-                    });
-            })
+        return ChatMessage::where('transaksi_id', $transaksiId)
+            ->where('chat_type', 'tenant')
             ->orderBy('created_at', 'asc')
             ->get();
     }
