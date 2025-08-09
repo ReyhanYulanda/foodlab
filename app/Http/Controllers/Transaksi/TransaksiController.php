@@ -1140,8 +1140,7 @@ class TransaksiController extends Controller
                 $query->where('sender_id', $transaksi->driver_id)
                     // Buyer kirim → Driver
                     ->orWhere(function ($q) use ($transaksi) {
-                        $q->where('sender_id', $transaksi->user_id)
-                            ->whereNotNull($transaksi->driver_id); // Pastikan ada driver
+                        $q->where('sender_id', $transaksi->user_id);
                     });
             })
             ->orderBy('created_at', 'asc')
