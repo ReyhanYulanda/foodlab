@@ -23,6 +23,7 @@ class Transaksi extends Model
         'biaya_layanan',
         'isAntar',
         'metode_pembayaran',
+        'tenant_id',
         'catatan',
         'driver_id',
         'kode_pemesanan',
