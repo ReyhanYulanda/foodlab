@@ -701,6 +701,26 @@ class TransaksiController extends Controller
         ]);
     }
 
+    private function generateBiayaAdmin(int $nominalTopup): array
+    {
+        $persentaseBiayaMidtrans = 0.007; // 0,7%
+
+        $biayaMidtrans     = (int) ceil($nominalTopup * $persentaseBiayaMidtrans);
+        $totalSebelumBulat = $nominalTopup + $biayaMidtrans;
+        $totalBayar        = (int) (ceil($totalSebelumBulat / 50) * 50);
+        $biayaUbsima       = $totalBayar - $totalSebelumBulat;
+        $totalBiayaAdmin   = $biayaMidtrans + $biayaUbsima;
+
+        return [
+            'nominal_topup'     => $nominalTopup,
+            'biaya_midtrans'    => $biayaMidtrans,
+            'biaya_ubsima'      => $biayaUbsima,
+            'total_biaya_admin' => $totalBiayaAdmin,
+            'total_bayar_user'  => $totalBayar,
+            'total_sebelum_bulat' => $totalSebelumBulat
+        ];
+    }
+
     public function midtransTopUp(Request $request)
     {
         $user = Auth::user();
@@ -716,13 +736,14 @@ class TransaksiController extends Controller
             ], 422);
         }
 
-        $midtransRequestId = $this->generateMidtransRequestId();
+        $biaya = $this->generateBiayaAdmin((int) $request->nominal);
 
+        $midtransRequestId = $this->generateMidtransRequestId();
         $dataToSend = [
             'payment_type' => 'qris',
             'transaction_details' => [
-                'order_id' => $midtransRequestId,
-                'gross_amount' => (int)$request->nominal,
+                'order_id'     => $midtransRequestId,
+                'gross_amount' => $biaya['total_bayar_user'],
             ],
         ];
 
@@ -740,7 +761,6 @@ class TransaksiController extends Controller
             'Authorization: ' . $authHeader,
             'Content-Type: application/json',
             'Accept: application/json',
-            // 'User-Agent: curl/7.81.0', // Sesuaikan dengan versi cURL kamu
         ]);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonPayload);
@@ -808,7 +828,11 @@ class TransaksiController extends Controller
         $topup = TopUp::create([
             'user_id' => $user->id,
             'midtrans_request_id' => $midtransRequestId,
-            'nominal' => $request->nominal,
+            'nominal' => $biaya['nominal_topup'],
+            'biaya_midtrans' => $biaya['biaya_midtrans'],
+            'biaya_ubsima' => $biaya['biaya_ubsima'],
+            'total_biaya_admin' => $biaya['total_biaya_admin'],
+            'total_bayar_user' => $biaya['total_bayar_user'],
             'kode_bayar' => $qrCodeUrl,
             'tgl_akhir_tagihan' => $midtransData['expiry_time'] ?? null,
             'status_bayar' => $transactionStatus,
@@ -818,6 +842,7 @@ class TransaksiController extends Controller
             'status' => 'success',
             'data' => [
                 'topup' => $topup,
+                'biaya_admin' => $biaya,
                 'midtrans_response' => $midtransData
             ]
         ]);
