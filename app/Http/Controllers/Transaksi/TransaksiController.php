@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Transaksi;
 use App\Helper\TransaksiCek;
 use App\Http\Controllers\Controller;
 use App\Jobs\CekTopupStatusJob;
+use App\Models\ChatMessage;
 use App\Models\Tenants;
 use App\Models\Transaksi;
 use App\Models\TransaksiDetail;
@@ -1051,50 +1052,124 @@ class TransaksiController extends Controller
         return Carbon::now()->addHour();
     }
 
-    public function testCurlMidtrans(Request $request)
+    public function sendMessage($transaksiId, Request $request)
     {
-        $orderId = 'foodlab-test-01';
-        $grossAmount = 10000;
-        $serverKey = 'Mid-server-8kx4Btz4s2A1YhS90gON9CAm';
-        $auth = base64_encode($serverKey . ':');
-
-        $payload = json_encode([
-            'payment_type' => 'qris',
-            'transaction_details' => [
-                'order_id' => $orderId,
-                'gross_amount' => $grossAmount,
-            ],
+        $request->validate([
+            'message' => 'required|string|max:1000'
         ]);
 
-        $ch = curl_init();
+        $transaksi = Transaksi::findOrFail($transaksiId);
 
-        curl_setopt($ch, CURLOPT_URL, 'https://api.midtrans.com/v2/charge');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Accept: application/json',
-            'Content-Type: application/json',
-            'Authorization: Basic ' . $auth,
-            'User-Agent: curl/7.81.0'
-        ]);
-
-        $result = curl_exec($ch);
-        $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-        if (curl_errno($ch)) {
+        // Kalau transaksi sudah di-soft delete, hentikan
+        if ($transaksi->trashed()) {
             return response()->json([
                 'status' => 'error',
-                'message' => curl_error($ch),
-            ], 500);
+                'message' => 'Transaksi sudah selesai, tidak bisa mengirim pesan.'
+            ], 400);
         }
 
-        curl_close($ch);
+        // Simpan pesan
+        $chat = ChatMessage::create([
+            'transaksi_id' => $transaksiId,
+            'sender_id' => Auth::id(),
+            'message' => $request->input('message'),
+        ]);
+
+        // Tentukan penerima berdasarkan role
+        $receiverIds = [];
+
+        if (Auth::id() === $transaksi->tenant_id) {
+            // Tenant kirim → Buyer
+            $receiverIds[] = $transaksi->user_id;
+        } elseif (Auth::id() === $transaksi->driver_id) {
+            // Driver kirim → Buyer
+            $receiverIds[] = $transaksi->user_id;
+        } elseif (Auth::id() === $transaksi->user_id) {
+            // Buyer kirim → Tenant & Driver
+            // NOTE: buyer hanya kirim ke salah satu sesuai context chat room
+            if ($request->input('chat_type') === 'tenant') {
+                $receiverIds[] = $transaksi->tenant_id;
+            } elseif ($request->input('chat_type') === 'driver') {
+                $receiverIds[] = $transaksi->driver_id;
+            }
+        }
+
+        // Ambil token FCM penerima
+        $receiverTokens = \App\Models\User::whereIn('id', array_filter($receiverIds))
+            ->with('fcmTokens')
+            ->get()
+            ->pluck('fcmTokens.*.fcm_token')
+            ->flatten()
+            ->filter()
+            ->unique()
+            ->toArray();
+
+        // Kirim FCM
+        if (!empty($receiverTokens)) {
+            $firebases = new Firebases();
+            $firebases->withNotification('Pesan Baru', $request->input('message'))
+                ->withData([
+                    'title' => 'Pesan Baru',
+                    'body' => $request->input('message'),
+                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                    'transaksi_id' => $transaksiId
+                ])
+                ->sendToFallback($receiverTokens);
+        }
+
+        Log::info('Pesan baru dikirim', [
+            'transaksi_id' => $transaksiId,
+            'sender_id' => Auth::id(),
+            'message' => $request->input('message'),
+        ]);
 
         return response()->json([
             'status' => 'success',
-            'http_code' => $httpcode,
-            'response' => json_decode($result, true),
+            'data' => $chat
         ]);
+    }
+
+    public function getMessageTenantToBuyer($transaksiId)
+    {
+        return ChatMessage::query()
+            ->where('transaksi_id', $transaksiId)
+            ->where(function ($query) use ($transaksiId) {
+                $query->whereIn('sender_id', function ($q) use ($transaksiId) {
+                    $q->select('tenant_id')
+                        ->from('transaksi')
+                        ->where('id', $transaksiId)
+                        ->whereNull('deleted_at');
+                })
+                    ->orWhereIn('sender_id', function ($q) use ($transaksiId) {
+                        $q->select('user_id')
+                            ->from('transaksi')
+                            ->where('id', $transaksiId)
+                            ->whereNull('deleted_at');
+                    });
+            })
+            ->orderBy('created_at', 'asc')
+            ->get();
+    }
+
+    public function getMessageDriverToBuyer($transaksiId)
+    {
+        return ChatMessage::query()
+            ->where('transaksi_id', $transaksiId)
+            ->where(function ($query) use ($transaksiId) {
+                $query->whereIn('sender_id', function ($q) use ($transaksiId) {
+                    $q->select('driver_id')
+                        ->from('transaksi')
+                        ->where('id', $transaksiId)
+                        ->whereNull('deleted_at');
+                })
+                    ->orWhereIn('sender_id', function ($q) use ($transaksiId) {
+                        $q->select('user_id')
+                            ->from('transaksi')
+                            ->where('id', $transaksiId)
+                            ->whereNull('deleted_at');
+                    });
+            })
+            ->orderBy('created_at', 'asc')
+            ->get();
     }
 }

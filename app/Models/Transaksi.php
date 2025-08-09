@@ -107,4 +107,13 @@ class Transaksi extends Model
         $saldo->jumlah += $this->total;
         $saldo->save();
     }
+
+    protected static function booted()
+    {
+        static::updated(function ($transaksi) {
+            if ($transaksi->status === 'selesai' && !$transaksi->trashed()) {
+                ChatMessage::where('transaksi_id', $transaksi->id)->delete();
+            }
+        });
+    }
 }

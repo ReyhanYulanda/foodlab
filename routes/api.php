@@ -29,7 +29,10 @@ Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function 
     Route::post('/tenant/menucoba/{id}', [KelolaTenantController::class, 'updateMenu']);
     Route::post('/transaksi/topup/midtrans', [TransaksiController::class, 'midtransTopUp']);
     Route::get('/transaksi/get/topup/midtrans/{midtransRequestId}', [TransaksiController::class, 'midtransGetTopUp']);
-    Route::post('/transaksi/topup/midtrans/test', [TransaksiController::class, 'testCurlMidtrans']);
+    Route::post('/transaksi/{transaksiId}/chat', [TransaksiController::class, 'sendMessage']);
+    Route::get('/transaksi/{transaksiId}/chat/tenant-buyer', [TransaksiController::class, 'getMessageTenantToBuyer']);
+    Route::get('/transaksi/{transaksiId}/chat/driver-buyer', [TransaksiController::class, 'getMessageDriverToBuyer']);
+
 
     Route::get('/auth', [UserController::class, 'index']);
     Route::post('/update-user', [UserController::class, 'update']);
