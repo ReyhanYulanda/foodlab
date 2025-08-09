@@ -15,6 +15,7 @@ class ChatMessage extends Model
         'transaksi_id',
         'sender_id',
         'message',
+        'chat_type',
     ];
 
     public function transaksi()
