@@ -1131,20 +1131,17 @@ class TransaksiController extends Controller
 
     public function getMessageDriverToBuyer($transaksiId)
     {
+        $transaksi = Transaksi::findOrFail($transaksiId);
+
         return ChatMessage::query()
             ->where('transaksi_id', $transaksiId)
-            ->where(function ($query) use ($transaksiId) {
-                $query->whereIn('sender_id', function ($q) use ($transaksiId) {
-                    $q->select('driver_id')
-                        ->from('transaksi')
-                        ->where('id', $transaksiId)
-                        ->whereNull('deleted_at');
-                })
-                    ->orWhereIn('sender_id', function ($q) use ($transaksiId) {
-                        $q->select('user_id')
-                            ->from('transaksi')
-                            ->where('id', $transaksiId)
-                            ->whereNull('deleted_at');
+            ->where(function ($query) use ($transaksi) {
+                // Driver kirim → Buyer
+                $query->where('sender_id', $transaksi->driver_id)
+                    // Buyer kirim → Driver
+                    ->orWhere(function ($q) use ($transaksi) {
+                        $q->where('sender_id', $transaksi->user_id)
+                            ->whereNotNull($transaksi->driver_id); // Pastikan ada driver
                     });
             })
             ->orderBy('created_at', 'asc')
