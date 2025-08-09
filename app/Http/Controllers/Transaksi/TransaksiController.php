@@ -1069,6 +1069,13 @@ class TransaksiController extends Controller
             ], 400);
         }
 
+        if (!in_array(Auth::id(), [$transaksi->user_id, $transaksi->tenant_id, $transaksi->driver_id])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Anda tidak memiliki akses untuk mengirim chat pada transaksi ini.'
+            ], 403);
+        }
+
         // Simpan pesan
         $chat = ChatMessage::create([
             'transaksi_id' => $transaksiId,
