@@ -1150,4 +1150,26 @@ class TransaksiController extends Controller
             ->orderBy('created_at', 'asc')
             ->get();
     }
+
+    public function getMessageTenantToBuyer($transaksiId)
+    {
+        return ChatMessage::query()
+            ->where('transaksi_id', $transaksiId)
+            ->where(function ($query) use ($transaksiId) {
+                $query->whereIn('sender_id', function ($q) use ($transaksiId) {
+                    $q->select('tenant_id')
+                        ->from('transaksi')
+                        ->where('id', $transaksiId)
+                        ->whereNull('deleted_at');
+                })
+                    ->orWhereIn('sender_id', function ($q) use ($transaksiId) {
+                        $q->select('user_id')
+                            ->from('transaksi')
+                            ->where('id', $transaksiId)
+                            ->whereNull('deleted_at');
+                    });
+            })
+            ->orderBy('created_at', 'asc')
+            ->get();
+    }
 }
