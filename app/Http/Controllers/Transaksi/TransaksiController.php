@@ -291,7 +291,7 @@ class TransaksiController extends Controller
                 'total' => $totalFinal,
                 'isAntar' => $request->isAntar,
                 'metode_pembayaran' => $request->metode_pembayaran,
-                'tenant_id' => $tenant->id ?? null,
+                'tenant_id' => $tenant->user_id,
                 'ruangan_id' => $ruanganId,
                 'catatan' => @$request->catatan,
                 'status' => $status,
