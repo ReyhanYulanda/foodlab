@@ -1141,15 +1141,30 @@ class TransaksiController extends Controller
 
     public function getMessageDriverToBuyer($transaksiId)
     {
+        $transaksi = Transaksi::findOrFail($transaksiId);
+        if (!in_array(Auth::id(), [$transaksi->user_id, $transaksi->tenant_id, $transaksi->driver_id])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Anda tidak memiliki akses untuk melihat chat pada transaksi ini.'
+            ], 403);
+        }
+
         return ChatMessage::where('transaksi_id', $transaksiId)
             ->where('chat_type', 'driver')
             ->orderBy('created_at', 'asc')
             ->get();
     }
 
-
     public function getMessageTenantToBuyer($transaksiId)
     {
+        $transaksi = Transaksi::findOrFail($transaksiId);
+        if (!in_array(Auth::id(), [$transaksi->user_id, $transaksi->tenant_id, $transaksi->driver_id])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Anda tidak memiliki akses untuk melihat chat pada transaksi ini.'
+            ], 403);
+        }
+
         return ChatMessage::where('transaksi_id', $transaksiId)
             ->where('chat_type', 'tenant')
             ->orderBy('created_at', 'asc')
