@@ -54,7 +54,7 @@ class CheckTransaksiActiveAndRateLimit
         }
 
         // Set rate limit 3 detik
-        Cache::put($cacheKey, true, now()->addSeconds(3));
+        Cache::put($cacheKey, true, now()->addSeconds(1));
         return $next($request);
     }
 }
