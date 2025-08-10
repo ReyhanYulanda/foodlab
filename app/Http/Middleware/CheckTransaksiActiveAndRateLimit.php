@@ -37,6 +37,13 @@ class CheckTransaksiActiveAndRateLimit
             ], 400);
         }
 
+        if ($transaksi->id === null) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Transaksi tidak ditemukan.'
+            ], 404);
+        }
+
         // ✅ Rate limit: 1 pesan per 3 detik per user per transaksi
         $cacheKey = "chat_rate_limit_user_" . auth()->id() . "_trx_" . $transaksiId;
         if (Cache::has($cacheKey)) {
