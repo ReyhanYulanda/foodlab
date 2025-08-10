@@ -12,11 +12,13 @@ class Kernel extends ConsoleKernel
     {
         $reset_manual = Pengaturan::where('nama', 'reset_manual')->first();
         $jam_tutup_driver = Pengaturan::where('nama', 'jam_tutup_driver')->first();
+        $jam_clear_chat = Pengaturan::where('nama', 'jam_clear_chat')->first();
         $schedule->command('order:autocancel')->everyMinute();
         $schedule->command('tenant:update-status')->everyMinute();
         $schedule->command('tenant:tutup')->everyMinute();
         $schedule->command('tenant:reset-manual-offline')->dailyAt($reset_manual->nilai ?? '00:00');
         $schedule->command('driver:tutup')->dailyAt($jam_tutup_driver->nilai ?? '00:00');
+        $schedule->command('chat:delete-finished')->dailyAt($jam_clear_chat->nilai ?? '00:00');
     }
 
     protected function commands()
