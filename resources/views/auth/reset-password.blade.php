@@ -24,19 +24,29 @@
                 <!-- Email Address -->
                 <div>
                     <x-label for="email" :value="__('Email')" />
-                    <x-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email', $request->email)" required autofocus />
+                    <x-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email', $request->email)"
+                        required autofocus />
                 </div>
 
                 <!-- Password -->
-                <div class="mt-4">
+                <div class="mt-4 relative">
                     <x-label for="password" :value="__('Password')" />
-                    <x-input id="password" class="block mt-1 w-full" type="password" name="password" required />
+                    <x-input id="password" class="block mt-1 w-full pr-10" type="password" name="password" required />
+                    <button type="button" onclick="togglePassword('password')"
+                        class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500">
+                        👁️
+                    </button>
                 </div>
 
                 <!-- Confirm Password -->
-                <div class="mt-4">
+                <div class="mt-4 relative">
                     <x-label for="password_confirmation" :value="__('Confirm Password')" />
-                    <x-input id="password_confirmation" class="block mt-1 w-full" type="password" name="password_confirmation" required />
+                    <x-input id="password_confirmation" class="block mt-1 w-full pr-10" type="password"
+                        name="password_confirmation" required />
+                    <button type="button" onclick="togglePassword('password_confirmation')"
+                        class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500">
+                        👁️
+                    </button>
                 </div>
 
                 <div class="flex items-center justify-end mt-4">
@@ -48,3 +58,14 @@
         @endif
     </x-auth-card>
 </x-guest-layout>
+
+<script>
+    function togglePassword(id) {
+        const input = document.getElementById(id);
+        if (input.type === "password") {
+            input.type = "text";
+        } else {
+            input.type = "password";
+        }
+    }
+</script>
