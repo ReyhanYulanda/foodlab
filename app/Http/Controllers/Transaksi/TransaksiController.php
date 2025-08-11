@@ -1057,7 +1057,7 @@ class TransaksiController extends Controller
         $request->validate([
             'message' => 'required|string|max:1000',
             'chat_type' => 'required|in:tenant,driver',
-            'sender_name' => 'nullable|string|max:100',
+            'sender_name' => 'required|string|max:100',
         ]);
 
         $transaksi = Transaksi::findOrFail($transaksiId);
@@ -1077,13 +1077,22 @@ class TransaksiController extends Controller
             ], 403);
         }
 
+        // cek apakah sender_name dikirim dari front end, kalau tidak, return error
+        if (empty($request->input('sender_name'))) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Sender name tidak boleh kosong.'
+            ], 422);
+        }
+
+
         // Simpan pesan
         $chat = ChatMessage::create([
             'transaksi_id' => $transaksiId,
             'sender_id' => Auth::id(),
             'message' => $request->input('message'),
             'chat_type' => $request->input('chat_type'), // tambahkan ini
-            'sender_name' => $request->input('sender_name', Auth::user()->name),
+            'sender_name' => $request->input('sender_name'),
         ]);
 
 
