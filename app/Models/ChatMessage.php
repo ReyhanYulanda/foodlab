@@ -14,6 +14,7 @@ class ChatMessage extends Model
     protected $fillable = [
         'transaksi_id',
         'sender_id',
+        'sender_name',
         'message',
         'chat_type',
     ];
