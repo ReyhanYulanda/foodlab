@@ -172,7 +172,7 @@ class PesananController extends Controller
                                 'body' => "Pesanan telah diterima oleh pembeli. #{$transaksi->kode_pemesanan}.",
                                 'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                             ])
-                            ->sendToTenant($fcmTenantToken);
+                            ->sendToFallback($fcmTenantToken);
                     }
 
                     $ongkirAsli = $transaksi->ongkos_kirim;
