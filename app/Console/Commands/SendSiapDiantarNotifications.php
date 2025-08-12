@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Firebases;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class SendSiapDiantarNotifications extends Command
 {
@@ -17,7 +18,7 @@ class SendSiapDiantarNotifications extends Command
     public function handle(Firebases $firebases)
     {
         // Cek apakah ada transaksi dengan status siap_diantar
-        $transaksi = Transaksi::where('status', 'siap_diantar')->first();
+        $transaksi = Transaksi::where('status', 'siap_diantar')->exists();
 
         if (!$transaksi) {
             $this->info('Tidak ada pesanan siap diantar.');
@@ -54,6 +55,7 @@ class SendSiapDiantarNotifications extends Command
             ->sendToDriver($tokens);
 
         $this->info('Notifikasi terkirim ke driver.');
+        Log::info('Notifikasi siap diantar terkirim pada ' . Carbon::now('Asia/Jakarta')->toDateTimeString());
         return Command::SUCCESS;
     }
 }

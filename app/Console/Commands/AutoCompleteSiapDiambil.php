@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Transaksi;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class AutoCompleteSiapDiambil extends Command
 {
@@ -30,6 +31,7 @@ class AutoCompleteSiapDiambil extends Command
         }
 
         $this->info("$count transaksi berhasil diupdate menjadi selesai.");
+        Log::info("$count transaksi berhasil diupdate menjadi selesai pada " . Carbon::now('Asia/Jakarta')->toDateTimeString());
         return Command::SUCCESS;
     }
 }
