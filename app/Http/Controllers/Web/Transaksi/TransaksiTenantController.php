@@ -100,22 +100,25 @@ class TransaksiTenantController extends Controller
 
     public function getPesananByTransaksi($id)
     {
-        $transaksi = Transaksi::with('listTransaksiDetail.menus')->findOrFail($id);
+        $transaksi = Transaksi::with('listTransaksiDetail.menus')
+            ->select('id', 'catatan_lokasi_pengantaran', 'catatan_penolakan')
+            ->findOrFail($id);
 
         $pesanan = $transaksi->listTransaksiDetail->map(function ($detail) {
-            $menuNama = $detail->menus->nama ?? 'Menu Tidak Ditemukan';
-            $menuHarga = $detail->harga ?? 0;
-            $quantity = $detail->jumlah ?? 0;
-
             return [
-                'nama_menu' => $menuNama,
-                'jumlah' => $quantity,
-                'harga' => $menuHarga,
+                'nama_menu' => $detail->menus->nama ?? 'Menu Tidak Ditemukan',
+                'jumlah'    => $detail->jumlah ?? 0,
+                'harga'     => $detail->harga ?? 0,
             ];
         });
 
-        return response()->json($pesanan);
+        return response()->json([
+            'pesanan' => $pesanan,
+            'catatan_lokasi_pengantaran' => $transaksi->catatan_lokasi_pengantaran ?? '',
+            'catatan_penolakan' => $transaksi->catatan_penolakan ?? '',
+        ]);
     }
+
 
     public function exportCsv(Request $request)
     {
