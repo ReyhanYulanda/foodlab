@@ -9,23 +9,29 @@
                     <h4>Detail Transaksi</h4>
                 </div>
                 <div class="card-body">
-                    @if(session('success'))
+                    @if (session('success'))
                         <div class="alert alert-success">{{ session('success') }}</div>
                     @endif
 
-                    <form action="{{ route('detail.transaksi.tenant', ['id' => request()->route('id')]) }}" method="GET" class="mb-3">
+                    <form action="{{ route('detail.transaksi.tenant', ['id' => request()->route('id')]) }}" method="GET"
+                        class="mb-3">
                         <div class="row g-2">
                             <div class="col-md-3">
                                 <label for="search_keyword" class="form-label visually-hidden">Keyword</label>
-                                <input type="text" name="search_keyword" id="search_keyword" class="form-control" placeholder="No. Pesanan, Nama Pemesan/Pengantar"
+                                <input type="text" name="search_keyword" id="search_keyword" class="form-control"
+                                    placeholder="No. Pesanan, Nama Pemesan/Pengantar"
                                     value="{{ request('search_keyword') }}">
                             </div>
                             <div class="col-md-2">
                                 <label for="status_pemesan" class="form-label visually-hidden">Status Pemesan</label>
                                 <select name="status_pemesan" id="status_pemesan" class="form-control">
                                     <option value="">Semua Status Pemesan</option>
-                                    <option value="antar" {{ (request('status_pemesan') == 'antar') ? 'selected' : '' }}>Pesan Antar</option>
-                                    <option value="sendiri" {{ (request('status_pemesan') == 'sendiri') ? 'selected' : '' }}>Ambil Sendiri</option>
+                                    <option value="antar"
+                                        {{ request('status_pemesan') == 'antar' ? 'selected' : '' }}>Pesan Antar
+                                    </option>
+                                    <option value="sendiri"
+                                        {{ request('status_pemesan') == 'sendiri' ? 'selected' : '' }}>Ambil Sendiri
+                                    </option>
                                 </select>
                             </div>
                             <div class="col-md-1">
@@ -34,9 +40,9 @@
                         </div>
                         <input type="hidden" name="per_page" value="{{ request('per_page', 10) }}">
                     </form>
-                    @if(request('filter_date'))
+                    @if (request('filter_date'))
                         <div class="mb-3">
-                            <strong>Data ditampilkan untuk tanggal:</strong> 
+                            <strong>Data ditampilkan untuk tanggal:</strong>
                             {{ \Carbon\Carbon::parse(request('filter_date'))->format('d M Y') }}
                         </div>
                     @endif
@@ -56,22 +62,19 @@
                         <tbody>
                             @foreach ($transaksiDetails as $key => $detail)
                                 <tr>
-                                    <td>{{ ($transaksiDetails->currentPage() - 1) * $transaksiDetails->perPage() + $loop->iteration }}</td>
+                                    <td>{{ ($transaksiDetails->currentPage() - 1) * $transaksiDetails->perPage() + $loop->iteration }}
+                                    </td>
                                     <td>{{ $detail->updated_at->format('d-m-Y') }}</td>
-                                    <td>{{ $detail->updated_at->format('H:i:s') }}</td> 
+                                    <td>{{ $detail->updated_at->format('H:i:s') }}</td>
                                     <td>{{ $detail->id }}</td>
-                                    <td>{{ $detail->user->name ?? '-' }}</td> 
-                                    <td>{{ $detail->driver->name ?? '-' }}</td> 
+                                    <td>{{ $detail->user->name ?? '-' }}</td>
+                                    <td>{{ $detail->driver->name ?? '-' }}</td>
                                     <td>
                                         {{ $detail->isAntar == 1 ? 'Pesan Antar' : 'Ambil Sendiri' }}
                                     </td>
                                     <td>
-                                        <button 
-                                            class="btn btn-info ms-2"
-                                            data-bs-toggle="modal" 
-                                            data-bs-target="#pesananModal"
-                                            onclick="getPesanan({{ $detail->id }})"
-                                        >
+                                        <button class="btn btn-info ms-2" data-bs-toggle="modal"
+                                            data-bs-target="#pesananModal" onclick="getPesanan({{ $detail->id }})">
                                             Lihat Pesanan
                                         </button>
                                     </td>
@@ -82,9 +85,11 @@
                     <div class="d-flex justify-content-between align-items-center mt-3">
                         <div class="form-group mb-0 d-flex align-items-center">
                             <label for="perPage" class="mr-2 mb-0">Tampilkan:</label>
-                            <select class="form-control d-inline-block w-auto" id="perPage" onchange="window.location.href = this.value;">
+                            <select class="form-control d-inline-block w-auto" id="perPage"
+                                onchange="window.location.href = this.value;">
                                 @foreach ([10, 25, 50, 100] as $perPageOption)
-                                    <option value="{{ request()->fullUrlWithQuery(['per_page' => $perPageOption]) }}" {{ (request('per_page', 10) == $perPageOption) ? 'selected' : '' }}>
+                                    <option value="{{ request()->fullUrlWithQuery(['per_page' => $perPageOption]) }}"
+                                        {{ request('per_page', 10) == $perPageOption ? 'selected' : '' }}>
                                         {{ $perPageOption }}
                                     </option>
                                 @endforeach
@@ -100,7 +105,7 @@
             </div>
         </div>
     </div>
-        
+
     <div class="modal fade" id="pesananModal" tabindex="-1" aria-labelledby="pesananModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -134,23 +139,45 @@
                 .then(response => response.json())
                 .then(data => {
                     const tbody = document.getElementById('tablePesananBody');
+                    const lokasiEl = document.getElementById('catatanLokasi');
+                    const penolakanEl = document.getElementById('catatanPenolakan');
+
                     tbody.innerHTML = '';
-        
-                    data.forEach(pesanan => {
+                    data.pesanan.forEach(pesanan => {
                         const row = `
-                            <tr>
-                                <td>${pesanan.nama_menu}</td>
-                                <td>${pesanan.jumlah}</td>
-                                <td>Rp ${new Intl.NumberFormat('id-ID').format(pesanan.harga)}</td>
-                            </tr>
-                        `;
+        <tr>
+            <td>${pesanan.nama_menu}</td>
+            <td>${pesanan.jumlah}</td>
+            <td>Rp ${new Intl.NumberFormat('id-ID').format(pesanan.harga)}</td>
+        </tr>
+    `;
                         tbody.innerHTML += row;
                     });
+
+                    lokasiEl.textContent = data.catatan_lokasi_pengantaran || '-';
+                    penolakanEl.textContent = data.catatan_penolakan || '-';
                 })
                 .catch(error => {
                     alert("Gagal memuat data pesanan.");
                     console.error(error);
                 });
         }
-        </script>        
+        document.addEventListener('DOMContentLoaded', () => {
+            const filterDate = document.getElementById('filter_date');
+            const startDate = document.getElementById('start_date');
+            const endDate = document.getElementById('end_date');
+
+            function toggleFilterDate() {
+                if (startDate.value || endDate.value) {
+                    filterDate.disabled = true;
+                } else {
+                    filterDate.disabled = false;
+                }
+            }
+
+            startDate.addEventListener('input', toggleFilterDate);
+            endDate.addEventListener('input', toggleFilterDate);
+            toggleFilterDate();
+        });
+    </script>
 </x-master-layout>
