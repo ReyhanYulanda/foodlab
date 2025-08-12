@@ -26,8 +26,8 @@
                                 <label for="status_pemesan" class="form-label visually-hidden">Status Pemesan</label>
                                 <select name="status_pemesan" id="status_pemesan" class="form-control">
                                     <option value="">Semua Status Pemesan</option>
-                                    <option value="antar"
-                                        {{ request('status_pemesan') == 'antar' ? 'selected' : '' }}>Pesan Antar
+                                    <option value="antar" {{ request('status_pemesan') == 'antar' ? 'selected' : '' }}>
+                                        Pesan Antar
                                     </option>
                                     <option value="sendiri"
                                         {{ request('status_pemesan') == 'sendiri' ? 'selected' : '' }}>Ambil Sendiri
@@ -125,6 +125,13 @@
                         <tbody id="tablePesananBody">
                         </tbody>
                     </table>
+
+                    <div class="mt-3">
+                        <strong>Catatan Lokasi Pengantaran:</strong>
+                        <p id="catatanLokasi"></p>
+                        <strong>Catatan Penolakan:</strong>
+                        <p id="catatanPenolakan"></p>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
