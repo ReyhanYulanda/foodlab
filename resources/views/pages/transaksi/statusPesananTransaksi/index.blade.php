@@ -9,7 +9,7 @@
                     <h4>Detail Transaksi</h4>
                 </div>
                 <div class="card-body">
-                    @if(session('success'))
+                    @if (session('success'))
                         <div class="alert alert-success">{{ session('success') }}</div>
                     @endif
 
@@ -18,27 +18,30 @@
                             <div class="col-md-3">
                                 <label for="search">Pencarian Umum:</label>
                                 <input type="text" name="search" class="form-control"
-                                    placeholder="ID, Pembeli, Tenant, Pengantar"
-                                    value="{{ request('search') }}">
+                                    placeholder="ID, Pembeli, Tenant, Pengantar" value="{{ request('search') }}">
                             </div>
                             <div class="col-md-2">
                                 <label for="filter_date">Tanggal:</label>
-                                <input type="date" id="filter_date" name="filter_date" class="form-control" value="{{ request('filter_date') }}">
+                                <input type="date" id="filter_date" name="filter_date" class="form-control"
+                                    value="{{ request('filter_date') }}">
                             </div>
                             <div class="col-md-2">
                                 <label for="start_date">Dari Tanggal:</label>
-                                <input type="date" id="start_date" name="start_date" class="form-control" value="{{ request('start_date') }}">
+                                <input type="date" id="start_date" name="start_date" class="form-control"
+                                    value="{{ request('start_date') }}">
                             </div>
                             <div class="col-md-2">
                                 <label for="end_date">Sampai Tanggal:</label>
-                                <input type="date" id="end_date" name="end_date" class="form-control" value="{{ request('end_date') }}">
+                                <input type="date" id="end_date" name="end_date" class="form-control"
+                                    value="{{ request('end_date') }}">
                             </div>
                             <div class="col-md-2">
                                 <label for="status">Status Transaksi:</label>
                                 <select name="status" id="status" class="form-control">
                                     <option value="">-- Semua --</option>
                                     @foreach (['pesanan_masuk', 'pesanan_ditolak', 'pesanan_diproses', 'siap_diantar', 'siap_diambil', 'diantar', 'selesai', 'refund_selesai'] as $status)
-                                        <option value="{{ $status }}" {{ request('status') == $status ? 'selected' : '' }}>
+                                        <option value="{{ $status }}"
+                                            {{ request('status') == $status ? 'selected' : '' }}>
                                             {{ ucfirst(str_replace('_', ' ', $status)) }}
                                         </option>
                                     @endforeach
@@ -49,8 +52,10 @@
                                 <label for="isAntar">Metode Pengantaran:</label>
                                 <select name="isAntar" id="isAntar" class="form-control">
                                     <option value="">-- Semua --</option>
-                                    <option value="1" {{ request('isAntar') == '1' ? 'selected' : '' }}>Pesan Antar</option>
-                                    <option value="0" {{ request('isAntar') == '0' ? 'selected' : '' }}>Ambil Sendiri</option>
+                                    <option value="1" {{ request('isAntar') == '1' ? 'selected' : '' }}>Pesan Antar
+                                    </option>
+                                    <option value="0" {{ request('isAntar') == '0' ? 'selected' : '' }}>Ambil
+                                        Sendiri</option>
                                 </select>
                             </div>
                             <div class="col-md-1">
@@ -78,19 +83,21 @@
                         <tbody>
                             @foreach ($statusTransaksi as $key)
                                 <tr>
-                                    <td>{{ ($statusTransaksi->currentPage() - 1) * $statusTransaksi->perPage() + $loop->iteration }}</td>
+                                    <td>{{ ($statusTransaksi->currentPage() - 1) * $statusTransaksi->perPage() + $loop->iteration }}
+                                    </td>
                                     <td>{{ $key->id }}</td>
                                     <td>{{ \Carbon\Carbon::parse($key->updated_at)->format('H:i:s d-m-Y') }}</td>
                                     <td>{{ $key->status }}</td>
                                     <td>{{ $key->nama_tenant ?? '-' }}</td>
-                                    <td>{{ $key->nama_pembeli ?? '-' }}</td> 
-                                    <td>{{ $key->driver->name ?? '-' }}</td> 
-                                    <td>{{ $key->getNamaRuanganAttribute ?? '-' }}</td>
+                                    <td>{{ $key->nama_pembeli ?? '-' }}</td>
+                                    <td>{{ $key->driver->name ?? '-' }}</td>
+                                    <td>{{ $key->ruangan->nama_ruangan ?? '-' }}</td>
                                     <td>
                                         {{ $key->isAntar == 1 ? 'Pesan Antar' : 'Ambil Sendiri' }}
                                     </td>
                                     <td>
-                                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#pesananModal" onclick="getPesanan({{ $key->id }})">
+                                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                                            data-bs-target="#pesananModal" onclick="getPesanan({{ $key->id }})">
                                             Lihat
                                         </button>
                                     </td>
@@ -101,9 +108,11 @@
                     <div class="d-flex justify-content-between align-items-center mt-3">
                         <div class="form-group mb-0 d-flex align-items-center">
                             <label for="perPage" class="mr-2 mb-0">Tampilkan:</label>
-                            <select class="form-control d-inline-block w-auto" id="perPage" onchange="window.location.href = this.value;">
+                            <select class="form-control d-inline-block w-auto" id="perPage"
+                                onchange="window.location.href = this.value;">
                                 @foreach ([10, 25, 50, 100] as $perPageOption)
-                                    <option value="{{ request()->fullUrlWithQuery(['per_page' => $perPageOption]) }}" {{ (request('per_page', 10) == $perPageOption) ? 'selected' : '' }}>
+                                    <option value="{{ request()->fullUrlWithQuery(['per_page' => $perPageOption]) }}"
+                                        {{ request('per_page', 10) == $perPageOption ? 'selected' : '' }}>
                                         {{ $perPageOption }}
                                     </option>
                                 @endforeach
@@ -116,12 +125,14 @@
                         </div>
                     </div>
                 </div>
-                <div class="modal fade" id="pesananModal" tabindex="-1" aria-labelledby="pesananModalLabel" aria-hidden="true">
+                <div class="modal fade" id="pesananModal" tabindex="-1" aria-labelledby="pesananModalLabel"
+                    aria-hidden="true">
                     <div class="modal-dialog modal-lg">
                         <div class="modal-content">
                             <div class="modal-header">
                                 <h5 class="modal-title">Detail Pesanan</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
                                 <table class="table table-bordered">
@@ -181,7 +192,7 @@
 
                         startDate.addEventListener('input', toggleFilterDate);
                         endDate.addEventListener('input', toggleFilterDate);
-                        toggleFilterDate(); 
+                        toggleFilterDate();
                     });
                 </script>
             </div>

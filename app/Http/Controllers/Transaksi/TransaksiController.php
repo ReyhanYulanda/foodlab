@@ -330,6 +330,10 @@ class TransaksiController extends Controller
                         "status" => 'success',
                         'messages' => "transaksi berhasil dibuat",
                         "order_id" => $transaksi->id,
+                        "data" => [
+                            'transaksi' => $transaksi,
+                            'tenant' => $tenant,
+                        ]
                     ], 201);
                 }
 
@@ -338,6 +342,10 @@ class TransaksiController extends Controller
                         "status" => 'success',
                         'messages' => "transaksi berhasil dibuat",
                         "order_id" => $transaksi->id,
+                        "data" => [
+                            'transaksi' => $transaksi,
+                            'tenant' => $tenant,
+                        ]
                     ], 201);
                 }
 
@@ -361,6 +369,10 @@ class TransaksiController extends Controller
                     "status" => 'success',
                     'messages' => "transaksi berhasil dibuat",
                     "order_id" => $transaksi->id,
+                    "data" => [
+                        'transaksi' => $transaksi,
+                        'tenant' => $tenant,
+                    ]
                 ], 201);
             } else {
                 DB::rollback();
