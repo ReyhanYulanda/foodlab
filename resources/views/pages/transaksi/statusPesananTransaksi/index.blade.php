@@ -146,6 +146,13 @@
                                     <tbody id="tablePesananBody">
                                     </tbody>
                                 </table>
+
+                                <div class="mt-3">
+                                    <strong>Catatan Lokasi Pengantaran:</strong>
+                                    <p id="catatanLokasi"></p>
+                                    <strong>Catatan Penolakan:</strong>
+                                    <p id="catatanPenolakan"></p>
+                                </div>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
@@ -159,18 +166,23 @@
                             .then(response => response.json())
                             .then(data => {
                                 const tbody = document.getElementById('tablePesananBody');
-                                tbody.innerHTML = '';
+                                const lokasiEl = document.getElementById('catatanLokasi');
+                                const penolakanEl = document.getElementById('catatanPenolakan');
 
-                                data.forEach(pesanan => {
+                                tbody.innerHTML = '';
+                                data.pesanan.forEach(pesanan => {
                                     const row = `
-                                        <tr>
-                                            <td>${pesanan.nama_menu}</td>
-                                            <td>${pesanan.jumlah}</td>
-                                            <td>Rp ${new Intl.NumberFormat('id-ID').format(pesanan.harga)}</td>
-                                        </tr>
-                                    `;
+                    <tr>
+                        <td>${pesanan.nama_menu}</td>
+                        <td>${pesanan.jumlah}</td>
+                        <td>Rp ${new Intl.NumberFormat('id-ID').format(pesanan.harga)}</td>
+                    </tr>
+                `;
                                     tbody.innerHTML += row;
                                 });
+
+                                lokasiEl.textContent = data.catatan_lokasi_pengantaran || '-';
+                                penolakanEl.textContent = data.catatan_penolakan || '-';
                             })
                             .catch(error => {
                                 alert("Gagal memuat data pesanan.");
