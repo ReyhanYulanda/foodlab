@@ -18,7 +18,7 @@ class StatusPesananTransaksiTenantController extends Controller
             'listTransaksiDetail.menus.tenants',
             'driver'
         ])
-            ->select('id', 'status', 'user_id', 'updated_at', 'driver_id', 'isAntar', 'ruangan')
+            ->select('id', 'status', 'user_id', 'updated_at', 'driver_id', 'isAntar', 'ruangan_id')
             ->when($request->start_date && $request->end_date, function ($query) use ($request) {
                 $query->whereBetween('updated_at', [$request->start_date, $request->end_date]);
             }, function ($query) use ($request) {
