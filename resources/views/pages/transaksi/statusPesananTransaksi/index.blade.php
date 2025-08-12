@@ -85,7 +85,7 @@
                                     <td>{{ $key->nama_tenant ?? '-' }}</td>
                                     <td>{{ $key->nama_pembeli ?? '-' }}</td> 
                                     <td>{{ $key->driver->name ?? '-' }}</td> 
-                                    <td>{{ $key->ruangan->nama_ruangan ?? '-' }}</td>
+                                    <td>{{ $key->getNamaRuanganAttribute ?? '-' }}</td>
                                     <td>
                                         {{ $key->isAntar == 1 ? 'Pesan Antar' : 'Ambil Sendiri' }}
                                     </td>
