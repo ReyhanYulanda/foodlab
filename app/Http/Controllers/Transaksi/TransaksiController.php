@@ -1089,14 +1089,6 @@ class TransaksiController extends Controller
             ], 403);
         }
 
-        // cek apakah sender_name dikirim dari front end, kalau tidak, return error
-        if (empty($request->input('sender_name'))) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Sender name tidak boleh kosong.'
-            ], 422);
-        }
-
 
         // Simpan pesan
         $chat = ChatMessage::create([
