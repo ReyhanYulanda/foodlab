@@ -1069,7 +1069,6 @@ class TransaksiController extends Controller
         $request->validate([
             'message' => 'required|string|max:1000',
             'chat_type' => 'required|in:tenant,driver',
-            'transaksi_id' => 'required|integer|exists:transaksi,id',
             // 'sender_name' => 'required|string|max:100',
         ]);
 
