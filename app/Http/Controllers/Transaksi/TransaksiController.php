@@ -1069,7 +1069,7 @@ class TransaksiController extends Controller
         $request->validate([
             'message' => 'required|string|max:1000',
             'chat_type' => 'required|in:tenant,driver',
-            'sender_name' => 'required|string|max:100',
+            // 'sender_name' => 'required|string|max:100',
         ]);
 
         $transaksi = Transaksi::findOrFail($transaksiId);
@@ -1104,7 +1104,7 @@ class TransaksiController extends Controller
             'sender_id' => Auth::id(),
             'message' => $request->input('message'),
             'chat_type' => $request->input('chat_type'), // tambahkan ini
-            'sender_name' => $request->input('sender_name'),
+            'sender_name' => Auth::user()->name, // gunakan nama user yang sedang login
         ]);
 
 
