@@ -1132,9 +1132,9 @@ class TransaksiController extends Controller
         // Kirim FCM
         if (!empty($receiverTokens)) {
             $firebases = new Firebases();
-            $firebases->withNotification('Pesan Baru' . $transaksiId, $request->input('message'))
+            $firebases->withNotification('Pesan Baru ' . $transaksiId, $request->input('message'))
                 ->withData([
-                    'title' => 'Pesan Baru' . $transaksiId,
+                    'title' => 'Pesan Baru ' . $transaksiId,
                     'body' => $request->input('message'),
                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                     'transaksi_id' => $transaksiId
