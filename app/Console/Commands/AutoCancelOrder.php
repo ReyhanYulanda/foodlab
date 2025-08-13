@@ -77,7 +77,7 @@ class AutoCancelOrder extends Command
                                     'body' => 'Pesanan #' . $transaksi->id . ' dibatalkan karena tidak direspons tepat waktu.',
                                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
                                 ])
-                                ->sendToTenant($fcmTenantTokens); // sekarang bisa array
+                                ->sendToFallback($fcmTenantTokens); // sekarang bisa array
                         }
                     }
                 }
