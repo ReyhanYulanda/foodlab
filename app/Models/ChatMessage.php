@@ -11,6 +11,11 @@ class ChatMessage extends Model
 
     protected $table = 'chat_messages';
 
+    protected $casts = [
+        'transaksi_id' => 'integer',
+        'sender_id' => 'integer',
+    ];
+
     protected $fillable = [
         'transaksi_id',
         'sender_id',
