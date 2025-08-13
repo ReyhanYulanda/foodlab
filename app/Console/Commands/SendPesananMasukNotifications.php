@@ -53,7 +53,7 @@ class SendPesananMasukNotifications extends Command
                 'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
             ])
             ->sendToTenant($tenantTokens);
-        $this->info('Notifikasi pesanan masuk terkirim ke tenant.');
+        $this->info('Notifikasi pesanan masuk terkirim ke ' . count($tenantTokens) . ' tenant(s).');
         Log::info('Notifikasi pesanan masuk terkirim pada ' . Carbon::now('Asia/Jakarta')->toDateTimeString());
     }
 }
