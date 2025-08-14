@@ -60,6 +60,40 @@ class TransaksiController extends Controller
         ]);
     }
 
+    public function orderUserById(Request $request, $id)
+    {
+        $user = $request->user();
+        $permission = $user->can('read order user');
+        $permission = true;
+
+        if (!$permission) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'tidak memiliki akses',
+            ], 403);
+        }
+
+        $transaksi = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user'])
+            ->where('id', $id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$transaksi) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Transaksi tidak ditemukan',
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'data berhasil didapatkan',
+            'data' => [
+                'transaksi' => $transaksi
+            ],
+        ]);
+    }
+
     public function getOnlineDriver(Request $request)
     {
         $user = $request->user();
