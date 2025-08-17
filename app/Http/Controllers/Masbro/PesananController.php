@@ -118,6 +118,16 @@ class PesananController extends Controller
                 }
 
                 if ($transaksi->driver_id === null) {
+                    $transaksiAktifDriver = Transaksi::where('driver_id', $user->id)
+                        ->whereIn('status', ['diantar', 'siap_diantar'])
+                        ->count();
+
+                    if ($transaksiAktifDriver >= 5) {
+                        return response()->json([
+                            "status" => "failed",
+                            "message" => "Kamu sudah mengambil 5 pesanan aktif, selesaikan dulu sebelum ambil pesanan baru"
+                        ], 400);
+                    }
                     $transaksi->driver_id = $user->id;
                 }
 
