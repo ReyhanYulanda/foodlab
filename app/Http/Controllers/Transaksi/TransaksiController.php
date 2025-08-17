@@ -220,6 +220,9 @@ class TransaksiController extends Controller
             'menus.*.id' => 'required|integer|exists:menus,id',
             'menus.*.jumlah' => 'required|integer|min:1|max:10',
             'catatan_lokasi_pengantaran' => 'nullable|string|max:255',
+        ], [
+            'menus.*.jumlah.min' => 'Jumlah menu minimal 1.',
+            'menus.*.jumlah.max' => 'Jumlah menu maksimal 10.',
         ]);
 
         if ($validatator->fails()) {
