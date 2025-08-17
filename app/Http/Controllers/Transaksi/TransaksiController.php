@@ -218,7 +218,7 @@ class TransaksiController extends Controller
             // 'status' => 'nullable',
             'menus' => 'required|array',
             'menus.*.id' => 'required|integer|exists:menus,id',
-            'menus.*.jumlah' => 'required|integer|min:1',
+            'menus.*.jumlah' => 'required|integer|min:1|max:10',
             'catatan_lokasi_pengantaran' => 'nullable|string|max:255',
         ]);
 
@@ -273,14 +273,6 @@ class TransaksiController extends Controller
                 'status' => 'failed',
                 'message' => 'Beberapa menu sedang tidak tersedia',
                 'data' => $menusNotReady
-            ], 400);
-        }
-
-        //Cek apakah user menus count > 10
-        if (count($request->menus) > 10) {
-            return response()->json([
-                'status' => 'failed',
-                'message' => 'Jumlah menu tidak boleh lebih dari 10'
             ], 400);
         }
 
