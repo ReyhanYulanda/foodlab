@@ -276,6 +276,14 @@ class TransaksiController extends Controller
             ], 400);
         }
 
+        //Cek apakah user menus count > 10
+        if (count($request->menus) > 10) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Jumlah menu tidak boleh lebih dari 10'
+            ], 400);
+        }
+
         DB::beginTransaction();
         try {
             $menu_id = $request->menus[0]['id'];
