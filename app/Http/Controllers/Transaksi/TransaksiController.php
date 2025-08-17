@@ -237,7 +237,7 @@ class TransaksiController extends Controller
             return response()->json([
                 'status' => 'failed',
                 'messages' => $validatator->errors()->all()
-            ]);
+            ], 400);
         }
 
         $menu_ids = collect($request->menus)->pluck('id')->toArray();
