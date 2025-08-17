@@ -50,11 +50,16 @@ class SaldoKoinController extends Controller
 
             if (!empty($fcmUserToken)) {
                 $firebases = new Firebases();
-                $firebases->withData([
-                    'title' => 'Top-up Berhasil',
-                    'body' => 'Saldo sebesar Rp ' . number_format($totalTopup, 0, ',', '.') . ' telah ditambahkan ke akun Anda.',
-                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
-                ])->sendToFallback($fcmUserToken);
+                $firebases
+                    ->withNotification(
+                        'Top-up Berhasil',
+                        'Saldo sebesar Rp ' . number_format($totalTopup, 0, ',', '.') . ' telah ditambahkan ke akun Anda.'
+                    )
+                    ->withData([
+                        'title' => 'Top-up Berhasil',
+                        'body' => 'Saldo sebesar Rp ' . number_format($totalTopup, 0, ',', '.') . ' telah ditambahkan ke akun Anda.',
+                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                    ])->sendToFallback($fcmUserToken);
             }
 
             TopUp::where('user_id', $userId)
