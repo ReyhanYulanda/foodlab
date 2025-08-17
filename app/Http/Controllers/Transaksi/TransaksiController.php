@@ -221,9 +221,17 @@ class TransaksiController extends Controller
             'menus.*.jumlah' => 'required|integer|min:1|max:10',
             'catatan_lokasi_pengantaran' => 'nullable|string|max:255',
         ], [
-            'menus.*.jumlah.min' => 'Jumlah menu minimal 1.',
-            'menus.*.jumlah.max' => 'Jumlah menu maksimal 10.',
+            'menus.*.jumlah.min' => 'Jumlah items minimal 1',
         ]);
+
+        $validatator->after(function ($validator) use ($request) {
+            if ($request->isAntar) {
+                $totalJumlah = collect($request->menus)->sum('jumlah');
+                if ($totalJumlah > 10) {
+                    $validator->errors()->add('menus', 'Jumlah menu pesan antar tidak boleh lebih dari 10');
+                }
+            }
+        });
 
         if ($validatator->fails()) {
             return response()->json([
