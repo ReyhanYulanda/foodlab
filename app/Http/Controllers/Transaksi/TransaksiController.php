@@ -220,9 +220,7 @@ class TransaksiController extends Controller
             'menus.*.id' => 'required|integer|exists:menus,id',
             'menus.*.jumlah' => 'required|integer|min:1|max:10',
             'catatan_lokasi_pengantaran' => 'nullable|string|max:255',
-        ], [
-            'menus.*.jumlah.min' => 'Jumlah items minimal 1',
-        ]);
+        ],);
 
         $validatator->after(function ($validator) use ($request) {
             if ($request->isAntar) {
@@ -236,7 +234,7 @@ class TransaksiController extends Controller
         if ($validatator->fails()) {
             return response()->json([
                 'status' => 'failed',
-                'messages' => $validatator->errors()->all()
+                'message' => $validatator->errors()->all()
             ], 400);
         }
 
