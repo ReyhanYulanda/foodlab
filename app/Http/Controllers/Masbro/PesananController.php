@@ -125,7 +125,7 @@ class PesananController extends Controller
                     if ($transaksiAktifDriver >= 5) {
                         return response()->json([
                             "status" => "failed",
-                            "message" => "Kamu sudah mengambil 5 pesanan aktif, selesaikan dulu sebelum ambil pesanan baru"
+                            "message" => "Maksimal 5 pesanan aktif. Selesaikan dulu pengantaran"
                         ], 400);
                     }
                     $transaksi->driver_id = $user->id;
