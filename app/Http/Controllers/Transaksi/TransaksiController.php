@@ -218,7 +218,7 @@ class TransaksiController extends Controller
             // 'status' => 'nullable',
             'menus' => 'required|array',
             'menus.*.id' => 'required|integer|exists:menus,id',
-            'menus.*.jumlah' => 'required|integer|min:1|max:10',
+            'menus.*.jumlah' => 'required|integer|min:1',
             'catatan_lokasi_pengantaran' => 'nullable|string|max:255',
         ],);
 
