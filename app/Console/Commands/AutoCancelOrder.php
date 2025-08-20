@@ -36,6 +36,7 @@ class AutoCancelOrder extends Command
 
 
                 $transaksi->status = 'pesanan_ditolak';
+                $transaksi->catatan_penolakan = 'Pesanan dibatalkan otomatis karena tidak direspons tenant dalam waktu ' . $timeout . ' menit.';
                 $transaksi->save();
 
                 if ($user && $user->fcm_token) {
