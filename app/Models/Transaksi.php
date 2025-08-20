@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class Transaksi extends Model
 {
@@ -115,6 +116,7 @@ class Transaksi extends Model
                 ChatMessage::where('transaksi_id', $transaksi->id)->delete();
             }
             if ($transaksi->status === 'refund_selesai') {
+                Log::info("Transaksi #{$transaksi->id} telah diupdate ke status refund_selesai.");
                 $tenantId = $transaksi->tenant_id;
 
                 $refundCount = Transaksi::where('tenant_id', $tenantId)
@@ -123,6 +125,7 @@ class Transaksi extends Model
                     ->count();
 
                 if ($refundCount >= 2) {
+                    Log::info("Tenant ID {$tenantId} sudah melakukan refund lebih dari 2 kali hari ini. Mengupdate is_busy.");
                     Tenants::where('id', $tenantId)->update([
                         'is_busy' => now(),
                     ]);
