@@ -109,28 +109,12 @@ class Transaksi extends Model
         $saldo->save();
     }
 
-    protected static function booted()
-    {
-        static::updated(function ($transaksi) {
-            if ($transaksi->status === 'selesai' && !$transaksi->trashed()) {
-                ChatMessage::where('transaksi_id', $transaksi->id)->delete();
-            }
-            if ($transaksi->status === 'refund_selesai') {
-                Log::info("Transaksi #{$transaksi->id} telah diupdate ke status refund_selesai.");
-                $tenantId = $transaksi->tenant_id;
-
-                $refundCount = Transaksi::where('tenant_id', $tenantId)
-                    ->where('status', 'refund_selesai')
-                    ->whereDate('updated_at', now()->toDateString())
-                    ->count();
-
-                if ($refundCount >= 2) {
-                    Log::info("Tenant ID {$tenantId} sudah melakukan refund lebih dari 2 kali hari ini. Mengupdate is_busy.");
-                    Tenants::where('id', $tenantId)->update([
-                        'is_busy' => now(),
-                    ]);
-                }
-            }
-        });
-    }
+    // protected static function booted()
+    // {
+    //     static::updated(function ($transaksi) {
+    //         if ($transaksi->status === 'selesai' && !$transaksi->trashed()) {
+    //             ChatMessage::where('transaksi_id', $transaksi->id)->delete();
+    //         }
+    //     });
+    // }
 }
