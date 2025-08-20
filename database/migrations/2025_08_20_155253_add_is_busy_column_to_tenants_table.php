@@ -14,7 +14,7 @@ class AddIsBusyColumnToTenantsTable extends Migration
     public function up()
     {
         Schema::table('tenants', function (Blueprint $table) {
-            $table->dateTime('is_busy')->nullable()->change();
+            $table->dateTime('is_busy')->nullable();
         });
     }
 
@@ -26,7 +26,7 @@ class AddIsBusyColumnToTenantsTable extends Migration
     public function down()
     {
         Schema::table('tenants', function (Blueprint $table) {
-            $table->dateTime('is_busy')->nullable(false)->change();
+            $table->dateTime('is_busy')->nullable(false);
         });
     }
 }
