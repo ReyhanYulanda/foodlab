@@ -19,12 +19,14 @@ class CheckTenantRefund extends Command
             ->where('updated_at', '>=', now()->subHour())
             ->pluck('tenant_id')
             ->unique();
+        Log::info('Cek tenant refund dimulai. Tenant yang refund dalam 1 jam terakhir: ' . $tenantIds->count());
 
         foreach ($tenantIds as $tenantId) {
             $refundCount = Transaksi::where('tenant_id', $tenantId)
                 ->where('status', 'refund_selesai')
                 ->where('updated_at', '>=', now()->subHour())
                 ->count();
+            Log::info("Tenant {$tenantId} memiliki {$refundCount} refund dalam 1 jam terakhir.");
 
             $tenant = Tenants::find($tenantId);
 
