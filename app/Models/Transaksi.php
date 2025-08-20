@@ -114,6 +114,20 @@ class Transaksi extends Model
             if ($transaksi->status === 'selesai' && !$transaksi->trashed()) {
                 ChatMessage::where('transaksi_id', $transaksi->id)->delete();
             }
+            if ($transaksi->status === 'refund_selesai') {
+                $tenantId = $transaksi->tenant_id;
+
+                $refundCount = Transaksi::where('tenant_id', $tenantId)
+                    ->where('status', 'refund_selesai')
+                    ->whereDate('updated_at', now()->toDateString())
+                    ->count();
+
+                if ($refundCount >= 2) {
+                    Tenants::where('id', $tenantId)->update([
+                        'is_busy' => now(),
+                    ]);
+                }
+            }
         });
     }
 }
