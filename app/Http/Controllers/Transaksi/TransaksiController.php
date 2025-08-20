@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Transaksi;
 
 use App\Helper\TransaksiCek;
 use App\Http\Controllers\Controller;
+use App\Jobs\CekMidtransTopupStatusJob;
 use App\Jobs\CekTopupStatusJob;
 use App\Models\ChatMessage;
 use App\Models\Tenants;
@@ -894,6 +895,8 @@ class TransaksiController extends Controller
             'tgl_akhir_tagihan' => $midtransData['expiry_time'] ?? null,
             'status_bayar' => $transactionStatus,
         ]);
+
+        CekMidtransTopupStatusJob::dispatch($topup)->delay(now()->addMinutes(5));
 
         return response()->json([
             'status' => 'success',
