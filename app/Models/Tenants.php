@@ -22,6 +22,7 @@ class Tenants extends Model
         'no_rekening_toko',
         'no_rekening_pribadi',
         'is_busy',
+        'busy_until',
     ];
 
     public $appends = ['gambar', 'range', 'transaksi_berhasil'];
