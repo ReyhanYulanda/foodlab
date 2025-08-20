@@ -37,6 +37,7 @@ class CheckTenantRefund extends Command
                         'is_busy' => now(),
                         'busy_until' => now()->addHour(), // expired setelah 1 jam
                     ]);
+                    $tenant->save();
                     Log::info("Tenant {$tenantId} sudah refund >= 2 kali dalam 1 jam. is_busy diset ke " . now() . " busy_until: " . now()->addHour());
                 }
             }
@@ -52,6 +53,7 @@ class CheckTenantRefund extends Command
                 'is_busy' => null,
                 'busy_until' => null,
             ]);
+            $tenant->save();
             Log::info("Tenant {$tenant->id} busy_until sudah lewat. Reset is_busy.");
         }
 
