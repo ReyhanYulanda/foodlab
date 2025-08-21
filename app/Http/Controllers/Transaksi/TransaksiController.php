@@ -95,13 +95,14 @@ class TransaksiController extends Controller
                 ],
             ]);
         } else {
+            $driver = $transaksi->driver()->select('id', 'name', 'image')->first();
             return response()->json([
                 'status' => 'success',
                 'message' => 'data berhasil didapatkan',
                 'data' => [
                     'transaksi'   => $transaksi,
-                    'nama_driver' => $transaksi->driver->name ?? null,
-                    'foto_driver' => $transaksi->driver->image ?? null,
+                    'nama_driver' => $driver->name ?? null,
+                    'foto_driver' => $driver->image ?? null,
                 ],
             ]);
         }
