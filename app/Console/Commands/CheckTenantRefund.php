@@ -20,7 +20,6 @@ class CheckTenantRefund extends Command
             ->where('updated_at', '>=', now()->subHour())
             ->pluck('tenant_id')
             ->unique();
-        Log::info('Cek tenant refund dimulai. Tenant yang refund dalam 1 jam terakhir: ' . $tenantIds->count());
 
         foreach ($tenantIds as $userId) {
             $refundCount = Transaksi::where('tenant_id', $userId)

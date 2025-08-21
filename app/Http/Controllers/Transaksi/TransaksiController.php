@@ -74,7 +74,7 @@ class TransaksiController extends Controller
             ], 403);
         }
 
-        $transaksi = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user'])
+        $transaksi = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user', 'driver'])
             ->where('id', $id)
             ->where('user_id', $user->id)
             ->first();
@@ -86,13 +86,25 @@ class TransaksiController extends Controller
             ], 404);
         }
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'data berhasil didapatkan',
-            'data' => [
-                'transaksi' => $transaksi
-            ],
-        ]);
+        if ($transaksi->driver_id == null) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'data berhasil didapatkan',
+                'data' => [
+                    'transaksi' => $transaksi
+                ],
+            ]);
+        } else {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'data berhasil didapatkan',
+                'data' => [
+                    'transaksi'   => $transaksi,
+                    'nama_driver' => $transaksi->driver->name ?? null,
+                    'foto_driver' => $transaksi->driver->image ?? null,
+                ],
+            ]);
+        }
     }
 
     public function getOnlineDriver(Request $request)
