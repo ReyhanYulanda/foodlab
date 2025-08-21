@@ -33,6 +33,7 @@ class Transaksi extends Model
     ];
 
     protected $appends = ['sub_total', 'gedung', 'nama_ruangan', 'nama_pembeli', 'nama_tenant', 'order_id', 'nama_driver', 'foto_driver'];
+    protected $hidden = ['driver'];
 
     protected function serializeDate(DateTimeInterface $date)
     {
