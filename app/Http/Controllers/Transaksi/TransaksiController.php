@@ -1124,7 +1124,7 @@ class TransaksiController extends Controller
         if ($transaksi->trashed()) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Transaksi sudah selesai, tidak bisa mengirim pesan.'
+                'message' => 'Sesi chat telah berakhir.'
             ], 400);
         }
 
@@ -1210,6 +1210,13 @@ class TransaksiController extends Controller
             ], 403);
         }
 
+        if ($transaksi->trashed()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Sesi chat telah berakhir.'
+            ], 400);
+        }
+
         return ChatMessage::where('transaksi_id', $transaksiId)
             ->where('chat_type', 'driver')
             ->orderBy('created_at', 'asc')
@@ -1224,6 +1231,13 @@ class TransaksiController extends Controller
                 'status' => 'error',
                 'message' => 'Anda tidak memiliki akses untuk melihat chat pada transaksi ini.'
             ], 403);
+        }
+
+        if ($transaksi->trashed()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Sesi chat telah berakhir.'
+            ], 400);
         }
 
         return ChatMessage::where('transaksi_id', $transaksiId)
