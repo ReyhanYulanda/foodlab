@@ -32,7 +32,7 @@ class Transaksi extends Model
         'catatan_penolakan',
     ];
 
-    protected $appends = ['sub_total', 'gedung', 'nama_ruangan', 'nama_pembeli', 'nama_tenant', 'order_id'];
+    protected $appends = ['sub_total', 'gedung', 'nama_ruangan', 'nama_pembeli', 'nama_tenant', 'order_id', 'nama_driver', 'foto_driver'];
 
     protected function serializeDate(DateTimeInterface $date)
     {
@@ -107,6 +107,16 @@ class Transaksi extends Model
         $saldo = SaldoKoin::firstOrCreate(['user_id' => $this->user_id]);
         $saldo->jumlah += $this->total;
         $saldo->save();
+    }
+
+    public function getNamaDriverAttribute()
+    {
+        return $this->driver ? $this->driver->name : null;
+    }
+
+    public function getFotoDriverAttribute()
+    {
+        return $this->driver ? $this->driver->image : null;
     }
 
     // protected static function booted()
