@@ -44,16 +44,16 @@ class CheckTenantRefund extends Command
         }
 
         // 2. Reset tenant yang busy tapi sudah expired
-        $expiredTenants = Tenants::whereNotNull('is_busy')
+        $expiredTenants = Tenants::whereNotNull('busy_until')
             ->where('busy_until', '<=', now())
             ->get();
-        Log::info('Cek tenant yang busy tapi sudah expired: ' . $expiredTenants->count());
+
         foreach ($expiredTenants as $tenant) {
+            Log::info("Tenant {$tenant->id} busy_until expired. Reset is_busy dan busy_until.");
             $tenant->update([
                 'is_busy' => null,
                 'busy_until' => null,
             ]);
-            Log::info("Tenant {$tenant->id} sudah expired. is_busy dan busy_until direset.");
         }
 
         Log::info('Cek tenant refund selesai.');
