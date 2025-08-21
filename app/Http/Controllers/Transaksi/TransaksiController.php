@@ -74,7 +74,7 @@ class TransaksiController extends Controller
             ], 403);
         }
 
-        $transaksi = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user', 'driver'])
+        $transaksi = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user'])
             ->where('id', $id)
             ->where('user_id', $user->id)
             ->first();
