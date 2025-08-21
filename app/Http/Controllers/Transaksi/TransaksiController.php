@@ -90,7 +90,7 @@ class TransaksiController extends Controller
             'status' => 'success',
             'message' => 'data berhasil didapatkan',
             'data' => [
-                'transaksi'   => $transaksi,
+                'transaksi' => $transaksi
             ],
         ]);
     }
