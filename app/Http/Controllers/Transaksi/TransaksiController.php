@@ -86,26 +86,13 @@ class TransaksiController extends Controller
             ], 404);
         }
 
-        if ($transaksi->driver_id == null) {
-            return response()->json([
-                'status' => 'success',
-                'message' => 'data berhasil didapatkan',
-                'data' => [
-                    'transaksi' => $transaksi
-                ],
-            ]);
-        } else {
-            $driver = $transaksi->driver()->select('id', 'name', 'image')->first();
-            return response()->json([
-                'status' => 'success',
-                'message' => 'data berhasil didapatkan',
-                'data' => [
-                    'transaksi'   => $transaksi,
-                    'nama_driver' => $driver->name ?? null,
-                    'foto_driver' => $driver->image ?? null,
-                ],
-            ]);
-        }
+        return response()->json([
+            'status' => 'success',
+            'message' => 'data berhasil didapatkan',
+            'data' => [
+                'transaksi'   => $transaksi,
+            ],
+        ]);
     }
 
     public function getOnlineDriver(Request $request)
