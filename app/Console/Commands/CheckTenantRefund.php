@@ -56,7 +56,7 @@ class CheckTenantRefund extends Command
             ]);
         }
 
-        Log::info('Cek tenant refund selesai.');
+        // Log::info('Cek tenant refund selesai.');
         return Command::SUCCESS;
     }
 }
