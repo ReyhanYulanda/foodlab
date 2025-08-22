@@ -39,14 +39,12 @@ class TransaksiTenantController extends Controller
             ->where('transaksi.status', 'selesai');
 
         if ($filterDate) {
-            $start = Carbon::parse($filterDate)->subDay()->setTime(18, 0, 0);
-            $end = Carbon::parse($filterDate)->setTime(17, 59, 59);
-
+            $start = Carbon::parse($filterDate)->subDay()->setTime(6, 0, 0);
+            $end   = Carbon::parse($filterDate)->setTime(5, 59, 59);
             $query->whereBetween('transaksi.updated_at', [$start, $end]);
         } elseif ($startDate && $endDate) {
-            $start = Carbon::parse($startDate)->subDay()->setTime(18, 0, 0);
-            $end = Carbon::parse($endDate)->setTime(17, 59, 59);
-
+            $start = Carbon::parse($startDate)->subDay()->setTime(6, 0, 0);
+            $end   = Carbon::parse($endDate)->setTime(5, 59, 59);
             $query->whereBetween('transaksi.updated_at', [$start, $end]);
         }
 
@@ -71,8 +69,8 @@ class TransaksiTenantController extends Controller
             ->where('status', 'selesai');
 
         if ($filterDate) {
-            $start = Carbon::parse($filterDate)->subDay()->setTime(18, 0, 0);
-            $end = Carbon::parse($filterDate)->setTime(17, 59, 59);
+            $start = Carbon::parse($filterDate)->subDay()->setTime(6, 0, 0);
+            $end   = Carbon::parse($filterDate)->setTime(5, 59, 59);
             $query->whereBetween('updated_at', [$start, $end]);
         }
 
@@ -143,12 +141,12 @@ class TransaksiTenantController extends Controller
             ->where('transaksi.status', 'selesai');
 
         if ($filterDate) {
-            $start = Carbon::parse($filterDate)->subDay()->setTime(18, 0, 0);
-            $end = Carbon::parse($filterDate)->setTime(17, 59, 59);
+            $start = Carbon::parse($filterDate)->subDay()->setTime(6, 0, 0);
+            $end   = Carbon::parse($filterDate)->setTime(5, 59, 59);
             $query->whereBetween('transaksi.updated_at', [$start, $end]);
         } elseif ($startDate && $endDate) {
-            $start = Carbon::parse($startDate)->subDay()->setTime(18, 0, 0);
-            $end = Carbon::parse($endDate)->setTime(17, 59, 59);
+            $start = Carbon::parse($startDate)->subDay()->setTime(6, 0, 0);
+            $end   = Carbon::parse($endDate)->setTime(5, 59, 59);
             $query->whereBetween('transaksi.updated_at', [$start, $end]);
         }
 
