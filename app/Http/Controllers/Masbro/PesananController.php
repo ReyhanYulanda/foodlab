@@ -150,7 +150,7 @@ class PesananController extends Controller
                         ->withNotification('Pesanan Sedang Diantar', "Pesanan {$transaksi->id} sedang diantar oleh driver. Mohon tunggu sebentar!")
                         ->withData([
                             'title' => 'Pesanan Sedang Diantar',
-                            'status' => "Pesanan {$transaksi->id} sedang diantar oleh driver. Mohon tunggu sebentar!",
+                            'body' => "Pesanan {$transaksi->id} sedang diantar oleh driver. Mohon tunggu sebentar!",
                             'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                         ])->sendToFallback($fcmUserToken);
                 }
