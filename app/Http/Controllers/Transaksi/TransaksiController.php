@@ -224,14 +224,14 @@ class TransaksiController extends Controller
             'catatan_lokasi_pengantaran' => 'nullable|string|max:255',
         ],);
 
-        $validatator->after(function ($validator) use ($request) {
-            if ($request->isAntar) {
-                $totalJumlah = collect($request->menus)->sum('jumlah');
-                if ($totalJumlah > 10) {
-                    $validator->errors()->add('menus', 'Jumlah menu pesan antar tidak boleh lebih dari 10');
-                }
-            }
-        });
+        // $validatator->after(function ($validator) use ($request) {
+        //     if ($request->isAntar) {
+        //         $totalJumlah = collect($request->menus)->sum('jumlah');
+        //         if ($totalJumlah > 10) {
+        //             $validator->errors()->add('menus', 'Jumlah menu pesan antar tidak boleh lebih dari 10');
+        //         }
+        //     }
+        // });
 
         if ($validatator->fails()) {
             return response()->json([
@@ -305,10 +305,13 @@ class TransaksiController extends Controller
             $status = @$request->status ?? ($request->metode_pembayaran == 'cod' || $request->metode_pembayaran == 'koin' ? "pesanan_masuk" : "pending");
 
             $totalHargaMenu = 0;
+            $totalJumlahMenu = 0;
+
             foreach ($request->menus as $menu) {
                 $menuModel = Menus::withTrashed()->find($menu['id']);
                 if ($menuModel) {
                     $totalHargaMenu += $menuModel->harga * $menu['jumlah'];
+                    $totalJumlahMenu += $menu['jumlah'];
                 }
             }
 
@@ -320,6 +323,9 @@ class TransaksiController extends Controller
 
                 if ($ruangan && $ruangan->gedung) {
                     $ongkosKirim = $ruangan->gedung->ongkir ?? 0;
+                }
+                if ($totalJumlahMenu > 10) {
+                    $ongkosKirim += ($totalJumlahMenu - 10) * 500;
                 }
             }
 
