@@ -88,4 +88,14 @@ class TenantService
 
         return 'Menu makanan berhasil dihapus';
     }
+
+    public function interuptBusy(Tenants $tenant): Tenants
+    {
+        $now = now();
+        $tenant->update([
+            'is_interupt' => $now,
+            'busy_until'  => $now->copy()->addMinutes(3),
+        ]);
+        return $tenant;
+    }
 }

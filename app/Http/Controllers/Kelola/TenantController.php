@@ -21,7 +21,7 @@ class TenantController extends Controller
 {
     protected $tenantService;
 
-    public function __construct(TenantService $tenantService) 
+    public function __construct(TenantService $tenantService)
     {
         $this->tenantService = $tenantService;
     }
@@ -53,7 +53,7 @@ class TenantController extends Controller
             'kategori_id' => 'required',
             'gambar' => 'nullable|mimes:png,jpg|max:2048',
         ]);
-    
+
         if ($validation) {
             return $validation;
         }
@@ -90,7 +90,7 @@ class TenantController extends Controller
             'kategori_id' => 'nullable',
             'isReady' => 'nullable'
         ]);
-    
+
         if ($validationError) {
             return $validationError;
         }
@@ -187,7 +187,7 @@ class TenantController extends Controller
         if (!$user->can('delete katalog')) {
             return ResponseApi::forbidden('tidak memiliki akses', 403);
         }
-        
+
         try {
             $menu = $this->tenantService->destroyMenu($id);
             return ResponseApi::success(null, $menu);
@@ -231,7 +231,7 @@ class TenantController extends Controller
             ->join('tenants', 'menus.tenant_id', '=', 'tenants.id')
             ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id')
             ->where('transaksi.status', 'selesai')
-            ->where('tenants.id', $tenantId); 
+            ->where('tenants.id', $tenantId);
 
         if ($filterDate) {
             $query->whereDate('transaksi.created_at', $filterDate);
@@ -244,6 +244,25 @@ class TenantController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => $transaksiTenant
+        ]);
+    }
+
+    public function interuptBusy(Request $request)
+    {
+        $user = Auth::user();
+        $tenant = $user->tenant;
+
+        if (!$tenant) {
+            return response()->json([
+                'message' => 'Tenant tidak ditemukan untuk user ini'
+            ], 404);
+        }
+
+        $tenant = $this->tenantService->interuptBusy($tenant);
+
+        return response()->json([
+            'message' => 'Tenant berhasil interupt busy',
+            'tenant'  => $tenant,
         ]);
     }
 }

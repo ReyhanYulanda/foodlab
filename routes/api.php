@@ -76,6 +76,7 @@ Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function 
         // PROFILE TENANT
         Route::get('/profile-tenant', [ProfileTenantController::class, 'show']);
         Route::post('/profile-tenant', [ProfileTenantController::class, 'update']);
+        Route::post('/interupt', [TenantController::class, 'interuptBusy']);
     });
 
     // MASBRO

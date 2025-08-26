@@ -11,41 +11,54 @@ use Illuminate\Support\Facades\Log;
 class CheckTenantRefund extends Command
 {
     protected $signature = 'tenants:check-refund';
-    protected $description = 'Cek tenant yang refund 2 kali dalam 1 jam terakhir, lalu set is_busy dan busy_until';
+    protected $description = 'Cek tenant yang refund 2 kali dalam 1 jam terakhir (atau sejak interupt), lalu set is_busy dan busy_until. Jika >=5x, user dimatikan.';
 
     public function handle()
     {
-        // 1. Cari tenant yang refund dalam 1 jam terakhir
+        // 1. Cari tenant yang refund otomatis dalam 1 jam terakhir
         $tenantIds = Transaksi::where('status', 'refund_selesai')
+            ->where('catatan_penolakan', 'like', '%otomatis%')
             ->where('updated_at', '>=', now()->subHour())
             ->pluck('tenant_id')
             ->unique();
 
         foreach ($tenantIds as $userId) {
-            $refundCount = Transaksi::where('tenant_id', $userId)
-                ->where('status', 'refund_selesai')
-                ->where('updated_at', '>=', now()->subHour())
-                ->where('catatan_penolakan', 'like', '%otomatis%')
-                ->count();
-
-            $user = User::find($userId);
+            $user   = User::find($userId);
             $tenant = $user ? $user->tenant : null;
 
-            Log::info("User {$userId} refund {$refundCount}x. Tenant: " . ($tenant ? $tenant->id : 'NULL'));
+            if (!$tenant) {
+                continue;
+            }
 
-            if ($tenant) {
-                if ($refundCount >= 2 && $tenant->is_busy === null) {
-                    $tenant->update([
-                        'is_busy' => now(),
-                        'busy_until' => now()->addHour(),
-                    ]);
-                    Log::info("Tenant {$tenant->id} sudah refund >= 2x. is_busy diset ke " . now() . " busy_until: " . now()->addHour());
-                }
-                if ($refundCount >= 5 && $tenant->is_busy !== null && $user->isOnline == 1) {
-                    $user->isOnline = 0;
-                    $user->save();
-                    Log::info("Tenant {$tenant->id} sudah refund >= 5x. User {$user->id} offline.");
-                }
+            // Hitung refundCount: kalau ada is_interupt, mulai hitung dari sana.
+            $refundQuery = Transaksi::where('tenant_id', $userId)
+                ->where('status', 'refund_selesai')
+                ->where('catatan_penolakan', 'like', '%otomatis%');
+
+            if ($tenant->is_interupt) {
+                $refundQuery->where('updated_at', '>=', $tenant->is_interupt);
+            } else {
+                $refundQuery->where('updated_at', '>=', now()->subHour());
+            }
+
+            $refundCount = $refundQuery->count();
+
+            Log::info("User {$userId} refund {$refundCount}x (otomatis). Tenant: {$tenant->id}");
+
+            // Jika refund >= 2 → warning (is_busy)
+            if ($refundCount >= 2 && $tenant->is_busy === null) {
+                $tenant->update([
+                    'is_busy'    => now(),
+                    'busy_until' => now()->addHour(),
+                ]);
+                Log::info("Tenant {$tenant->id} refund >= 2x. is_busy diset ke " . now() . " busy_until: " . now()->addHour());
+            }
+
+            // Jika refund >= 5 → paksa user offline
+            if ($refundCount >= 5 && $tenant->is_busy !== null && $user->isOnline == 1) {
+                $user->isOnline = 0;
+                $user->save();
+                Log::info("Tenant {$tenant->id} refund >= 5x. User {$user->id} dipaksa offline.");
             }
         }
 
@@ -57,12 +70,11 @@ class CheckTenantRefund extends Command
         foreach ($expiredTenants as $tenant) {
             Log::info("Tenant {$tenant->id} busy_until expired. Reset is_busy dan busy_until.");
             $tenant->update([
-                'is_busy' => null,
+                'is_busy'    => null,
                 'busy_until' => null,
             ]);
         }
 
-        // Log::info('Cek tenant refund selesai.');
         return Command::SUCCESS;
     }
 }
