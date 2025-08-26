@@ -15,11 +15,27 @@
                     <form action="{{ route('gedung.store') }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         <div class="row">
-                            <div class="col">
+                            <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="basicInput" class="form-label">Nama Gedung</label>
-                                    <input type="text" placeholder="Input Here" class="form-control" id="basicInput"
-                                        name="nama">
+                                    <label for="nama" class="form-label">Nama Gedung</label>
+                                    <input type="text" placeholder="Input Here"
+                                        class="form-control @error('nama') is-invalid @enderror" id="nama"
+                                        name="nama" value="{{ old('nama') }}">
+                                    @error('nama')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="ongkir" class="form-label">Ongkir</label>
+                                    <input type="number" min="0" placeholder="0"
+                                        class="form-control @error('ongkir') is-invalid @enderror" id="ongkir"
+                                        name="ongkir" value="{{ old('ongkir') }}">
+                                    @error('ongkir')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
                                 </div>
                             </div>
                         </div>

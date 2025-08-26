@@ -26,7 +26,7 @@ class GedungController extends Controller
 
     public function store(Request $request)
     {
-        $error = ValidationHelper::validate($request->all(), ['nama' => 'required']);
+        $error = ValidationHelper::validate($request->all(), ['nama' => 'required', 'ongkir' => 'required']);
         if ($error) return $error;
 
         $gedung = $this->gedungService->create($request->all());
@@ -38,17 +38,17 @@ class GedungController extends Controller
 
     public function show($id)
     {
-        try{
+        try {
             $gedung = $this->gedungService->findById($id);
             return ResponseApi::success(compact('gedung'), 'data berhasil diambil');
-        }catch(ModelNotFoundException $err){
+        } catch (ModelNotFoundException $err) {
             return ResponseApi::error('data tidak ditemukan');
         }
     }
 
     public function update(Request $request, $id)
     {
-        $error = ValidationHelper::validate($request->all(), ['nama' => 'required']);
+        $error = ValidationHelper::validate($request->all(), ['nama' => 'required', 'ongkir' => 'required']);
         if ($error) return $error;
 
         $gedung = $this->gedungService->update($id, $request->all());
@@ -61,9 +61,9 @@ class GedungController extends Controller
     public function destroy($id)
     {
         $gedung = $this->gedungService->delete($id);
-        if($gedung){
+        if ($gedung) {
             return ResponseApi::success(compact('gedung'), 'data berhasil dihapus');
-        }else{
+        } else {
             return ResponseApi::error('data gagal dihapus');
         }
     }

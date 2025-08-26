@@ -12,7 +12,7 @@ class GedungController extends Controller
     public function index(Request $request)
     {
         $this->authorize('read gedung');
-        $perPage = $request->input('per_page', 10); 
+        $perPage = $request->input('per_page', 10);
         $search = $request->input('search');
 
         $query = Gedung::query();
@@ -34,10 +34,12 @@ class GedungController extends Controller
     {
         $request->validate([
             'nama' => 'required',
+            'ongkir' => 'required',
         ]);
 
         Gedung::create([
             'nama' => $request->nama,
+            'ongkir' => $request->ongkir
         ]);
 
         return redirect()->route('gedung.index')->with(["status" => "success", 'message' => "Gedung berhasil ditambahkan"]);
@@ -53,10 +55,12 @@ class GedungController extends Controller
     {
         $request->validate([
             'nama' => 'required',
+            'ongkir' => 'required',
         ]);
 
         Gedung::find($id)->update([
             'nama' => $request->nama,
+            'ongkir' => $request->ongkir
         ]);
 
         return redirect()->route('gedung.index')->with(["status" => "success", 'message' => "Gedung berhasil diupdate"]);
