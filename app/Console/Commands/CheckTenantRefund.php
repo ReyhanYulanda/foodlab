@@ -25,6 +25,7 @@ class CheckTenantRefund extends Command
             $refundCount = Transaksi::where('tenant_id', $userId)
                 ->where('status', 'refund_selesai')
                 ->where('updated_at', '>=', now()->subHour())
+                ->where('catatan_penolakan', 'like', '%otomatis%')
                 ->count();
 
             $user = User::find($userId);
@@ -39,6 +40,11 @@ class CheckTenantRefund extends Command
                         'busy_until' => now()->addHour(),
                     ]);
                     Log::info("Tenant {$tenant->id} sudah refund >= 2x. is_busy diset ke " . now() . " busy_until: " . now()->addHour());
+                }
+                if ($refundCount >= 5 && $tenant->is_busy !== null && $user->isOnline == 1) {
+                    $user->isOnline = 0;
+                    $user->save();
+                    Log::info("Tenant {$tenant->id} sudah refund >= 5x. User {$user->id} offline.");
                 }
             }
         }
