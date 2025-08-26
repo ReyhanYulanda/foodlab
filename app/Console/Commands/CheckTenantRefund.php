@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use App\Models\Transaksi;
 use App\Models\Tenants;
 use App\Models\User;
+use App\Services\Firebases;
 use Illuminate\Support\Facades\Log;
 
 class CheckTenantRefund extends Command
@@ -15,6 +16,7 @@ class CheckTenantRefund extends Command
 
     public function handle()
     {
+        $firebases = new Firebases();
         // 1. Cari tenant yang refund otomatis dalam 1 jam terakhir
         $tenantIds = Transaksi::where('status', 'refund_selesai')
             ->where('catatan_penolakan', 'like', '%otomatis%')
@@ -52,6 +54,27 @@ class CheckTenantRefund extends Command
                     'busy_until' => now()->addHour(),
                 ]);
                 Log::info("Tenant {$tenant->id} refund >= 2x. is_busy diset ke " . now() . " busy_until: " . now()->addHour());
+                if ($tenant->pemilik) {
+                    $pemilikUser = User::with('fcmTokens')->find($tenant->pemilik->id);
+
+                    $fcmTenantTokens = $pemilikUser
+                        ? $pemilikUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray()
+                        : [];
+
+                    if (!empty($fcmTenantTokens)) {
+                        $firebases
+                            ->withNotification(
+                                'Tenant Sibuk',
+                                'Buka aplikasi agar tenant anda tidak sibuk.'
+                            )
+                            ->withData([
+                                'title' => 'Tenant Sibuk',
+                                'body'  => 'Buka aplikasi agar tenant anda tidak sibuk.',
+                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                            ])
+                            ->sendToTenant($fcmTenantTokens);
+                    }
+                }
             }
 
             // Jika refund >= 5 → paksa user offline
