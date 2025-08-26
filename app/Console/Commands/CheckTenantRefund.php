@@ -73,6 +73,7 @@ class CheckTenantRefund extends Command
                                 'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
                             ])
                             ->sendToTenant($fcmTenantTokens);
+                        Log::info("Tenant {$tenant->id} refund >= 2x. Notifikasi dikirim ke user_id {$pemilikUser->id}.");
                     }
                 }
             }
