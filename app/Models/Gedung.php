@@ -12,10 +12,12 @@ class Gedung extends Model
     protected $table = 'gedung';
 
     protected $fillable = [
-        'nama'
+        'nama',
+        'ongkir'
     ];
 
-    public function listRuangan(){
+    public function listRuangan()
+    {
         return $this->hasMany(Ruangan::class);
     }
 }

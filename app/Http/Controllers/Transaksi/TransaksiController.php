@@ -319,31 +319,15 @@ class TransaksiController extends Controller
                 $ruangan = Ruangan::with('gedung')->find($ruanganId);
 
                 if ($ruangan && $ruangan->gedung) {
-                    $gedungNama = $ruangan->gedung->nama;
-
-                    $mappingGedung = [
-                        'D3' => 'ongkos_kirim_d3',
-                        'D4' => 'ongkos_kirim_d4',
-                        'TC' => 'ongkos_kirim_tc',
-                        'PASCA' => 'ongkos_kirim_ps',
-                        'SAW' => 'ongkos_kirim_saw',
-                        'PPNS - Masjid' => 'ongkos_kirim_ppns_masjid',
-                        'PPNS - Gedung U' => 'ongkos_kirim_ppns_gedung_u',
-                        'PPNS - Gedung J' => 'ongkos_kirim_ppns_gedung_j',
-                        'PPNS - Gedung Dewaruci' => 'ongkos_kirim_ppns_gedung_dewaruci',
-                        'PPNS - Gedung T' => 'ongkos_kirim_ppns_gedung_t',
-                        'ITS - Gedung Despro Utama' => 'ongkos_kirim_its_gedung_despro',
-                        'ITS - Gedung Vokasi' => 'ongkos_kirim_its_gedung_vokasi',
-                    ];
-
-                    if (isset($mappingGedung[$gedungNama])) {
-                        $ongkosKirim = Pengaturan::where('nama', $mappingGedung[$gedungNama])->value('nilai') ?? 0;
-                    }
+                    $ongkosKirim = $ruangan->gedung->ongkir ?? 0;
                 }
             }
+
             $biayaLayanan = Pengaturan::where('nama', 'biaya_layanan')->value('nilai');
 
-            $totalFinal = $totalHargaMenu + ($request->isAntar ? $ongkosKirim : 0) + $biayaLayanan;
+            $totalFinal = $totalHargaMenu
+                + ($request->isAntar ? $ongkosKirim : 0)
+                + $biayaLayanan;
 
             if ($request->metode_pembayaran === 'koin') {
                 $saldo = SaldoKoin::where('user_id', $user->id)->first();
