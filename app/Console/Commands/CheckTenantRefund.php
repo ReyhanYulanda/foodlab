@@ -83,6 +83,28 @@ class CheckTenantRefund extends Command
                 $user->isOnline = 0;
                 $user->save();
                 Log::info("Tenant {$tenant->id} refund >= 5x. User {$user->id} dipaksa offline.");
+                if ($tenant->pemilik) {
+                    $pemilikUser = User::with('fcmTokens')->find($tenant->pemilik->id);
+
+                    $fcmTenantTokens = $pemilikUser
+                        ? $pemilikUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray()
+                        : [];
+
+                    if (!empty($fcmTenantTokens)) {
+                        $firebases
+                            ->withNotification(
+                                'Tenant Sibuk',
+                                'Buka aplikasi agar tenant anda tidak sibuk.'
+                            )
+                            ->withData([
+                                'title' => 'Tenant Sibuk',
+                                'body'  => 'Buka aplikasi agar tenant anda tidak sibuk.',
+                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                            ])
+                            ->sendToTenant($fcmTenantTokens);
+                        Log::info("Tenant {$tenant->id} refund >= 5x. Notifikasi dikirim ke user_id {$pemilikUser->id}. Tenant akan dipaksa offline.");
+                    }
+                }
             }
         }
 
