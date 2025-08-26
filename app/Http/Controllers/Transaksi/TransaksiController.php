@@ -324,8 +324,9 @@ class TransaksiController extends Controller
                 if ($ruangan && $ruangan->gedung) {
                     $ongkosKirim = $ruangan->gedung->ongkir ?? 0;
                 }
+                $biayaExtra = Pengaturan::where('nama', 'biaya_extra')->value('nilai') ?? 500;
                 if ($totalJumlahMenu > 10) {
-                    $ongkosKirim += ($totalJumlahMenu - 10) * 500;
+                    $ongkosKirim += ($totalJumlahMenu - 10) * $biayaExtra;
                 }
             }
 
