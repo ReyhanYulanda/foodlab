@@ -92,10 +92,29 @@ class TenantService
     public function interuptBusy(Tenants $tenant): Tenants
     {
         $now = now();
+
+        // Update interrupt + busy_until
         $tenant->update([
             'is_interupt' => $now,
             'busy_until'  => $now->copy()->addMinutes(3),
         ]);
+
+        // Cek user pemilik
+        if ($tenant->pemilik) {
+            $user = $tenant->pemilik;
+
+            // Validasi jam operasional
+            if (
+                $user->isOnline == 0
+                && $tenant->jam_buka
+                && $tenant->jam_tutup
+                && $now->between($tenant->jam_buka, $tenant->jam_tutup)
+            ) {
+
+                $user->update(['isOnline' => 1]);
+            }
+        }
+
         return $tenant;
     }
 }
