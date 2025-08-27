@@ -1266,4 +1266,28 @@ class TransaksiController extends Controller
             ->orderBy('created_at', 'asc')
             ->get();
     }
+
+    public function getLeaderboardDriver()
+    {
+        $leaderboard = Transaksi::where('status', 'selesai')
+            ->whereNotNull('driver_id')
+            ->select('driver_id', DB::raw('COUNT(*) as total_transaksi'))
+            ->groupBy('driver_id')
+            ->orderByDesc('total_transaksi')
+            ->get(); // pastikan get() dulu
+
+        $leaderboard = $leaderboard->map(function ($item) {
+            $driver = $item->driver()->first(); // akses relasi driver manual
+            return [
+                'nama_driver'     => $driver ? $driver->name : null,
+                'foto_driver'     => $driver ? $driver->image : null,
+                'total_transaksi' => $item->total_transaksi,
+            ];
+        });
+
+        return response()->json([
+            'status' => true,
+            'data'   => $leaderboard,
+        ]);
+    }
 }

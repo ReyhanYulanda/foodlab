@@ -33,6 +33,7 @@ Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function 
         ->middleware('transaksi.chat_protect');
     Route::get('/transaksi/{transaksiId}/chat/tenant-buyer', [TransaksiController::class, 'getMessageTenantToBuyer']);
     Route::get('/transaksi/{transaksiId}/chat/driver-buyer', [TransaksiController::class, 'getMessageDriverToBuyer']);
+    Route::get('/leaderboard/driver', [TransaksiController::class, 'getLeaderboardDriver']);
 
 
     Route::get('/auth', [UserController::class, 'index']);
