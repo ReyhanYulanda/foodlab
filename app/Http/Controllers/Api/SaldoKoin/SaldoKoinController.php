@@ -155,7 +155,7 @@ class SaldoKoinController extends Controller
             ]);
 
             return response()->json([
-                'message' => 'Transfer berhasil',
+                'message' => 'Transfer sebesar Rp ' . number_format($request->jumlah, 0, ',', '.') . ' berhasil',
                 'data'    => [
                     'sender'   => $senderSaldo->fresh(),
                     'receiver' => $receiverSaldo ? $receiverSaldo->fresh() : SaldoKoin::where('user_id', $request->receiver_id)->first()
