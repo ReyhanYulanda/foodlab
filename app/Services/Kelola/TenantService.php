@@ -91,6 +91,11 @@ class TenantService
 
     public function interuptBusy(Tenants $tenant): Tenants
     {
+
+        if ($tenant->busy_until == null) {
+            return $tenant;
+        }
+        
         $now = now();
 
         // Update interrupt + busy_until
