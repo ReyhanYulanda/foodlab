@@ -16,7 +16,7 @@
                             <label for="user_id" class="form-label">Pilih User</label>
                             <select name="user_id" class="form-control select2" required>
                                 <option value="">-- Pilih User --</option>
-                                @foreach($users as $user)
+                                @foreach ($users as $user)
                                     <option value="{{ $user->id }}">
                                         {{ $user->name }} - {{ $user->email }} (ID: {{ $user->id }})
                                     </option>
@@ -25,7 +25,7 @@
                         </div>
                         <div class="mb-3">
                             <label for="jumlah" class="form-label">Jumlah Saldo</label>
-                            <input type="number" name="jumlah" class="form-control" required min="0">
+                            <input type="text" id="jumlah" name="jumlah" class="form-control" required>
                         </div>
 
                         <button type="submit" class="btn btn-success">Simpan</button>
@@ -36,13 +36,30 @@
     </div>
 
     @push('js')
-    <script>
-        $(document).ready(function () {
-            $('.select2').select2({
-                placeholder: 'Cari nama atau email user...',
-                allowClear: true
+        <script>
+            $(document).ready(function() {
+                $('.select2').select2({
+                    placeholder: 'Cari nama atau email user...',
+                    allowClear: true
+                });
+
+                // format angka ribuan untuk input jumlah
+                const jumlahInput = document.getElementById('jumlah');
+
+                jumlahInput.addEventListener('input', function() {
+                    let value = this.value.replace(/\./g, ''); // hapus titik lama
+                    if (!isNaN(value) && value !== "") {
+                        this.value = new Intl.NumberFormat('id-ID').format(value);
+                    } else {
+                        this.value = "";
+                    }
+                });
+
+                // sebelum submit form, hapus titik biar value tetap angka murni
+                jumlahInput.form.addEventListener('submit', function() {
+                    jumlahInput.value = jumlahInput.value.replace(/\./g, '');
+                });
             });
-        });
-    </script>
+        </script>
     @endpush
 </x-master-layout>
