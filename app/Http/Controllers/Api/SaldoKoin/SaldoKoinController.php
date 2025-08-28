@@ -107,4 +107,56 @@ class SaldoKoinController extends Controller
             'transaksi' => $transaksi
         ]);
     }
+
+    public function transferCoin(Request $request)
+    {
+        $this->authorize('read transfer_coin');
+
+        $request->validate([
+            'sender_id'   => 'required|exists:users,id',
+            'receiver_id' => 'required|exists:users,id|different:sender_id',
+            'jumlah'      => 'required|integer|min:1',
+        ]);
+
+        return DB::transaction(function () use ($request) {
+            $sender   = SaldoKoin::where('user_id', $request->sender_id)->lockForUpdate()->first();
+            $receiver = SaldoKoin::where('user_id', $request->receiver_id)->lockForUpdate()->first();
+
+            if (!$sender || $sender->jumlah < $request->jumlah) {
+                return response()->json(['message' => 'Saldo pengirim tidak mencukupi'], 422);
+            }
+
+            // update saldo
+            $sender->decrement('jumlah', $request->jumlah);
+            $receiver ? $receiver->increment('jumlah', $request->jumlah)
+                : SaldoKoin::create([
+                    'user_id' => $request->receiver_id,
+                    'jumlah'  => $request->jumlah
+                ]);
+
+            // catat transaksi pengirim (keluar)
+            TransaksiSaldoKoin::create([
+                'user_id'   => $request->sender_id,
+                'jumlah'    => $request->jumlah,
+                'tipe'      => 'keluar',
+                'deskripsi' => 'Transfer koin ke user ID ' . $request->receiver_id
+            ]);
+
+            // catat transaksi penerima (masuk)
+            TransaksiSaldoKoin::create([
+                'user_id'   => $request->receiver_id,
+                'jumlah'    => $request->jumlah,
+                'tipe'      => 'masuk',
+                'deskripsi' => 'Menerima koin dari user ID ' . $request->sender_id
+            ]);
+
+            return response()->json([
+                'message' => 'Transfer berhasil',
+                'data'    => [
+                    'sender'   => $sender->fresh(),
+                    'receiver' => $receiver ? $receiver->fresh() : SaldoKoin::where('user_id', $request->receiver_id)->first()
+                ]
+            ]);
+        });
+    }
 }

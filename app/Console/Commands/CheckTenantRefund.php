@@ -119,6 +119,29 @@ class CheckTenantRefund extends Command
                 'is_busy'    => null,
                 'busy_until' => null,
             ]);
+
+            if ($tenant->pemilik) {
+                $pemilikUser = User::with('fcmTokens')->find($tenant->pemilik->id);
+
+                $fcmTenantTokens = $pemilikUser
+                    ? $pemilikUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray()
+                    : [];
+
+                if (!empty($fcmTenantTokens)) {
+                    $firebases
+                        ->withNotification(
+                            'Tenant sudah tidak sibuk',
+                            'Status sibuk akan terganti menjadi buka.'
+                        )
+                        ->withData([
+                            'title' => 'Tenant sudah tidak sibuk',
+                            'body'  => 'Status sibuk akan terganti menjadi buka.',
+                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                        ])
+                        ->sendToFallback($fcmTenantTokens);
+                    Log::info("Tenant {$tenant->id} busy_until expired. Notifikasi dikirim ke user_id {$pemilikUser->id}.");
+                }
+            }
         }
 
         return Command::SUCCESS;
