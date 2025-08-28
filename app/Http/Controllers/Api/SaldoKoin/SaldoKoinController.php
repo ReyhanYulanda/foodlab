@@ -119,16 +119,20 @@ class SaldoKoinController extends Controller
         ]);
 
         return DB::transaction(function () use ($request) {
-            $sender   = SaldoKoin::where('user_id', $request->sender_id)->lockForUpdate()->first();
-            $receiver = SaldoKoin::where('user_id', $request->receiver_id)->lockForUpdate()->first();
+            $senderSaldo   = SaldoKoin::where('user_id', $request->sender_id)->lockForUpdate()->first();
+            $receiverSaldo = SaldoKoin::where('user_id', $request->receiver_id)->lockForUpdate()->first();
 
-            if (!$sender || $sender->jumlah < $request->jumlah) {
+            if (!$senderSaldo || $senderSaldo->jumlah < $request->jumlah) {
                 return response()->json(['message' => 'Saldo pengirim tidak mencukupi'], 422);
             }
 
+            // ambil user detail
+            $senderUser   = User::find($request->sender_id);
+            $receiverUser = User::find($request->receiver_id);
+
             // update saldo
-            $sender->decrement('jumlah', $request->jumlah);
-            $receiver ? $receiver->increment('jumlah', $request->jumlah)
+            $senderSaldo->decrement('jumlah', $request->jumlah);
+            $receiverSaldo ? $receiverSaldo->increment('jumlah', $request->jumlah)
                 : SaldoKoin::create([
                     'user_id' => $request->receiver_id,
                     'jumlah'  => $request->jumlah
@@ -139,7 +143,7 @@ class SaldoKoinController extends Controller
                 'user_id'   => $request->sender_id,
                 'jumlah'    => $request->jumlah,
                 'tipe'      => 'keluar',
-                'deskripsi' => 'Transfer koin ke user ID ' . $request->receiver_id
+                'deskripsi' => 'Transfer koin ke ' . $receiverUser->name
             ]);
 
             // catat transaksi penerima (masuk)
@@ -147,14 +151,14 @@ class SaldoKoinController extends Controller
                 'user_id'   => $request->receiver_id,
                 'jumlah'    => $request->jumlah,
                 'tipe'      => 'masuk',
-                'deskripsi' => 'Menerima koin dari user ID ' . $request->sender_id
+                'deskripsi' => 'Menerima koin dari ' . $senderUser->name
             ]);
 
             return response()->json([
                 'message' => 'Transfer berhasil',
                 'data'    => [
-                    'sender'   => $sender->fresh(),
-                    'receiver' => $receiver ? $receiver->fresh() : SaldoKoin::where('user_id', $request->receiver_id)->first()
+                    'sender'   => $senderSaldo->fresh(),
+                    'receiver' => $receiverSaldo ? $receiverSaldo->fresh() : SaldoKoin::where('user_id', $request->receiver_id)->first()
                 ]
             ]);
         });
