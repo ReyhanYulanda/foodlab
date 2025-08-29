@@ -229,7 +229,7 @@ class TenantOrderService
                 'siap_diantar_driver'
             );
 
-            if ($transaksi->driver->isOnline = 0) {
+            if ($transaksi->driver && $transaksi->driver->isOnline == 0) {
                 $sendToOfflineDrivers(
                     'Ada Pesanan Siap Diantar Loh',
                     "Pesanan {$transaksi->id}. Yuk, nyalain status drivermu!",
