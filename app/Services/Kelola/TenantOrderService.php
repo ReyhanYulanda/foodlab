@@ -231,7 +231,7 @@ class TenantOrderService
 
             $sendToOfflineDrivers(
                 'Ada Pesanan Siap Diantar Loh',
-                "Pesanan {$transaksi->id}. Yuk, nyalain status drivermu!",
+                "Pesanan ke {$transaksi->id}. Yuk, nyalain status drivermu!",
                 'siap_diantar_driver'
             );
         }
