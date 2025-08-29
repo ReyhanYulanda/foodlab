@@ -1338,7 +1338,7 @@ class TransaksiController extends Controller
                 return response()->json(['message' => 'User tidak memiliki FCM token'], 404);
             }
 
-            $title = "Driver menghubungi anda";
+            $title = "📢 Driver menghubungi anda";
             $body  = "Driver bisa saja mengirim pesan atau memberi tahu bahwa ia sudah tiba di lokasi.";
 
             $firebase = new Firebases();
