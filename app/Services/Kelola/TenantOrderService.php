@@ -126,6 +126,7 @@ class TenantOrderService
             ->toArray();
 
         $masbroOfflineTokens = User::role('masbro')
+            ->where('isOnline', 1)
             ->with('fcmTokens')
             ->get()
             ->flatMap(fn($user) => $user->fcmTokens->pluck('fcm_token'))
@@ -228,13 +229,11 @@ class TenantOrderService
                 'siap_diantar_driver'
             );
 
-            if (optional($transaksi->driver)->isOnline === 0) {
-                $sendToOfflineDrivers(
-                    'Ada Pesanan Siap Diantar Loh',
-                    "Pesanan {$transaksi->id}. Yuk, nyalain status drivermu!",
-                    'siap_diantar_driver'
-                );
-            }
+            $sendToOfflineDrivers(
+                'Ada Pesanan Siap Diantar Loh',
+                "Pesanan {$transaksi->id}. Yuk, nyalain status drivermu!",
+                'siap_diantar_driver'
+            );
         }
 
         if ($transaksi->status === 'siap_diambil') {
