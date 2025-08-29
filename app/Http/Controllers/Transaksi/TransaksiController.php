@@ -26,6 +26,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -1318,6 +1319,16 @@ class TransaksiController extends Controller
             if ($transaksi->status == 'selesai') {
                 return response()->json(['message' => 'Transaksi sudah selesai'], 404);
             }
+
+            $cacheKey = "driver_ping:" . Auth::id() . ":transaksi:" . $transaksi->id;
+            if (Cache::has($cacheKey)) {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => 'Anda hanya bisa mengirim ping setiap 20 detik sekali.'
+                ], 429);
+            }
+            // Simpan ke cache dengan TTL 20 detik
+            Cache::put($cacheKey, true, now()->addSeconds(20));
 
             $userId = $transaksi->user_id;
 
