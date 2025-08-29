@@ -125,6 +125,16 @@ class TenantOrderService
             ->values()
             ->toArray();
 
+        $masbroOfflineTokens = User::role('masbro')
+            ->where('isOnline', 0)
+            ->with('fcmTokens')
+            ->get()
+            ->flatMap(fn($user) => $user->fcmTokens->pluck('fcm_token'))
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
+
         $user = User::find($transaksi->user_id);
 
         // Pastikan token user pembeli dalam bentuk array
@@ -182,6 +192,21 @@ class TenantOrderService
             }
         };
 
+
+        $sendToOfflineDrivers = function ($title, $body, $type) use ($firebases, $transaksi, $masbroOfflineTokens) {
+            if (!empty($masbroOfflineTokens)) {
+                $firebases->withNotification($title, $body)
+                    ->withData([
+                        'title' => $title,
+                        'body' => $body,
+                        'type' => $type,
+                        'transaksi_id' => $transaksi->id,
+                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                    ])
+                    ->sendToFallback($masbroOfflineTokens);
+            }
+        };
+
         // === LOGIKA NOTIFIKASI BERDASARKAN STATUS ===
         if ($transaksi->status === 'pesanan_diproses') {
             $sendToUser(
@@ -201,6 +226,12 @@ class TenantOrderService
             $sendToDrivers(
                 'Ada Pesanan Siap Diantar',
                 "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!",
+                'siap_diantar_driver'
+            );
+
+            $sendToOfflineDrivers(
+                'Ada Pesanan Siap Diantar Loh',
+                "Pesanan ke {$transaksi->id}. Yuk, nyalain status drivermu!",
                 'siap_diantar_driver'
             );
         }
