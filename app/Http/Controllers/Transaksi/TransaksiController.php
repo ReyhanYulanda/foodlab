@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\CekMidtransTopupStatusJob;
 use App\Jobs\CekTopupStatusJob;
 use App\Models\ChatMessage;
+use App\Models\FcmToken;
 use App\Models\Tenants;
 use App\Models\Transaksi;
 use App\Models\TransaksiDetail;
@@ -1289,5 +1290,67 @@ class TransaksiController extends Controller
             'status' => true,
             'data'   => $leaderboard,
         ]);
+    }
+
+    public function pushNotificationDriverToBuyer(Request $request, $transaksiId)
+    {
+        try {
+            $user = $request->user();
+            $permission = $user->can('create ping driver to buyer');
+
+            if (!$permission) {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => 'tidak memiliki akses',
+                ], 403);
+            }
+
+            $transaksi = Transaksi::findOrFail($transaksiId);
+
+            if (!$transaksi->user_id) {
+                return response()->json(['message' => 'Transaksi tidak memiliki user'], 404);
+            }
+
+            if (Auth::id() != $transaksi->user_id) {
+                return response()->json(['message' => 'Anda tidak memiliki akses pada transaksi ini.'], 403);
+            }
+
+            if ($transaksi->status == 'selesai') {
+                return response()->json(['message' => 'Transaksi sudah selesai'], 404);
+            }
+
+            $userId = $transaksi->user_id;
+
+            $tokens = FcmToken::where('user_id', $userId)->pluck('fcm_token')->toArray();
+
+            if (empty($tokens)) {
+                return response()->json(['message' => 'User tidak memiliki FCM token'], 404);
+            }
+
+            $title = "Tolong baca chat driver";
+            $body  = "Driver mengirimkan notifikasi untuk pesanan Anda.";
+
+            $firebase = new Firebases();
+            $firebase->withNotification($title, $body)
+                ->withNotification('Tolong baca chat driver', 'Driver mengirimkan notifikasi untuk pesanan Anda.')
+                ->withData([
+                    'title' => $title,
+                    'body' => $body,
+                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                ])
+                ->sendToDriver($tokens);
+
+            return response()->json([
+                'message' => 'Notifikasi berhasil dikirim ke pembeli',
+                'pembeli' => $userId,
+                'driver' => Auth::id()
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("pushNotificationDriverToBuyer Error: " . $e->getMessage());
+            return response()->json([
+                'message' => 'Gagal mengirim notifikasi',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
