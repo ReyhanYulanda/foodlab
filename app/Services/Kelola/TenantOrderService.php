@@ -126,7 +126,7 @@ class TenantOrderService
             ->toArray();
 
         $masbroOfflineTokens = User::role('masbro')
-            ->where('isOnline', 1)
+            ->where('isOnline', 0)
             ->with('fcmTokens')
             ->get()
             ->flatMap(fn($user) => $user->fcmTokens->pluck('fcm_token'))
