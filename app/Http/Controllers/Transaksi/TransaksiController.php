@@ -1312,7 +1312,7 @@ class TransaksiController extends Controller
                 return response()->json(['message' => 'Transaksi tidak memiliki user'], 404);
             }
 
-            if (Auth::id() != $transaksi->user_id) {
+            if (Auth::id() != $transaksi->driver_id) {
                 return response()->json(['message' => 'Anda tidak memiliki akses pada transaksi ini.'], 403);
             }
 
