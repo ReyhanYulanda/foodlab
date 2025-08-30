@@ -64,7 +64,6 @@ Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function 
             Route::post('/coin/tf/backdoor', [SaldoKoinController::class, 'transferCoin']);
         }
     );
-
     // TENANT
     Route::prefix('tenant')->middleware(['role:tenant'])->name('api.tenant.')->group(function () {
         // MENU
