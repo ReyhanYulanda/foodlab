@@ -141,7 +141,7 @@ class SaldoKoinController extends Controller
             // catat transaksi pengirim (keluar)
             TransaksiSaldoKoin::create([
                 'user_id'   => $request->sender_id,
-                'jumlah'    => $request->jumlah,
+                'jumlah'    => $request->jumlah * (-1),
                 'tipe'      => 'keluar',
                 'deskripsi' => 'Transfer koin ke ' . $receiverUser->name
             ]);
