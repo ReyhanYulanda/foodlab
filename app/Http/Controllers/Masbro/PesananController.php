@@ -125,14 +125,14 @@ class PesananController extends Controller
                     ], 403);
                 }
 
-                if ($transaksi->status === 'selesai' && $request->status === 'siap_diantar') {
+                if ($transaksi->status === 'selesai' && $request->status === 'siap_diantar' && !$user->can('admin cancel order')) {
                     return response()->json([
                         "status" => "forbidden",
                         "message" => "Pesanan sudah selesai"
                     ], 403);
                 }
 
-                if ($transaksi->status === 'diantar' && $request->status === 'siap_diantar') {
+                if ($transaksi->status === 'diantar' && $request->status === 'siap_diantar' && !$user->can('admin cancel order')) {
                     return response()->json([
                         "status" => "forbidden",
                         "message" => "Pesanan sudah diantar"
