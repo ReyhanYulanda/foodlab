@@ -104,12 +104,27 @@ class PesananController extends Controller
         }
         try {
             $transaksi = Transaksi::find($transaksiId);
+
             if (!$transaksi) {
                 return response()->json([
                     "status" => "Not Found",
                     "message" => "Transaksi tidak ditemukan"
                 ], 404);
             } else {
+                if ($transaksi->status === 'selesai' && $request->status === 'diantar') {
+                    return response()->json([
+                        "status" => "forbidden",
+                        "message" => "Pesanan sudah selesai"
+                    ], 403);
+                }
+
+                if ($transaksi->status === 'selesai' && $request->status === 'selesai') {
+                    return response()->json([
+                        "status" => "forbidden",
+                        "message" => "Pesanan sudah selesai"
+                    ], 403);
+                }
+
                 if ($transaksi->driver_id !== null && $transaksi->driver_id !== $user->id) {
                     return response()->json([
                         "status" => "forbidden",
