@@ -110,6 +110,48 @@ class PesananController extends Controller
                     "message" => "Transaksi tidak ditemukan"
                 ], 404);
             } else {
+                if ($transaksi->status === 'selesai' && $request->status === 'diantar') {
+                    return response()->json([
+                        "status" => "forbidden",
+                        "message" => "Pesanan sudah selesai"
+                    ], 403);
+                }
+
+                if ($transaksi->status === 'selesai' && $request->status === 'selesai') {
+                    return response()->json([
+                        "status" => "forbidden",
+                        "message" => "Pesanan sudah selesai"
+                    ], 403);
+                }
+
+                if ($transaksi->status === 'selesai' && $request->status === 'siap_diantar' && !$user->can('admin cancel order')) {
+                    return response()->json([
+                        "status" => "forbidden",
+                        "message" => "Pesanan sudah selesai"
+                    ], 403);
+                }
+
+                if ($transaksi->status === 'diantar' && $request->status === 'siap_diantar' && !$user->can('admin cancel order')) {
+                    return response()->json([
+                        "status" => "forbidden",
+                        "message" => "Pesanan sudah diantar"
+                    ], 403);
+                }
+
+                if ($transaksi->status === 'diantar' && $request->status === 'diantar') {
+                    return response()->json([
+                        "status" => "forbidden",
+                        "message" => "Pesanan sudah diantar"
+                    ], 403);
+                }
+
+                if ($transaksi->driver_id !== null && $transaksi->driver_id !== $user->id) {
+                    return response()->json([
+                        "status" => "forbidden",
+                        "message" => "Transaksi ini sudah memiliki driver"
+                    ], 403);
+                }
+
                 if ($transaksi->driver_id !== null && $transaksi->driver_id !== $user->id) {
                     return response()->json([
                         "status" => "forbidden",
