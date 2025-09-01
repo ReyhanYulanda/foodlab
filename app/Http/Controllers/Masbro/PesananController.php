@@ -139,6 +139,13 @@ class PesananController extends Controller
                     ], 403);
                 }
 
+                if ($transaksi->status === 'diantar' && $request->status === 'diantar') {
+                    return response()->json([
+                        "status" => "forbidden",
+                        "message" => "Pesanan sudah diantar"
+                    ], 403);
+                }
+
                 if ($transaksi->driver_id !== null && $transaksi->driver_id !== $user->id) {
                     return response()->json([
                         "status" => "forbidden",
