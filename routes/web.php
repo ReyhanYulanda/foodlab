@@ -85,6 +85,7 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
     Route::get('/transaksi_tenant/{id}', [TransaksiTenantController::class, 'detailTransaksiTenant'])->name('detail.transaksi.tenant');
     Route::get('/pesanan-transaksi/{id}', [TransaksiTenantController::class, 'getPesananByTransaksi']);
     Route::get('/export-transaksi-tenant', [TransaksiTenantController::class, 'exportCsv'])->name('export.transaksi.tenant');
+    Route::get('/export-transaksi-tenant-jasa', [TransaksiTenantController::class, 'exportCsvJasa'])->name('export.transaksi.tenant.jasa');
 
     Route::get('/transaksi_driver', [TransaksiDriverController::class, 'transaksiDriver'])->name('transaksi.driver');
     Route::get('/transaksi_driver/{id}', [TransaksiDriverController::class, 'detailTransaksiDriver'])->name('detail.transaksi.driver');

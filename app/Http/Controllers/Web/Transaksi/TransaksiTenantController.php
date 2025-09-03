@@ -252,4 +252,139 @@ class TransaksiTenantController extends Controller
             fclose($handle);
         }, 200, $headers);
     }
+
+    public function exportCsvJasa(Request $request)
+    {
+        $filterDate = $request->input('filter_date');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        $query = TransaksiDetail::selectRaw("
+        tenants.nama_tenant,
+    tenants.id,
+    tenants.no_rekening_toko,
+    SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_1,
+    SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_2,
+    (SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) - 
+     (0.1 * SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_1,
+    (SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) - 
+     (0.1 * SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_2
+    ")
+            ->join('menus', 'transaksi_detail.menu_id', '=', 'menus.id')
+            ->join('tenants', 'menus.tenant_id', '=', 'tenants.id')
+            ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id')
+            ->where('transaksi.status', 'selesai');
+
+        if ($filterDate) {
+            $start = Carbon::parse($filterDate)->subDay()->setTime(6, 0, 0);
+            $end   = Carbon::parse($filterDate)->setTime(5, 59, 59);
+            $query->whereBetween('transaksi.updated_at', [$start, $end]);
+        } elseif ($startDate && $endDate) {
+            $start = Carbon::parse($startDate)->subDay()->setTime(6, 0, 0);
+            $end   = Carbon::parse($endDate)->setTime(5, 59, 59);
+            $query->whereBetween('transaksi.updated_at', [$start, $end]);
+        }
+
+        $transaksiTenant = $query
+            ->groupBy('tenants.id', 'tenants.nama_tenant', 'tenants.no_rekening_toko')
+            ->get();
+
+        $fileName = "mandiri_transfer_" . date('YmdHis') . ".csv";
+        $handle = fopen('php://output', 'w');
+
+        $headers = [
+            "Content-type" => "text/csv",
+            "Content-Disposition" => "attachment; filename=$fileName",
+            "Pragma" => "no-cache",
+            "Expires" => "0"
+        ];
+
+        return response()->stream(function () use ($transaksiTenant, $handle) {
+            $rekeningSumber = '1400050000257';
+            $tanggal = now()->format('Ymd');
+            $skipTenants = ['Kedai Pak Agil', 'Test Tenant'];
+
+
+            $totalBaris = 0;
+            $totalAmount = 0;
+            $rows = [];
+
+            foreach ($transaksiTenant as $p) {
+                if (in_array($p->nama_tenant, $skipTenants)) {
+                    continue;
+                }
+
+                $namaTenant = str_replace(['"', ','], '', $p->nama_tenant);
+                $totalBersih = (0.1 * ($p->pendapatan_kotor_1 ?? 0)) + (0.1 * ($p->pendapatan_kotor_2 ?? 0));
+                $totalBaris++;
+                $totalAmount += $totalBersih;
+
+                $rows[] = [
+                    $p->no_rekening_toko ?? 'belum ada rekening',
+                    $namaTenant,
+                    '',
+                    '',
+                    '',
+                    'IDR',
+                    $totalBersih,
+                    '',
+                    '',
+                    'IBU',
+                    '',
+                    'MANDIRI',
+                    'Surabaya',
+                    '',
+                    '',
+                    '',
+                    'N',
+                    '',
+                    '',
+                    '',
+                    '',
+                    'Y',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    'OUR',
+                    '1',
+                    'E',
+                    '',
+                    '',
+                    '',
+                ];
+            }
+
+            // Write header row
+            fputcsv($handle, [
+                'P',
+                $tanggal,
+                $rekeningSumber,
+                $totalBaris,
+                $totalAmount
+            ]);
+
+            // Write all tenant rows
+            foreach ($rows as $row) {
+                $cleanedRow = array_map(function ($item) {
+                    return str_replace(['"', ','], '', $item); // bersihkan tanda kutip dan koma jika perlu
+                }, $row);
+                fwrite($handle, implode(',', $cleanedRow) . "\n");
+            }
+
+            fclose($handle);
+        }, 200, $headers);
+    }
 }
