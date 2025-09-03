@@ -40,7 +40,15 @@
                                     'filter_date' => request('filter_date'),
                                     'start_date' => request('start_date'),
                                     'end_date' => request('end_date')
-                                ]) }}" class="btn btn-success ms-2">Export CSV</a>
+                                ]) }}" class="btn btn-success ms-2">Export CSV 90%</a>
+                            </div>
+                            <div class="col-md-12 d-flex justify-content-start mt-3">
+                                <button type="submit" class="btn btn-primary">Cari</button>
+                                <a href="{{ route('export.transaksi.tenant.jasa', [
+                                    'filter_date' => request('filter_date'),
+                                    'start_date' => request('start_date'),
+                                    'end_date' => request('end_date')
+                                ]) }}" class="btn btn-success ms-2">Export CSV 10%</a>
                             </div>
                         </div>
                     </form>                    
