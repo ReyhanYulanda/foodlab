@@ -165,7 +165,7 @@ class TransaksiTenantController extends Controller
         ];
 
         return response()->stream(function () use ($transaksiTenant, $handle) {
-            $rekeningSumber = '1400050000257';
+            $rekeningSumber = '1400054005005';
             $tanggal = now()->format('Ymd');
             $skipTenants = ['Kedai Pak Agil', 'Test Tenant'];
 
