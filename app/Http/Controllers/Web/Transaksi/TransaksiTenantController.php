@@ -300,91 +300,79 @@ class TransaksiTenantController extends Controller
         ];
 
         return response()->stream(function () use ($transaksiTenant, $handle) {
-            $rekeningSumber = '1400050000257';
+            $rekeningSumber = '1400054005005'; // rekening sumber
             $tanggal = now()->format('Ymd');
             $skipTenants = ['Kedai Pak Agil', 'Test Tenant'];
-
-
-            $totalBaris = 0;
+        
             $totalAmount = 0;
-            $rows = [];
-
+        
             foreach ($transaksiTenant as $p) {
                 if (in_array($p->nama_tenant, $skipTenants)) {
                     continue;
                 }
-
-                $namaTenant = str_replace(['"', ','], '', $p->nama_tenant);
+        
                 $totalBersih = (0.1 * ($p->pendapatan_kotor_1 ?? 0)) + (0.1 * ($p->pendapatan_kotor_2 ?? 0));
-                $totalBaris++;
                 $totalAmount += $totalBersih;
-
-                $rows[] = [
-                    $p->no_rekening_toko ?? 'belum ada rekening',
-                    $namaTenant,
-                    '',
-                    '',
-                    '',
-                    'IDR',
-                    $totalBersih,
-                    '',
-                    '',
-                    'IBU',
-                    '',
-                    'MANDIRI',
-                    'Surabaya',
-                    '',
-                    '',
-                    '',
-                    'N',
-                    '',
-                    '',
-                    '',
-                    '',
-                    'Y',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    'OUR',
-                    '1',
-                    'E',
-                    '',
-                    '',
-                    '',
-                ];
             }
-
-            // Write header row
+        
             fputcsv($handle, [
                 'P',
                 $tanggal,
                 $rekeningSumber,
-                $totalBaris,
+                1, 
                 $totalAmount
             ]);
-
-            // Write all tenant rows
-            foreach ($rows as $row) {
-                $cleanedRow = array_map(function ($item) {
-                    return str_replace(['"', ','], '', $item); // bersihkan tanda kutip dan koma jika perlu
-                }, $row);
-                fwrite($handle, implode(',', $cleanedRow) . "\n");
-            }
-
+        
+            $row = [
+                '1400050000257', 
+                'ubisma',        
+                '',
+                '',
+                '',
+                'IDR',
+                $totalAmount,  
+                '',
+                '',
+                'IBU',
+                '',
+                'MANDIRI',
+                'Surabaya',
+                '',
+                '',
+                '',
+                'N',
+                '',
+                '',
+                '',
+                '',
+                'Y',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                'OUR',
+                '1',
+                'E',
+                '',
+                '',
+                '',
+            ];
+        
+            fwrite($handle, implode(',', $row) . "\n");
+        
             fclose($handle);
         }, 200, $headers);
-    }
+    }        
 }
