@@ -593,10 +593,10 @@ class TransaksiController extends Controller
             $userTransaksi = $transaksi->user;
             if ($userTransaksi && $userTransaksi->fcm_token) {
                 $firebases
-                    ->withNotification('Pesanan Dibatalkan', "Maaf, pesanan {$transaksi->id} dibatalkan oleh tenant.")
+                    ->withNotification('Pesanan Dibatalkan', "{$transaksi->catatan_penolakan}")
                     ->withData([
                         'title' => 'Pesanan Dibatalkan',
-                        'body' => "Maaf, pesanan {$transaksi->id} dibatalkan oleh tenant.",
+                        'body' => "{$transaksi->catatan_penolakan}",
                         'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
                     ])->sendToFallback($fcmUserToken);
             }
