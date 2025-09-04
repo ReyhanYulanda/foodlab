@@ -38,29 +38,29 @@ class TransaksiController extends Controller
     public function orderUser(Request $request)
     {
         $user = $request->user();
-        $permission = $user->can('read order user');
-        $permission = true;
 
-        if (!$permission) {
+        if (!$user->can('read order user')) {
             return response()->json([
                 'status' => 'failed',
                 'message' => 'tidak memiliki akses',
             ], 403);
         }
+
+        $perPage = $request->input('per_page', 10); // default 10
+        $page    = $request->input('page', 1);
+
         $transaksi = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user'])
             ->whereHas('listTransaksiDetail.menus.tenants', function ($tenant) use ($user) {
                 $tenant->where('user_id', '!=', $user->id);
             })
             ->where('user_id', $user->id)
             ->orderByDesc('created_at')
-            ->get();
+            ->paginate($perPage, ['*'], 'page', $page);
 
         return response()->json([
-            'status' => 'success',
+            'status'  => 'success',
             'message' => 'data berhasil didapatkan',
-            'data' => [
-                'transaksi' => $transaksi
-            ],
+            'data'    => $transaksi
         ]);
     }
 
