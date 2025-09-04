@@ -95,18 +95,24 @@ class SaldoKoinController extends Controller
         ]);
     }
 
-    public function riwayatTransaksi()
+    public function riwayatTransaksi(Request $request)
     {
         $this->authorize('read saldo_koin');
+
+        $perPage = $request->input('per_page', 10);
+        $page    = $request->input('page', 1);
+
         $transaksi = TransaksiSaldoKoin::where('user_id', Auth::id())
-            ->orderBy('created_at', 'desc')
-            ->get();
+            ->orderByDesc('created_at')
+            ->paginate($perPage, ['*'], 'page', $page);
 
         return response()->json([
-            'success' => true,
+            'success'   => true,
+            'message'   => 'data berhasil didapatkan',
             'transaksi' => $transaksi
         ]);
     }
+
 
     public function transferCoin(Request $request)
     {
