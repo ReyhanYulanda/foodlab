@@ -1364,4 +1364,97 @@ class TransaksiController extends Controller
             ], 500);
         }
     }
+
+    public function handleCallback(Request $request)
+    {
+        $serverKey = config('custom.midtrans_server_key');
+        $json = $request->all();
+
+        Log::info('Webhook Callback dari Midtrans:', $json);
+
+        // Validasi Signature
+        $orderId      = $json['order_id'] ?? null;
+        $statusCode   = $json['status_code'] ?? null;
+        $grossAmount  = $json['gross_amount'] ?? null;
+        $signatureKey = $json['signature_key'] ?? null;
+
+        if (!$orderId || !$statusCode || !$grossAmount || !$signatureKey) {
+            return response()->json(['message' => 'Invalid payload'], 400);
+        }
+
+        $mySignature = hash('sha512', $orderId . $statusCode . $grossAmount . $serverKey);
+        if ($signatureKey !== $mySignature) {
+            Log::warning('Invalid signature key dari Midtrans', $json);
+            return response()->json(['message' => 'Invalid signature'], 403);
+        }
+
+        // Cari transaksi topup
+        $transaction = TopUp::where('midtrans_request_id', $orderId)->first();
+        if (!$transaction) {
+            Log::error('Transaksi tidak ditemukan untuk order_id: ' . $orderId);
+            return response()->json(['message' => 'Transaction not found'], 404);
+        }
+
+        // Update status bayar
+        $transactionStatus = $json['transaction_status'] ?? 'unknown';
+
+        if (in_array($transactionStatus, ['capture', 'settlement'])) {
+            DB::transaction(function () use ($transaction) {
+                // Cek apakah sudah pernah ditransfer ke saldo (idempotent)
+                if ($transaction->isTf == 1) {
+                    Log::info("TopUp {$transaction->id} sudah diproses sebelumnya, skip.");
+                    return;
+                }
+
+                // Update status
+                $transaction->status_bayar = 'settlement';
+                $transaction->isTf = 1; // tandai sudah diproses
+                $transaction->save();
+
+                // Tambahkan saldo user
+                $saldo = SaldoKoin::firstOrCreate(
+                    ['user_id' => $transaction->user_id],
+                    ['jumlah' => 0]
+                );
+                $saldo->jumlah += $transaction->nominal;
+                $saldo->save();
+
+                // Catat transaksi saldo koin
+                $deskripsi = 'Top-up berhasil melalui QRIS';
+                TransaksiSaldoKoin::create([
+                    'user_id' => $transaction->user_id,
+                    'jumlah' => $transaction->nominal,
+                    'tipe' => 'masuk',
+                    'deskripsi' => $deskripsi
+                ]);
+
+                // Kirim notifikasi FCM (opsional)
+                $user = User::with('fcmTokens')->find($transaction->user_id);
+                $fcmUserToken = $user ? $user->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+
+                if (!empty($fcmUserToken)) {
+                    $firebases = new Firebases();
+                    $notifTitle = 'Top-up Berhasil';
+                    $notifBody = 'Saldo sebesar Rp ' . number_format($transaction->nominal, 0, ',', '.') . ' telah ditambahkan melalui QRIS.';
+                    $firebases
+                        ->withNotification($notifTitle, $notifBody)
+                        ->withData([
+                            'title' => $notifTitle,
+                            'body' => $notifBody,
+                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                        ])->sendToFallback($fcmUserToken);
+                }
+
+                Log::info("TopUp {$transaction->id} berhasil diproses & saldo ditambahkan.");
+            });
+        } elseif ($transactionStatus === 'pending') {
+            $transaction->update(['status_bayar' => 'pending']);
+        } elseif (in_array($transactionStatus, ['deny', 'cancel', 'expire'])) {
+            $transaction->update(['status_bayar' => 'failed']);
+        } else {
+            $transaction->update(['status_bayar' => 'unknown']);
+        }
+
+        return response()->json(['message' => 'OK'], 200);
+    }
 }
