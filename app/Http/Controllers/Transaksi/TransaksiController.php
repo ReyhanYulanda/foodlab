@@ -181,7 +181,7 @@ class TransaksiController extends Controller
     {
         $user = $request->user();
 
-        if (!$user->can('read order tenant')) {
+        if (!$user->can('read order masbro')) {
             return response()->json([
                 'status' => 'failed',
                 'message' => 'tidak memiliki akses',
