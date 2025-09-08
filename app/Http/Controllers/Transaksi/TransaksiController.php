@@ -130,34 +130,48 @@ class TransaksiController extends Controller
     public function orderTenant(Request $request)
     {
         $user = $request->user();
-        $permission = $user->can('read order tenant');
-        $permission = true;
 
-        if (!$permission) {
+        if (!$user->can('read order tenant')) {
             return response()->json([
                 'status' => 'failed',
                 'message' => 'tidak memiliki akses',
             ], 403);
         }
+
         try {
-            $tenant = Tenants::where("user_id", $request->user()->id)->first();
+            $tenant = Tenants::where("user_id", $user->id)->first();
+
+            if (!$tenant) {
+                return response()->json([
+                    "status" => "failed",
+                    "message" => "Tenant tidak ditemukan"
+                ], 404);
+            }
+
+            $perPage = $request->input('per_page', 10);
+            $page    = $request->input('page', 1);
+
             $transaksi = Transaksi::whereHas('listTransaksiDetail.menus', function ($menus) use ($tenant) {
                 return $menus->where('tenant_id', $tenant->id);
-            })->with(['listTransaksiDetail.menus.tenants' => function ($tenants) use ($tenant) {
-                $tenants->where('id', $tenant->id);
-            }, 'user'])->orderByDesc('created_at')->get();
+            })
+                ->with([
+                    'listTransaksiDetail.menus.tenants' => function ($tenants) use ($tenant) {
+                        $tenants->where('id', $tenant->id);
+                    },
+                    'user'
+                ])
+                ->orderByDesc('created_at')
+                ->paginate($perPage, ['*'], 'page', $page);
 
             return response()->json([
-                "status" => "success",
+                "status"  => "success",
                 "message" => "Berhasil mengambil data",
-                "data" => [
-                    "transaksi" => array_values($transaksi->toArray())
-                ]
+                "data"    => $transaksi
             ]);
         } catch (Throwable $th) {
             Log::error($th->getMessage());
             return response()->json([
-                "status" => "server error",
+                "status"  => "server error",
                 "message" => "terjadi kesalahan di server"
             ], 500);
         }
@@ -166,10 +180,8 @@ class TransaksiController extends Controller
     public function orderMasbro(Request $request)
     {
         $user = $request->user();
-        $permission = $user->can('read order tenant');
-        $permission = true; // Ini seharusnya tidak perlu jika permission dicek
 
-        if (!$permission) {
+        if (!$user->can('read order tenant')) {
             return response()->json([
                 'status' => 'failed',
                 'message' => 'tidak memiliki akses',
@@ -177,25 +189,25 @@ class TransaksiController extends Controller
         }
 
         try {
-            // Filter hanya transaksi dengan driver_id sesuai user yang login
+            $perPage = $request->input('per_page', 10);
+            $page    = $request->input('page', 1);
+
             $transaksi = Transaksi::where('isAntar', 1)
-                ->where('driver_id', $user->id) // Hanya transaksi milik driver yang login
+                ->where('driver_id', $user->id)
                 ->whereIn('status', ['siap_diantar', 'diantar', 'selesai'])
                 ->with(['listTransaksiDetail.menus.tenants', 'user'])
                 ->orderByDesc('created_at')
-                ->get();
+                ->paginate($perPage, ['*'], 'page', $page);
 
             return response()->json([
-                "status" => "success",
+                "status"  => "success",
                 "message" => "Berhasil mengambil data",
-                "data" => [
-                    "transaksi" => $transaksi
-                ]
+                "data"    => $transaksi
             ]);
         } catch (Throwable $th) {
             Log::error($th->getMessage());
             return response()->json([
-                "status" => "server error",
+                "status"  => "server error",
                 "message" => "terjadi kesalahan di server"
             ], 500);
         }
