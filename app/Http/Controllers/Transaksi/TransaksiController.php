@@ -1400,6 +1400,7 @@ class TransaksiController extends Controller
 
         if (in_array($transactionStatus, ['capture', 'settlement'])) {
             DB::transaction(function () use ($transaction) {
+                $transactionTime = $json['transaction_time'] ?? null;
                 // Cek apakah sudah pernah ditransfer ke saldo (idempotent)
                 if ($transaction->isTf == 1) {
                     Log::info("TopUp {$transaction->id} sudah diproses sebelumnya, skip.");
@@ -1409,6 +1410,7 @@ class TransaksiController extends Controller
                 // Update status
                 $transaction->status_bayar = 'settlement';
                 $transaction->isTf = 1; // tandai sudah diproses
+                $transaction->tgl_bayar = $transactionTime;
                 $transaction->save();
 
                 // Tambahkan saldo user
