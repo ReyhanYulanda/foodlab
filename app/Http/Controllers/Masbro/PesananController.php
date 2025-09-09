@@ -105,8 +105,15 @@ class PesananController extends Controller
         }
 
         if ($request->status === 'selesai') {
+            if (!$request->hasFile('bukti_pengantaran')) {
+                return response()->json([
+                    "status" => "Bad Request",
+                    "message" => ["bukti_pengantaran" => ["File harus diupload"]],
+                ], 400);
+            }
+
             $validatorImage = Validator::make($request->all(), [
-                'bukti_pengantaran' => 'required|image|mimes:jpeg,png,jpg|max:2048'
+                'bukti_pengantaran' => 'required|image|mimes:jpeg,png,jpg|max:2048',
             ]);
 
             if ($validatorImage->fails()) {
