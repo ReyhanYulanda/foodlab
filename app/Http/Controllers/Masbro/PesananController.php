@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
+use Intervention\Image\Facades\Image;
 
 class PesananController extends Controller
 {
@@ -102,6 +103,20 @@ class PesananController extends Controller
                 "message" => "Kamu harus online terlebih dahulu untuk ambil status pesanan"
             ], 403);
         }
+
+        if ($request->status === 'selesai') {
+            $validatorImage = Validator::make($request->all(), [
+                'bukti_pengantaran' => 'required|image|mimes:jpeg,png,jpg|max:2048'
+            ]);
+
+            if ($validatorImage->fails()) {
+                return response()->json([
+                    "status" => "Bad Request",
+                    "message" => $validatorImage->errors()
+                ], 400);
+            }
+        }
+
         try {
             $transaksi = Transaksi::find($transaksiId);
 
@@ -169,13 +184,29 @@ class PesananController extends Controller
 
                 $transaksi->status = $request->status;
                 $transaksi->driver_id = $user->id;
+
+                if ($request->status === 'selesai' && $request->hasFile('bukti_pengantaran')) {
+                    $image = $request->file('bukti_pengantaran');
+
+                    $filename = uniqid() . '.' . $image->getClientOriginalExtension();
+
+                    $path = storage_path('app/public/bukti_pengantaran/' . $filename);
+
+                    Image::make($image)
+                        ->resize(1080, null, function ($constraint) {
+                            $constraint->aspectRatio();
+                            $constraint->upsize();
+                        })
+                        ->save($path, 70);
+
+                    $transaksi->bukti_pengantaran = 'bukti_pengantaran/' . $filename;
+                }
+
                 $transaksi->save();
                 $status = str_replace('_', ' ', $transaksi->status);
 
                 $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
                 $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
-
-
 
 
                 if ($transaksi->metode_pembayaran != 'transfer') {

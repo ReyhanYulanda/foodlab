@@ -9,6 +9,7 @@
         "beyondcode/laravel-websockets": "^1.14",
         "fruitcake/laravel-cors": "^2.0",
         "guzzlehttp/guzzle": "^7.0.1",
+        "intervention/image": "^2.7",
         "kreait/laravel-firebase": "*",
         "laravel/breeze": "^1.10",
         "laravel/framework": "^8.75",
