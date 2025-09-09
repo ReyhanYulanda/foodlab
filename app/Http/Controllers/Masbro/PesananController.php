@@ -87,7 +87,7 @@ class PesananController extends Controller
         }
         $status = $request->query('status');
         $validator = Validator::make(
-            // ['status' => $status], // hanya validasi status dari query
+            ['status' => $status], // hanya validasi status dari query
             ['status' => 'required|in:diantar,selesai,siap_diantar']
         );
 
