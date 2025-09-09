@@ -85,12 +85,11 @@ class PesananController extends Controller
                 'message' => 'tidak memiliki akses',
             ], 403);
         }
-
-        $status = $request->query('status') ?? $request->input('status');
-        $request->merge(['status' => $status]);
-        $validator = Validator::make($request->all(), [
-            'status' => 'required|in:diantar,selesai,siap_diantar',
-        ]);
+        $status = $request->query('status');
+        $validator = Validator::make(
+            ['status' => $status], // hanya validasi status dari query
+            ['status' => 'required|in:diantar,selesai,siap_diantar']
+        );
 
         if ($validator->fails()) {
             return response()->json([
@@ -106,16 +105,9 @@ class PesananController extends Controller
             ], 403);
         }
 
-        if ($request->status === 'selesai') {
-            if (!$request->hasFile('bukti_pengantaran')) {
-                return response()->json([
-                    "status" => "Bad Request",
-                    "message" => ["bukti_pengantaran" => ["File harus diupload"]],
-                ], 400);
-            }
-
+        if ($status === 'selesai') {
             $validatorImage = Validator::make($request->all(), [
-                'bukti_pengantaran' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+                'bukti_pengantaran' => 'required|image|mimes:jpeg,png,jpg|max:2048'
             ]);
 
             if ($validatorImage->fails()) {
