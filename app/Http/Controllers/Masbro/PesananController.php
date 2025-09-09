@@ -85,11 +85,15 @@ class PesananController extends Controller
                 'message' => 'tidak memiliki akses',
             ], 403);
         }
-        $status = $request->query('status');
-        $validator = Validator::make(
-            ['status' => $status], // hanya validasi status dari query
-            ['status' => 'required|in:diantar,selesai,siap_diantar']
-        );
+        $status = $request->query('status') ?? $request->input('status');
+
+        // merge biar konsisten
+        $request->merge(['status' => $status]);
+
+        // validasi semua field
+        $validator = Validator::make($request->all(), [
+            'status' => 'required|in:diantar,selesai,siap_diantar',
+        ]);
 
         if ($validator->fails()) {
             return response()->json([
