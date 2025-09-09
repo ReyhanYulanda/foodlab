@@ -403,7 +403,10 @@ class TransaksiController extends Controller
                 }
 
                 if ($transaksi->metode_pembayaran === 'qris') {
-                    $orderId = 'foodlabs-' . Str::uuid()->toString();
+                    $uuidParts = explode('-', Str::uuid()->toString());
+                    $shortUuid = implode('-', array_slice($uuidParts, 0, 3));
+
+                    $orderId = 'foodlabs-' . $shortUuid . '-' . time();
 
                     $params = [
                         'transaction_details' => [
