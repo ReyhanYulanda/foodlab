@@ -105,17 +105,16 @@ class PesananController extends Controller
             ], 403);
         }
 
-        if ($status === 'selesai') {
-            $validatorImage = Validator::make($request->all(), [
-                'bukti_pengantaran' => 'required|image|mimes:jpeg,png,jpg|max:2048'
-            ]);
-
-            if ($validatorImage->fails()) {
-                return response()->json([
-                    "status" => "Bad Request",
-                    "message" => $validatorImage->errors()
-                ], 400);
-            }
+        if ($request->hasFile('bukti_pengantaran')) {
+            $file = $request->file('bukti_pengantaran');
+            $path = $file->store('bukti_pengantaran', 'public');
+        } else {
+            return response()->json([
+                "status" => "Bad Request",
+                "message" => [
+                    "bukti_pengantaran" => ["File tidak terbaca di server"]
+                ]
+            ], 400);
         }
 
         try {
