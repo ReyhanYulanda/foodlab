@@ -1474,6 +1474,19 @@ class TransaksiController extends Controller
                                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                                 ])->sendToTenant($fcmTenantToken);
                         }
+
+                        $user = User::with('fcmTokens')->find($transaksi->user_id);
+                        $fcmUserToken = $user ? $user->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                        if (!empty($fcmUserToken)) {
+                            $firebases = new Firebases();
+                            $firebases
+                                ->withNotification('Pembayaran Berhasil', 'Menghubungi tenant!')
+                                ->withData([
+                                    'title' => 'Pembayaran Berhasil',
+                                    'body' => 'Menghubungi tenant!',
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                ])->sendToFallback($fcmUserToken);
+                        }
                     }
                 } elseif ($transactionStatus === 'pending') {
                     $checkout->update(['status_bayar' => 'pending']);
