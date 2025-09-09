@@ -33,6 +33,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
+use Illuminate\Support\Str;
 
 class TransaksiController extends Controller
 {
@@ -402,8 +403,7 @@ class TransaksiController extends Controller
                 }
 
                 if ($transaksi->metode_pembayaran === 'qris') {
-                    // generate order_id unik
-                    $orderId = 'trx-' . uniqid();
+                    $orderId = 'foodlabs-' . Str::uuid()->toString();
 
                     $params = [
                         'transaction_details' => [
@@ -1470,7 +1470,7 @@ class TransaksiController extends Controller
                                 ->withNotification('Pesanan Masuk', 'Ada pesanan baru, segera proses!')
                                 ->withData([
                                     'title' => 'Pesanan Masuk',
-                                    'body' => 'Ada pesanan baru masuk melalui QRIS.',
+                                    'body' => 'Ada pesanan baru yang masuk! Silakan cek aplikasi untuk detailnya.',
                                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                                 ])->sendToTenant($fcmTenantToken);
                         }
