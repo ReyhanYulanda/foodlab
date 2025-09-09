@@ -105,16 +105,18 @@ class PesananController extends Controller
             ], 403);
         }
 
-        if ($request->hasFile('bukti_pengantaran')) {
-            $file = $request->file('bukti_pengantaran');
-            $path = $file->store('bukti_pengantaran', 'public');
-        } else {
-            return response()->json([
-                "status" => "Bad Request",
-                "message" => [
-                    "bukti_pengantaran" => ["File tidak terbaca di server"]
-                ]
-            ], 400);
+        if ($request->status === 'selesai') {
+            if ($request->hasFile('bukti_pengantaran')) {
+                $file = $request->file('bukti_pengantaran');
+                $path = $file->store('bukti_pengantaran', 'public');
+            } else {
+                return response()->json([
+                    "status" => "Bad Request",
+                    "message" => [
+                        "bukti_pengantaran" => ["File tidak terbaca di server"]
+                    ]
+                ], 400);
+            }
         }
 
         try {
