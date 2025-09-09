@@ -86,7 +86,8 @@ class PesananController extends Controller
             ], 403);
         }
 
-        $request->merge($request->query());
+        $status = $request->query('status') ?? $request->input('status');
+        $request->merge(['status' => $status]);
         $validator = Validator::make($request->all(), [
             'status' => 'required|in:diantar,selesai,siap_diantar',
         ]);
