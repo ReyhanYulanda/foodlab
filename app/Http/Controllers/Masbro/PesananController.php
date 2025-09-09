@@ -116,9 +116,7 @@ class PesananController extends Controller
             } else {
                 return response()->json([
                     "status" => "Bad Request",
-                    "message" => [
-                        "bukti_pengantaran" => ["File tidak terbaca di server"]
-                    ]
+                    "message" => "Upload bukti pengantaran"
                 ], 400);
             }
         }
