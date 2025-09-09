@@ -415,7 +415,10 @@ class TransaksiController extends Controller
                             'acquirer' => 'gopay'
                         ],
                     ];
-
+                    \Midtrans\Config::$serverKey = config('custom.midtrans_server_key');
+                    \Midtrans\Config::$isProduction = true;
+                    \Midtrans\Config::$isSanitized = true;
+                    \Midtrans\Config::$is3ds = true;
                     $snap = \Midtrans\CoreApi::charge($params);
 
                     Checkout::create([
