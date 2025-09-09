@@ -19,11 +19,9 @@ class Midtrans
     public function __construct()
     {
         $this->serverKey = config('custom.midtrans_server_key');
-        // $this->isProduction = config('midtrans.is_production');
         $this->isProduction = true;
-        $this->isSanitized = config('midtrans.is_sanitized');
-        $this->is3ds = config('midtrans.is_3ds');
-        $this->clientKey = config('custom.midtrans.client_key');
+        $this->isSanitized = true;
+        $this->is3ds = true;
 
         $this->__configureMidtrans();
     }
@@ -34,10 +32,11 @@ class Midtrans
         \Midtrans\Config::$isProduction = $this->isProduction;
         \Midtrans\Config::$isSanitized = $this->isSanitized;
         \Midtrans\Config::$is3ds = $this->is3ds;
-        \Midtrans\Config::$overrideNotifUrl = "http://masbro-canteen.me/api/order/callback";
+        \Midtrans\Config::$overrideNotifUrl = config('app.url') . "/api/midtrans/callback";
     }
 
-    public function notification(){
+    public function notification()
+    {
         return new \Midtrans\Notification();
     }
 
@@ -93,7 +92,8 @@ class Midtrans
         return $snapTransaksi;
     }
 
-    public function refundTransaction(Transaksi $transaksi){
+    public function refundTransaction(Transaksi $transaksi)
+    {
         $params = array(
             'refund_key' => "$transaksi->id-refund",
             'amount' => $transaksi->total,
@@ -103,26 +103,29 @@ class Midtrans
         return $refund;
     }
 
-    public function getDateNow(){
+    public function getDateNow()
+    {
         return date("Y-m-d");
     }
 
-    public function cancelTransaction($id){
-        try{
+    public function cancelTransaction($id)
+    {
+        try {
             $transaksi = Transaksi::find($id);
             $orderId = $this->createIdTransaction($transaksi);
 
             $canceled = \Midtrans\Transaction::cancel($orderId);
 
             return $canceled;
-        }catch(Throwable $th){
+        } catch (Throwable $th) {
             return false;
         }
     }
 
-    public function createIdTransaction($transaksi){
+    public function createIdTransaction($transaksi)
+    {
         $unixtimes = Carbon::createFromFormat('Y-m-d H:i:s', $transaksi->created_at)->timestamp;
         $id = $transaksi->id;
-        return $unixtimes."_".$id;
+        return $unixtimes . "_" . $id;
     }
 }

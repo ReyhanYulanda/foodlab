@@ -23,6 +23,7 @@ return [
     'midtrans_request_id_start' => env('MIDTRANS_REQUEST_ID_START', 4),
     'midtrans_server_key' => env('MIDTRANS_SERVER_KEY'),
     'midtrans_get_api_url' => env('MIDTRANS_GET_API_URL', 'https://api.midtrans.com/v2'),
+    'midtrans_client_key' => env('MIDTRANS_CLIENT_KEY', null), // optional
     // 'midtrans_get_api_url' => env('MIDTRANS_API_URL', 'https://api.midtrans.com/v2/status'),
 
 ];
