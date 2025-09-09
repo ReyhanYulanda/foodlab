@@ -120,12 +120,8 @@ class Transaksi extends Model
         return $this->driver ? $this->driver->image : null;
     }
 
-    // protected static function booted()
-    // {
-    //     static::updated(function ($transaksi) {
-    //         if ($transaksi->status === 'selesai' && !$transaksi->trashed()) {
-    //             ChatMessage::where('transaksi_id', $transaksi->id)->delete();
-    //         }
-    //     });
-    // }
+    public function checkout()
+    {
+        return $this->hasOne(Checkout::class, 'transaksi_id', 'id');
+    }
 }

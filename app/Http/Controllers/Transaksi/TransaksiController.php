@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\CekMidtransTopupStatusJob;
 use App\Jobs\CekTopupStatusJob;
 use App\Models\ChatMessage;
+use App\Models\Checkout;
 use App\Models\FcmToken;
 use App\Models\Tenants;
 use App\Models\Transaksi;
@@ -229,7 +230,7 @@ class TransaksiController extends Controller
         $validatator = Validator::make($request->all(), [
             'isAntar' => 'required|boolean',
             'ruangan_id' => 'required_if:isAntar,true',
-            'metode_pembayaran' => 'required|in:koin,cod',
+            'metode_pembayaran' => 'required|in:koin,cod,qris',
             'catatan' => 'nullable',
             // 'status' => 'nullable',
             'menus' => 'required|array',
@@ -237,15 +238,6 @@ class TransaksiController extends Controller
             'menus.*.jumlah' => 'required|integer|min:1',
             'catatan_lokasi_pengantaran' => 'nullable|string|max:255',
         ],);
-
-        // $validatator->after(function ($validator) use ($request) {
-        //     if ($request->isAntar) {
-        //         $totalJumlah = collect($request->menus)->sum('jumlah');
-        //         if ($totalJumlah > 10) {
-        //             $validator->errors()->add('menus', 'Jumlah menu pesan antar tidak boleh lebih dari 10');
-        //         }
-        //     }
-        // });
 
         if ($validatator->fails()) {
             return response()->json([
@@ -316,7 +308,11 @@ class TransaksiController extends Controller
                 Log::warning('User tenant tidak ditemukan berdasarkan menu_id', ['menu_id' => $menu_id]);
             }
 
-            $status = @$request->status ?? ($request->metode_pembayaran == 'cod' || $request->metode_pembayaran == 'koin' ? "pesanan_masuk" : "pending");
+            $status = @$request->status ?? (
+                $request->metode_pembayaran == 'cod' || $request->metode_pembayaran == 'koin'
+                ? "pesanan_masuk"
+                : "pending"
+            );
 
             $totalHargaMenu = 0;
             $totalJumlahMenu = 0;
@@ -362,8 +358,6 @@ class TransaksiController extends Controller
                 }
             }
 
-
-
             $ongkosKirimFix = $request->isAntar ? $ongkosKirim : 0;
 
             $transaksi = Transaksi::create([
@@ -393,16 +387,7 @@ class TransaksiController extends Controller
             if ($success) {
                 DB::commit();
 
-                if (!empty($fcmTenantToken)) {
-                    $firebases
-                        ->withNotification('Pesanan Masuk', 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!')
-                        ->withData([
-                            'title' => 'Pesanan Masuk',
-                            'body' => 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!',
-                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                        ])->sendToTenant($fcmTenantToken);
-                }
-                Log::info('Sending FCM to tenant', ['tokens' => $fcmTenantToken]);
+
 
                 if ($status == 'selesai') {
                     return response()->json([
@@ -412,6 +397,49 @@ class TransaksiController extends Controller
                         "data" => [
                             'transaksi' => $transaksi,
                             'tenant' => $tenant,
+                        ]
+                    ], 201);
+                }
+
+                if ($transaksi->metode_pembayaran === 'qris') {
+                    // generate order_id unik
+                    $orderId = 'trx-' . uniqid();
+
+                    $params = [
+                        'transaction_details' => [
+                            'order_id' => $orderId,
+                            'gross_amount' => $totalFinal,
+                        ],
+                        'payment_type' => 'qris',
+                        'qris' => [
+                            'acquirer' => 'gopay'
+                        ],
+                    ];
+
+                    $snap = \Midtrans\CoreApi::charge($params);
+
+                    Checkout::create([
+                        'user_id' => $user->id,
+                        'transaksi_id' => $transaksi->id,
+                        'nominal' => $totalFinal,
+                        'status_bayar' => 'pending',
+                        'midtrans_request_id' => $orderId,
+                        'kode_bayar' => $snap->actions[0]->url ?? null,
+                        'tgl_akhir_tagihan' => $snap->expiry_time ?? null,
+                    ]);
+
+                    return response()->json([
+                        "status" => 'success',
+                        'messages' => "transaksi berhasil dibuat, silakan lakukan pembayaran via QRIS",
+                        "order_id" => $transaksi->id,
+                        "data" => [
+                            'transaksi' => $transaksi,
+                            'tenant' => $tenant,
+                            'checkout' => [
+                                'order_id' => $orderId,
+                                'qr_url' => $snap->actions[0]->url ?? null,
+                                'expiry' => $snap->expiry_time ?? null,
+                            ]
                         ]
                     ], 201);
                 }
@@ -438,6 +466,17 @@ class TransaksiController extends Controller
                         'tipe' => 'keluar',
                         'deskripsi' => 'Pembayaran pesanan #' . $transaksi->id,
                     ]);
+
+                    if (!empty($fcmTenantToken)) {
+                        $firebases
+                            ->withNotification('Pesanan Masuk', 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!')
+                            ->withData([
+                                'title' => 'Pesanan Masuk',
+                                'body' => 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!',
+                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                            ])->sendToTenant($fcmTenantToken);
+                    }
+                    Log::info('Sending FCM to tenant', ['tokens' => $fcmTenantToken]);
                 }
 
                 $transaksi = Transaksi::with(['user', 'listTransaksiDetail.menus'])->where('id', $transaksi->id)->first();
@@ -1400,30 +1439,71 @@ class TransaksiController extends Controller
             return response()->json(['message' => 'Invalid signature'], 403);
         }
 
-        // Cari transaksi topup
+        $transactionStatus = $json['transaction_status'] ?? 'unknown';
+
+        // 🔎 Step 1: Cek dulu di Checkout (pesanan QRIS)
+        $checkout = Checkout::where('midtrans_request_id', $orderId)->first();
+
+        if ($checkout) {
+            DB::transaction(function () use ($checkout, $transactionStatus, $json) {
+                if (in_array($transactionStatus, ['capture', 'settlement'])) {
+                    $checkout->update([
+                        'status_bayar' => 'settlement',
+                        'tgl_bayar' => $json['settlement_time'] ?? now()
+                    ]);
+
+                    // Update Transaksi → pesanan_masuk
+                    $transaksi = Transaksi::find($checkout->transaksi_id);
+                    if ($transaksi && $transaksi->status === 'pending') {
+                        $transaksi->status = 'pesanan_masuk';
+                        $transaksi->save();
+
+                        // 🚀 Notifikasi ke tenant
+                        $tenantUser = User::with('fcmTokens')->find($transaksi->tenant_id);
+                        $fcmTenantToken = $tenantUser ? $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                        if (!empty($fcmTenantToken)) {
+                            $firebases = new Firebases();
+                            $firebases
+                                ->withNotification('Pesanan Masuk', 'Ada pesanan baru, segera proses!')
+                                ->withData([
+                                    'title' => 'Pesanan Masuk',
+                                    'body' => 'Ada pesanan baru masuk melalui QRIS.',
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                ])->sendToTenant($fcmTenantToken);
+                        }
+                    }
+                } elseif ($transactionStatus === 'pending') {
+                    $checkout->update(['status_bayar' => 'pending']);
+                } elseif (in_array($transactionStatus, ['deny', 'cancel', 'expire'])) {
+                    $checkout->update(['status_bayar' => 'failed']);
+                } else {
+                    $checkout->update(['status_bayar' => 'unknown']);
+                }
+            });
+            return response()->json(['message' => 'OK Checkout'], 200);
+        }
+
+        // 🔎 Step 2: Kalau bukan Checkout, cek di TopUp
         $transaction = TopUp::where('midtrans_request_id', $orderId)->first();
         if (!$transaction) {
             Log::error('Transaksi tidak ditemukan untuk order_id: ' . $orderId);
             return response()->json(['message' => 'Transaction not found'], 404);
         }
 
-        // Update status bayar
-        $transactionStatus = $json['transaction_status'] ?? 'unknown';
-
+        // === Logic TopUp (punya kamu sebelumnya, gak diubah) ===
         if (in_array($transactionStatus, ['capture', 'settlement'])) {
-            DB::transaction(function () use ($transaction) {
-                // Cek apakah sudah pernah ditransfer ke saldo (idempotent)
+            DB::transaction(function () use ($transaction, $json) {
+                $settlementTime = $json['settlement_time'] ?? now();
                 if ($transaction->isTf == 1) {
                     Log::info("TopUp {$transaction->id} sudah diproses sebelumnya, skip.");
                     return;
                 }
 
-                // Update status
                 $transaction->status_bayar = 'settlement';
-                $transaction->isTf = 1; // tandai sudah diproses
+                $transaction->isTf = 1;
+                $transaction->tgl_bayar = $settlementTime;
                 $transaction->save();
 
-                // Tambahkan saldo user
                 $saldo = SaldoKoin::firstOrCreate(
                     ['user_id' => $transaction->user_id],
                     ['jumlah' => 0]
@@ -1431,29 +1511,23 @@ class TransaksiController extends Controller
                 $saldo->jumlah += $transaction->nominal;
                 $saldo->save();
 
-                // Catat transaksi saldo koin
-                $deskripsi = 'Top-up berhasil melalui QRIS';
                 TransaksiSaldoKoin::create([
                     'user_id' => $transaction->user_id,
                     'jumlah' => $transaction->nominal,
                     'tipe' => 'masuk',
-                    'deskripsi' => $deskripsi
+                    'deskripsi' => 'Top-up berhasil melalui QRIS',
                 ]);
 
-                // Kirim notifikasi FCM (opsional)
                 $user = User::with('fcmTokens')->find($transaction->user_id);
                 $fcmUserToken = $user ? $user->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
-
                 if (!empty($fcmUserToken)) {
                     $firebases = new Firebases();
-                    $notifTitle = 'Top-up Berhasil';
-                    $notifBody = 'Saldo sebesar Rp ' . number_format($transaction->nominal, 0, ',', '.') . ' telah ditambahkan melalui QRIS.';
                     $firebases
-                        ->withNotification($notifTitle, $notifBody)
+                        ->withNotification('Top-up Berhasil', 'Saldo berhasil ditambahkan melalui QRIS.')
                         ->withData([
-                            'title' => $notifTitle,
-                            'body' => $notifBody,
-                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                            'title' => 'Top-up Berhasil',
+                            'body' => 'Saldo berhasil ditambahkan melalui QRIS.',
+                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                         ])->sendToFallback($fcmUserToken);
                 }
 
@@ -1466,7 +1540,6 @@ class TransaksiController extends Controller
         } else {
             $transaction->update(['status_bayar' => 'unknown']);
         }
-
-        return response()->json(['message' => 'OK'], 200);
+        return response()->json(['message' => 'OK TopUp'], 200);
     }
 }
