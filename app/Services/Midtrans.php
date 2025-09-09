@@ -32,7 +32,7 @@ class Midtrans
         \Midtrans\Config::$isProduction = $this->isProduction;
         \Midtrans\Config::$isSanitized = $this->isSanitized;
         \Midtrans\Config::$is3ds = $this->is3ds;
-        \Midtrans\Config::$overrideNotifUrl = config('app.url') . "/api/midtrans/callback";
+        \Midtrans\Config::$overrideNotifUrl = "staging.foodlabpens.com/api/midtrans/callback";
     }
 
     public function notification()
