@@ -88,7 +88,7 @@ Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function 
     // MASBRO
     Route::prefix('masbro')->middleware(['role:masbro'])->name('api.masbro.')->group(function () {
         Route::get('/order', [PesananController::class, 'index']);
-        Route::put('/order/{transaksiId}', [PesananController::class, 'update']);
+        Route::match(['put', 'post'], '/order/{transaksiId}', [PesananController::class, 'update']);
         Route::post('/ping-to-buyer/{transaksiId}', [TransaksiController::class, 'pushNotificationDriverToBuyer']);
     });
 
