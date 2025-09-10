@@ -431,7 +431,7 @@ class TransaksiController extends Controller
                         'transaksi_id' => $transaksi->id,
                         'nominal' => $totalFinal,
                         'biaya_midtrans' => $biaya['biaya_midtrans'],
-                        'biaya_ubisma' => $biaya['biaya_ubisma'],
+                        'biaya_ubisma' => $biaya['biaya_ubsima'],
                         'total_biaya_admin' => $biaya['total_biaya_admin'],
                         'total_bayar_user' => $biaya['total_bayar_user'],
                         'status_bayar' => 'pending',
