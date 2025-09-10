@@ -109,17 +109,17 @@ class PesananController extends Controller
             ], 403);
         }
 
-        if ($request->status === 'selesai') {
-            if ($request->hasFile('bukti_pengantaran')) {
-                $file = $request->file('bukti_pengantaran');
-                $path = $file->store('bukti_pengantaran', 'public');
-            } else {
-                return response()->json([
-                    "status" => "Bad Request",
-                    "message" => "Upload bukti pengantaran"
-                ], 400);
-            }
-        }
+        // if ($request->status === 'selesai') {
+        //     if ($request->hasFile('bukti_pengantaran')) {
+        //         $file = $request->file('bukti_pengantaran');
+        //         $path = $file->store('bukti_pengantaran', 'public');
+        //     } else {
+        //         return response()->json([
+        //             "status" => "Bad Request",
+        //             "message" => "Upload bukti pengantaran"
+        //         ], 400);
+        //     }
+        // }
 
         try {
             $transaksi = Transaksi::find($transaksiId);
@@ -189,9 +189,15 @@ class PesananController extends Controller
                 $transaksi->status = $request->status;
                 $transaksi->driver_id = $user->id;
 
-                if ($request->status === 'selesai' && $request->hasFile('bukti_pengantaran')) {
-                    $image = $request->file('bukti_pengantaran');
+                if ($request->status === 'selesai') {
+                    if (!$request->hasFile('bukti_pengantaran')) {
+                        return response()->json([
+                            "status" => "Bad Request",
+                            "message" => "Upload bukti pengantaran"
+                        ], 400);
+                    }
 
+                    $image = $request->file('bukti_pengantaran');
                     $filename = uniqid() . '.' . $image->getClientOriginalExtension();
 
                     $path = storage_path('app/public/bukti_pengantaran/' . $filename);
