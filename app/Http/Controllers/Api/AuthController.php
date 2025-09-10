@@ -22,6 +22,7 @@ use Silber\Bouncer\BouncerFacade;
 use Throwable;
 use Illuminate\Support\Str;
 use Google\Client as GoogleClient;
+use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
@@ -251,6 +252,48 @@ class AuthController extends Controller
         } catch (Throwable $th) {
             Log::error($th->getMessage());
             return ResponseApi::serverError();
+        }
+    }
+    public function handleGoogleCallback(Request $request)
+    {
+        try {
+            $googleUser = Socialite::driver('google')->user();
+
+            // cek user by google_id
+            $user = User::where('google_id', $googleUser->getId())->first();
+
+            if (!$user) {
+                $user = User::where('email', $googleUser->getEmail())->first();
+
+                if ($user) {
+                    $user->update([
+                        'google_id' => $googleUser->getId(),
+                        'image'     => $googleUser->getAvatar(),
+                    ]);
+                } else {
+                    $user = User::create([
+                        'name'              => $googleUser->getName(),
+                        'email'             => $googleUser->getEmail(),
+                        'google_id'         => $googleUser->getId(),
+                        'image'             => $googleUser->getAvatar(),
+                        'password'          => bcrypt(Str::random(16)),
+                        'email_verified_at' => now(), // auto verified karena Google sudah validasi email
+                    ]);
+                    $user->assignRole('user');
+                }
+            }
+
+            Auth::login($user);
+
+            // buat token Sanctum untuk API access (optional)
+            $permission = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+            $token = $user->createToken('secret', $permission)->plainTextToken;
+
+            // redirect ke frontend / dashboard dengan token
+            return redirect()->away("https://staging.foodlabpens.com/dashboard?token={$token}");
+        } catch (Throwable $th) {
+            Log::error('Google Login Error: ' . $th->getMessage());
+            return redirect()->route('login')->with('error', 'Login Google gagal, coba lagi.');
         }
     }
 }

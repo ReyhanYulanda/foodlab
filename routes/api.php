@@ -20,6 +20,7 @@ use App\Http\Controllers\Kelola\Tenant\ProfileTenantController;
 use App\Http\Controllers\SendNotificationController;
 use App\Http\Controllers\User\TransaksiUserController;
 use Illuminate\Support\Facades\Route;
+use Laravel\Socialite\Facades\Socialite;
 
 Route::post('menu/{id}', [KelolaTenantController::class, 'updateMenuWeb']);
 
@@ -102,6 +103,9 @@ Route::post('login', [AuthController::class, 'login']);
 Route::post('register', [AuthController::class, 'register']);
 Route::post('logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 Route::post('/auth/google', [AuthController::class, 'googleLogin']);
+Route::get('/auth/google/redirect', function () {
+    return Socialite::driver('google')->redirect();
+});
 
 Route::get('/pengaturan', [PengaturanController::class, 'index']);
 
