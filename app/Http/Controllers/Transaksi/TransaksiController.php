@@ -403,15 +403,17 @@ class TransaksiController extends Controller
                 }
 
                 if ($transaksi->metode_pembayaran === 'qris') {
+                    $biaya = $this->generateBiayaAdmin((int) $totalFinal);
                     $uuidParts = explode('-', Str::uuid()->toString());
                     $shortUuid = implode('-', array_slice($uuidParts, 0, 3));
+                    $qrisTotalFinal = $biaya['total_bayar_admin'] + $totalFinal;
 
                     $orderId = 'foodlabs-' . $shortUuid . '-' . time();
 
                     $params = [
                         'transaction_details' => [
                             'order_id' => $orderId,
-                            'gross_amount' => $totalFinal,
+                            'gross_amount' => $qrisTotalFinal,
                         ],
                         'payment_type' => 'qris',
                         'qris' => [
@@ -428,6 +430,10 @@ class TransaksiController extends Controller
                         'user_id' => $user->id,
                         'transaksi_id' => $transaksi->id,
                         'nominal' => $totalFinal,
+                        'biaya_midtrans' => $biaya['biaya_midtrans'],
+                        'biaya_ubisma' => $biaya['biaya_ubisma'],
+                        'total_biaya_admin' => $biaya['total_bayar_admin'],
+                        'total_biaya_user' => $qrisTotalFinal,
                         'status_bayar' => 'pending',
                         'midtrans_request_id' => $orderId,
                         'kode_bayar' => $snap->actions[0]->url ?? null,
@@ -440,11 +446,13 @@ class TransaksiController extends Controller
                         "order_id" => $transaksi->id,
                         "data" => [
                             'transaksi' => $transaksi,
+                            'biaya_admin' => $biaya,
                             'tenant' => $tenant,
                             'checkout' => [
                                 'order_id' => $orderId,
                                 'qr_url' => $snap->actions[0]->url ?? null,
                                 'expiry' => $snap->expiry_time ?? null,
+                                'total' => $qrisTotalFinal
                             ]
                         ]
                     ], 201);
