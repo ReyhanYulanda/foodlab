@@ -406,7 +406,7 @@ class TransaksiController extends Controller
                     $biaya = $this->generateBiayaAdmin((int) $totalFinal);
                     $uuidParts = explode('-', Str::uuid()->toString());
                     $shortUuid = implode('-', array_slice($uuidParts, 0, 3));
-                    $qrisTotalFinal = $biaya['total_bayar_admin'] + $totalFinal;
+                    $qrisTotalFinal = $biaya['total_biaya_admin'] + $totalFinal;
 
                     $orderId = 'foodlabs-' . $shortUuid . '-' . time();
 
@@ -432,8 +432,8 @@ class TransaksiController extends Controller
                         'nominal' => $totalFinal,
                         'biaya_midtrans' => $biaya['biaya_midtrans'],
                         'biaya_ubisma' => $biaya['biaya_ubisma'],
-                        'total_biaya_admin' => $biaya['total_bayar_admin'],
-                        'total_biaya_user' => $qrisTotalFinal,
+                        'total_biaya_admin' => $biaya['total_biaya_admin'],
+                        'total_bayar_user' => $biaya['total_bayar_user'],
                         'status_bayar' => 'pending',
                         'midtrans_request_id' => $orderId,
                         'kode_bayar' => $snap->actions[0]->url ?? null,
