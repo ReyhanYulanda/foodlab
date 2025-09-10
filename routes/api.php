@@ -101,6 +101,7 @@ Route::post('/order/callback', [TransaksiController::class, 'webHookMidtrans']);
 Route::post('login', [AuthController::class, 'login']);
 Route::post('register', [AuthController::class, 'register']);
 Route::post('logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+Route::post('/auth/google', [AuthController::class, 'googleLogin']);
 
 Route::get('/pengaturan', [PengaturanController::class, 'index']);
 

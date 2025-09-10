@@ -20,6 +20,8 @@ use Illuminate\Validation\Rules\Password;
 // use Silber\Bouncer\Bouncer;
 use Silber\Bouncer\BouncerFacade;
 use Throwable;
+use Illuminate\Support\Str;
+use Google\Client as GoogleClient;
 
 class AuthController extends Controller
 {
@@ -159,5 +161,96 @@ class AuthController extends Controller
         // Here you would typically send a password reset link to the user's email
         // For simplicity, we will just return a success message
         return ResponseApi::success(null, 'Link reset password telah dikirim ke email Anda');
+    }
+
+    public function googleLogin(Request $request)
+    {
+        $request->validate([
+            'id_token' => 'required|string',
+        ]);
+
+        $idToken = $request->input('id_token');
+
+        $client = new GoogleClient(['client_id' => env('GOOGLE_CLIENT_ID')]);
+        $payload = $client->verifyIdToken($idToken);
+
+        if (!$payload) {
+            return ResponseApi::error('Invalid Google token', 401);
+        }
+
+        $googleId     = $payload['sub'];
+        $googleEmail  = $payload['email'];
+        $googleName   = $payload['name'] ?? $googleEmail;
+        $googleAvatar = $payload['picture'] ?? null;
+
+        try {
+            $user = User::where('google_id', $googleId)->first();
+
+            if (!$user) {
+                $user = User::where('email', $googleEmail)->first();
+
+                if ($user) {
+                    $user->update([
+                        'google_id' => $googleId,
+                        'image'     => $googleAvatar,
+                    ]);
+                } else {
+                    $user = User::create([
+                        'name'      => $googleName,
+                        'email'     => $googleEmail,
+                        'google_id' => $googleId,
+                        'image'     => $googleAvatar,
+                        'password'  => bcrypt(Str::random(16)),
+                        'email_verified_at' => now(), // auto verified, karena dari Google
+                    ]);
+                    $user->assignRole('user'); // assign role user
+                }
+            }
+
+            Auth::login($user);
+
+            // ambil menu sesuai permission
+            $menu = Menu::whereHas('device', function ($device) {
+                return $device->where('device_id', 1);
+            })->orderby('urutan')->get();
+
+            $menu = $menu->filter(function ($mm) use ($user) {
+                if ($user->can('read ' . $mm->nama)) {
+                    return $mm;
+                }
+            })->values();
+
+            $permission = $user->getPermissionsViaRoles()->pluck('name')->toArray();
+
+            $token = $user->createToken('secret', $permission)->plainTextToken;
+
+            // update FCM kalau ada
+            if ($request->filled('fcm_token')) {
+                FcmToken::updateOrCreate(
+                    [
+                        'user_id'   => $user->id,
+                        'fcm_token' => $request->fcm_token,
+                    ],
+                    [
+                        'device_id' => $request->device_id ?? null,
+                    ]
+                );
+            }
+
+            $data = [
+                'nama'       => $user->name,
+                'email'      => $user->email,
+                'token'      => $token,
+                'token_type' => 'Bearer',
+                'role'       => $user->getRoleNames(),
+                'menu'       => $menu,
+                'permission' => $permission,
+            ];
+
+            return ResponseApi::success($data, 'Login dengan Google berhasil');
+        } catch (Throwable $th) {
+            Log::error($th->getMessage());
+            return ResponseApi::serverError();
+        }
     }
 }
