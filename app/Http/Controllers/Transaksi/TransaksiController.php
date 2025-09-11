@@ -440,10 +440,12 @@ class TransaksiController extends Controller
                         'tgl_akhir_tagihan' => $snap->expiry_time ?? null,
                     ]);
 
-                    $transaksi->order_id   = $orderId;
-                    $transaksi->qr_url     = $snap->actions[0]->url ?? null;
-                    $transaksi->expiry     = $snap->expiry_time ?? null;
-                    $transaksi->biaya_admin = $biaya['total_biaya_admin'];
+                    $extraQris = [
+                        'order_id_midtrans' => $orderId,
+                        'qr_url' => $snap->actions[0]->url ?? null,
+                        'expiry' => $snap->expiry_time ?? null,
+                        'biaya_admin' => $biaya['total_biaya_admin'],
+                    ];
                 }
 
                 if ($transaksi->metode_pembayaran == 'cod') {
@@ -492,12 +494,7 @@ class TransaksiController extends Controller
                     "data" => [
                         'transaksi' => array_merge(
                             $transaksi->toArray(),
-                            [
-                                'order_id_midtrans'   => $orderId, // override yang default
-                                'qr_url'     => $transaksi->qr_url,
-                                'expiry'     => $transaksi->expiry,
-                                'biaya_admin' => $transaksi->biaya_admin,
-                            ]
+                            $extraQris ?? []
                         ),
                         'tenant' => $tenant,
                     ]
