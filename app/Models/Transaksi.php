@@ -38,17 +38,17 @@ class Transaksi extends Model
 
     public function getQrUrlAttribute()
     {
-        return $this->attributes['qr_url'] ?? $this->extra['qr_url'] ?? null;
+        return $this->attributes['qr_url'] ?? null;
     }
 
     public function getExpiryAttribute()
     {
-        return $this->attributes['expiry'] ?? $this->extra['expiry'] ?? null;
+        return $this->attributes['expiry'] ?? null;
     }
 
     public function getBiayaAdminAttribute()
     {
-        return $this->attributes['biaya_admin'] ?? $this->extra['biaya_admin'] ?? null;
+        return $this->attributes['biaya_admin'] ?? null;
     }
 
     protected function serializeDate(DateTimeInterface $date)
