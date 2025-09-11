@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Http\Controllers\Transaksi\TransaksiController;
+use App\Models\Pengaturan;
 use App\Models\Transaksi;
 use App\Models\User;
 use App\Services\Firebases;
@@ -28,9 +29,16 @@ class SendPesananDiprosesNotifications extends Command
         foreach ($transaksis as $transaksi) {
             // Hitung sudah berapa menit sejak status terakhir diupdate
             $minutes = Carbon::parse($transaksi->updated_at)->diffInMinutes(Carbon::now());
+            $retries = Pengaturan::where('nama', 'retry_pesanan_diproses')->first();
+            //cast retries to int
+            $retry = (int) $retries->nilai;
+            
+            if ($retry <= 0) {
+                $retry = 15;
+            }
 
             // Kalau belum 15 menit, skip
-            if ($minutes < 15 || $minutes % 15 !== 0) {
+            if ($minutes < $retry || $minutes % $retry !== 0) {
                 continue;
             }
 
