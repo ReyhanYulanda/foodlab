@@ -36,6 +36,26 @@ class Transaksi extends Model
     protected $appends = ['sub_total', 'gedung', 'nama_ruangan', 'nama_pembeli', 'nama_tenant', 'order_id', 'nama_driver', 'foto_driver'];
     protected $hidden = ['driver'];
 
+    public function getQrUrlAttribute()
+    {
+        return $this->metode_pembayaran === 'qris'
+            ? ($this->attributes['qr_url'] ?? null)
+            : null;
+    }
+
+    public function getExpiryAttribute()
+    {
+        return $this->metode_pembayaran === 'qris'
+            ? ($this->attributes['expiry'] ?? null)
+            : null;
+    }
+
+    public function getBiayaAdminAttribute()
+    {
+        return $this->metode_pembayaran === 'qris'
+            ? ($this->attributes['biaya_admin'] ?? null)
+            : null;
+    }
     protected function serializeDate(DateTimeInterface $date)
     {
         return Carbon::instance($date)->setTimezone('Asia/Jakarta')->toIso8601String();

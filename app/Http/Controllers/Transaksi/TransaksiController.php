@@ -490,7 +490,15 @@ class TransaksiController extends Controller
                     'messages' => "transaksi berhasil dibuat" . ($transaksi->metode_pembayaran === 'qris' ? ', silakan lakukan pembayaran via QRIS' : ''),
                     "order_id" => $transaksi->id,
                     "data" => [
-                        'transaksi' => $transaksi,
+                        'transaksi' => array_merge(
+                            $transaksi->toArray(),
+                            [
+                                'order_id_midtrans'   => $orderId, // override yang default
+                                'qr_url'     => $transaksi->qr_url,
+                                'expiry'     => $transaksi->expiry,
+                                'biaya_admin' => $transaksi->biaya_admin,
+                            ]
+                        ),
                         'tenant' => $tenant,
                     ]
                 ], 201);
