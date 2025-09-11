@@ -402,10 +402,6 @@ class TransaksiController extends Controller
                     ], 201);
                 }
 
-                $checkoutData = [
-                    'order_id' => $transaksi->id,
-                ];
-
                 if ($transaksi->metode_pembayaran === 'qris') {
                     $biaya = $this->generateBiayaAdmin((int) $totalFinal);
                     $uuidParts = explode('-', Str::uuid()->toString());
@@ -444,12 +440,10 @@ class TransaksiController extends Controller
                         'tgl_akhir_tagihan' => $snap->expiry_time ?? null,
                     ]);
 
-                    $checkoutData = array_merge($checkoutData, [
-                        'order_id' => $orderId,
-                        'qr_url'   => $snap->actions[0]->url ?? null,
-                        'expiry'   => $snap->expiry_time ?? null,
-                        'total'    => $qrisTotalFinal,
-                    ]);
+                    $transaksi->order_id   = $orderId;
+                    $transaksi->qr_url     = $snap->actions[0]->url ?? null;
+                    $transaksi->expiry     = $snap->expiry_time ?? null;
+                    $transaksi->biaya_admin = $biaya['total_biaya_admin'];
                 }
 
                 if ($transaksi->metode_pembayaran == 'cod') {
@@ -498,7 +492,6 @@ class TransaksiController extends Controller
                     "data" => [
                         'transaksi' => $transaksi,
                         'tenant' => $tenant,
-                        'checkout' => $checkoutData
                     ]
                 ], 201);
             } else {
