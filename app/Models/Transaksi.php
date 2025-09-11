@@ -33,8 +33,23 @@ class Transaksi extends Model
         'bukti_pengantaran',
     ];
 
-    protected $appends = ['sub_total', 'gedung', 'nama_ruangan', 'nama_pembeli', 'nama_tenant', 'order_id', 'nama_driver', 'foto_driver'];
+    protected $appends = ['sub_total', 'gedung', 'nama_ruangan', 'nama_pembeli', 'nama_tenant', 'order_id', 'nama_driver', 'foto_driver', 'qr_url', 'expiry', 'total_qris'];
     protected $hidden = ['driver'];
+
+    public function getQrUrlAttribute()
+    {
+        return $this->attributes['qr_url'] ?? $this->extra['qr_url'] ?? null;
+    }
+
+    public function getExpiryAttribute()
+    {
+        return $this->attributes['expiry'] ?? $this->extra['expiry'] ?? null;
+    }
+
+    public function getBiayaAdminAttribute()
+    {
+        return $this->attributes['biaya_admin'] ?? $this->extra['biaya_admin'] ?? null;
+    }
 
     protected function serializeDate(DateTimeInterface $date)
     {
