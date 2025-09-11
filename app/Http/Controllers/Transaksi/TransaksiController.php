@@ -402,6 +402,10 @@ class TransaksiController extends Controller
                     ], 201);
                 }
 
+                $checkoutData = [
+                    'order_id' => $transaksi->id,
+                ];
+
                 if ($transaksi->metode_pembayaran === 'qris') {
                     $biaya = $this->generateBiayaAdmin((int) $totalFinal);
                     $uuidParts = explode('-', Str::uuid()->toString());
@@ -440,22 +444,12 @@ class TransaksiController extends Controller
                         'tgl_akhir_tagihan' => $snap->expiry_time ?? null,
                     ]);
 
-                    return response()->json([
-                        "status" => 'success',
-                        'messages' => "transaksi berhasil dibuat, silakan lakukan pembayaran via QRIS",
-                        "order_id" => $transaksi->id,
-                        "data" => [
-                            'transaksi' => $transaksi,
-                            'biaya_admin' => $biaya,
-                            'tenant' => $tenant,
-                            'checkout' => [
-                                'order_id' => $orderId,
-                                'qr_url' => $snap->actions[0]->url ?? null,
-                                'expiry' => $snap->expiry_time ?? null,
-                                'total' => $qrisTotalFinal
-                            ]
-                        ]
-                    ], 201);
+                    $checkoutData = array_merge($checkoutData, [
+                        'order_id' => $orderId,
+                        'qr_url'   => $snap->actions[0]->url ?? null,
+                        'expiry'   => $snap->expiry_time ?? null,
+                        'total'    => $qrisTotalFinal,
+                    ]);
                 }
 
                 if ($transaksi->metode_pembayaran == 'cod') {
@@ -499,11 +493,12 @@ class TransaksiController extends Controller
 
                 return response()->json([
                     "status" => 'success',
-                    'messages' => "transaksi berhasil dibuat",
+                    'messages' => "transaksi berhasil dibuat" . ($transaksi->metode_pembayaran === 'qris' ? ', silakan lakukan pembayaran via QRIS' : ''),
                     "order_id" => $transaksi->id,
                     "data" => [
                         'transaksi' => $transaksi,
                         'tenant' => $tenant,
+                        'checkout' => $checkoutData
                     ]
                 ], 201);
             } else {
