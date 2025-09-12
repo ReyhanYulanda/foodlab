@@ -48,16 +48,32 @@ class TransaksiController extends Controller
             ], 403);
         }
 
-        $perPage = $request->input('per_page', 10); // default 10
+        $perPage = $request->input('per_page', 10);
         $page    = $request->input('page', 1);
 
-        $transaksi = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user'])
+        $transaksi = Transaksi::with([
+            'listTransaksiDetail.menus.tenants',
+            'user',
+            'checkout'
+        ])
             ->whereHas('listTransaksiDetail.menus.tenants', function ($tenant) use ($user) {
                 $tenant->where('user_id', '!=', $user->id);
             })
             ->where('user_id', $user->id)
             ->orderByDesc('created_at')
             ->paginate($perPage, ['*'], 'page', $page);
+
+        // mapping biar ada merge dari checkout
+        $transaksi->getCollection()->transform(function ($item) {
+            $checkout = $item->checkout;
+
+            $item->order_id_midtrans = $checkout->order_id_midtrans ?? null;
+            $item->qr_url            = $checkout->qr_url ?? null;
+            $item->expiry            = $checkout->expiry ?? null;
+            $item->biaya_admin       = $checkout->biaya_admin ?? null;
+
+            return $item;
+        });
 
         return response()->json([
             'status'  => 'success',
