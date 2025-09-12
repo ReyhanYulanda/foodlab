@@ -18,10 +18,10 @@ class UpdateFailedTransactions extends Command
             ->where('status_bayar', 'failed')
             ->get();
 
+        $notifiedUsers = [];
+
         foreach ($checkouts as $checkout) {
             $user = $checkout->user;
-            $fcmUser = User::with('fcmTokens')->find($checkout->user_id);
-            $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
 
             if ($checkout->transaksi) {
                 $checkout->transaksi->update([
@@ -29,20 +29,34 @@ class UpdateFailedTransactions extends Command
                 ]);
 
                 $this->info("Transaksi ID {$checkout->transaksi_id} diupdate ke gagal_bayar");
+
+                if ($user) {
+                    $notifiedUsers[$user->id] = $checkout->transaksi->id;
+                    // simpan user + transaksi terakhir yg gagal
+                }
             }
         }
 
-        if ($user && $user->fcm_token) {
-            $firebases
-                ->withNotification(
-                    'Pesanan gagal dibayar',
-                    'Pesanan #' . $checkout->transaksi->id . ' tidak melakukan pembayaran.'
-                )
-                ->withData([
-                    'title' => 'Pesanan gagal dibayar',
-                    'body' => 'Pesanan #' . $checkout->transaksi->id . ' tidak melakukan pembayaran.',
-                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
-                ])->sendToFallback($fcmUserToken);
+        // kirim notifikasi sekali per user
+        foreach ($notifiedUsers as $userId => $transaksiId) {
+            $fcmUser = User::with('fcmTokens')->find($userId);
+            $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+
+            if (!empty($fcmUserToken)) {
+                $firebases
+                    ->withNotification(
+                        'Pesanan gagal dibayar',
+                        'Pesanan ' . $transaksiId . ' tidak melakukan pembayaran.'
+                    )
+                    ->withData([
+                        'title' => 'Pesanan gagal dibayar',
+                        'body' => 'Pesanan ' . $transaksiId . ' tidak melakukan pembayaran.',
+                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                    ])
+                    ->sendToFallback($fcmUserToken);
+
+                $this->info("Notifikasi dikirim ke User ID {$userId}");
+            }
         }
 
         return Command::SUCCESS;
