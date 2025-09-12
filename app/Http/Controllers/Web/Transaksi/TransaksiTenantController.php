@@ -303,34 +303,34 @@ class TransaksiTenantController extends Controller
             $rekeningSumber = '1400054005005'; // rekening sumber
             $tanggal = now()->format('Ymd');
             $skipTenants = ['Kedai Pak Agil', 'Test Tenant'];
-        
+
             $totalAmount = 0;
-        
+
             foreach ($transaksiTenant as $p) {
                 if (in_array($p->nama_tenant, $skipTenants)) {
                     continue;
                 }
-        
+
                 $totalBersih = (0.1 * ($p->pendapatan_kotor_1 ?? 0)) + (0.1 * ($p->pendapatan_kotor_2 ?? 0));
                 $totalAmount += $totalBersih;
             }
-        
+
             fputcsv($handle, [
                 'P',
                 $tanggal,
                 $rekeningSumber,
-                1, 
+                1,
                 $totalAmount
             ]);
-        
+
             $row = [
-                '1400050000257', 
-                'ubisma',        
+                '1400050000257',
+                'ubisma',
                 '',
                 '',
                 '',
                 'IDR',
-                $totalAmount,  
+                $totalAmount,
                 '',
                 '',
                 'IBU',
@@ -369,10 +369,64 @@ class TransaksiTenantController extends Controller
                 '',
                 '',
             ];
-        
+
             fwrite($handle, implode(',', $row) . "\n");
-        
+
             fclose($handle);
         }, 200, $headers);
-    }        
+    }
+
+    public function exportCsvRekap(Request $request)
+    {
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        $query = TransaksiDetail::selectRaw("
+                tenants.nama_tenant,
+                tenants.id,
+                SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_1,
+                SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_2,
+                SUM(transaksi.ongkos_kirim) as total_ongkir,
+                (SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) - (0.1 * SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_1,
+                (SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) - (0.1 * SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_2
+            ")
+            ->join('menus', 'transaksi_detail.menu_id', '=', 'menus.id')
+            ->join('tenants', 'menus.tenant_id', '=', 'tenants.id')
+            ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id');
+
+        if ($startDate && $endDate) {
+            $query->whereBetween('transaksi.created_at', [$startDate, $endDate]);
+        }
+
+        $transaksiTenant = $query->groupBy('menus.tenant_id', 'tenants.nama_tenant')->get();
+
+        $fileName = "transaksi_tenant_" . date('YmdHis') . ".csv";
+
+        $handle = fopen('php://output', 'w');
+
+        $headers = [
+            "Content-type" => "text/csv",
+            "Content-Disposition" => "attachment; filename=$fileName",
+            "Pragma" => "no-cache",
+            "Expires" => "0"
+        ];
+
+        return response()->stream(function () use ($transaksiTenant, $handle) {
+            fputcsv($handle, ["No", "Nama Tenant", "Pendapatan Kotor (Pesan Antar)", "Ongkir", "Pendapatan Bersih (Pesan Antar)", "Pendapatan Kotor (Ambil Sendiri)", "Pendapatan Bersih (Ambil Sendiri)"]);
+
+            foreach ($transaksiTenant as $index => $p) {
+                fputcsv($handle, [
+                    $index + 1,
+                    $p->nama_tenant,
+                    $p->pendapatan_kotor_1,
+                    $p->total_ongkir,
+                    $p->pendapatan_bersih_1,
+                    $p->pendapatan_kotor_2,
+                    $p->pendapatan_bersih_2
+                ]);
+            }
+
+            fclose($handle);
+        }, 200, $headers);
+    }
 }
