@@ -67,10 +67,10 @@ class TransaksiController extends Controller
         $transaksi->getCollection()->transform(function ($item) {
             $checkout = $item->checkout;
 
-            $item->order_id_midtrans = $checkout->order_id_midtrans ?? null;
-            $item->qr_url            = $checkout->qr_url ?? null;
-            $item->expiry            = $checkout->expiry ?? null;
-            $item->biaya_admin       = $checkout->biaya_admin ?? null;
+            $item->midtrans_request_id = $checkout->midtrans_request_id ?? null;
+            $item->qr_url            = $checkout->kode_bayar ?? null;
+            $item->expiry            = $checkout->tgl_akhir_tagihan ?? null;
+            $item->biaya_admin       = $checkout->total_biaya_admin ?? null;
 
             return $item;
         });
