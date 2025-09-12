@@ -54,6 +54,13 @@
                                     'end_date' => request('end_date'),
                                 ]) }}"
                                     class="btn btn-success ms-2">Export CSV 10%</a>
+
+                                <a href="{{ route('export.transaksi.tenant.rekap', [
+                                    'filter_date' => request('filter_date'),
+                                    'start_date' => request('start_date'),
+                                    'end_date' => request('end_date'),
+                                ]) }}"
+                                    class="btn btn-success ms-2">Rekap Tenant</a>
                             </div>
                         </div>
                     </form>

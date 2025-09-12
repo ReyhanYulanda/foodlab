@@ -7,6 +7,9 @@ use App\Models\Transaksi;
 use App\Models\TransaksiDetail;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
 class TransaksiTenantController extends Controller
 {
@@ -374,5 +377,77 @@ class TransaksiTenantController extends Controller
 
             fclose($handle);
         }, 200, $headers);
+    }
+
+    public function exportCsvRekap(Request $request)
+    {
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        $query = TransaksiDetail::selectRaw("
+                tenants.nama_tenant,
+                tenants.id,
+                SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_1,
+                SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_2,
+                SUM(transaksi.ongkos_kirim) as total_ongkir,
+                (SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) - (0.1 * SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_1,
+                (SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) - (0.1 * SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_2
+            ")
+            ->join('menus', 'transaksi_detail.menu_id', '=', 'menus.id')
+            ->join('tenants', 'menus.tenant_id', '=', 'tenants.id')
+            ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id');
+
+        $skipTenants = ['Kedai Pak Agil', 'Test Tenant', 'Mie Ayam Ziko'];
+
+        if ($startDate && $endDate) {
+            $query->whereBetween('transaksi.updated_at', [$startDate, $endDate]);
+        }
+
+        $query->whereNotIn('tenants.nama_tenant', $skipTenants);
+
+        $transaksiTenant = $query->groupBy('menus.tenant_id', 'tenants.nama_tenant')->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // Header tabel
+        $headers = ["No", "Nama Tenant", "Pendapatan Kotor (Pesan Antar)", "Ongkir", "Pendapatan Bersih (Pesan Antar)", "Pendapatan Kotor (Ambil Sendiri)", "Pendapatan Bersih (Ambil Sendiri)"];
+        $sheet->fromArray($headers, NULL, 'A1');
+
+        $row = 2;
+        foreach ($transaksiTenant as $index => $p) {
+            $sheet->fromArray([
+                $index + 1,
+                $p->nama_tenant,
+                $p->pendapatan_kotor_1,
+                $p->total_ongkir,
+                $p->pendapatan_bersih_1,
+                $p->pendapatan_kotor_2,
+                $p->pendapatan_bersih_2,
+            ], NULL, "A{$row}");
+            $row++;
+        }
+
+        // Auto size kolom
+        foreach (range('A', $sheet->getHighestColumn()) as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // Format angka dengan pemisah ribuan (mulai kolom C sampai G)
+        $lastRow = $sheet->getHighestRow();
+        $sheet->getStyle("C2:G{$lastRow}")
+            ->getNumberFormat()
+            ->setFormatCode('#,##0');
+        // Kalau mau ada Rp di depan, pakai ini:
+        // ->setFormatCode('"Rp" #,##0');
+
+        $fileName = "transaksi_tenant_" . date('YmdHis') . ".xlsx";
+
+        $writer = new Xlsx($spreadsheet);
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $fileName, [
+            "Content-Type" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ]);
     }
 }
