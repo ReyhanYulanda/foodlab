@@ -1517,10 +1517,10 @@ class TransaksiController extends Controller
                         if (!empty($fcmUserToken)) {
                             $firebases = new Firebases();
                             $firebases
-                                ->withNotification('Pembayaran Berhasil', 'Menghubungi tenant!')
+                                ->withNotification('Pembayaran Pesanan Berhasil', 'Pesanan ' . $transaksi->id . ' telah masuk ke tenant!')
                                 ->withData([
-                                    'title' => 'Pembayaran Berhasil',
-                                    'body' => 'Menghubungi tenant!',
+                                    'title' => 'Pembayaran Pesanan Berhasil',
+                                    'body' => 'Pesanan ' . $transaksi->id . ' telah masuk ke tenant!',
                                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                                 ])->sendToFallback($fcmUserToken);
                         }
