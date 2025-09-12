@@ -7,6 +7,8 @@ use App\Models\Transaksi;
 use App\Models\TransaksiDetail;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class TransaksiTenantController extends Controller
 {
@@ -394,39 +396,53 @@ class TransaksiTenantController extends Controller
             ->join('tenants', 'menus.tenant_id', '=', 'tenants.id')
             ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id');
 
+        $skipTenants = ['Kedai Pak Agil', 'Test Tenant', 'Mie Ayam Ziko'];
+
         if ($startDate && $endDate) {
-            $query->whereBetween('transaksi.created_at', [$startDate, $endDate]);
+            $query->whereBetween('transaksi.updated_at', [$startDate, $endDate]);
         }
+
+        $query->whereNotIn('tenants.nama_tenant', $skipTenants);
 
         $transaksiTenant = $query->groupBy('menus.tenant_id', 'tenants.nama_tenant')->get();
 
-        $fileName = "transaksi_tenant_" . date('YmdHis') . ".csv";
+        // Mulai bikin Excel
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
 
-        $handle = fopen('php://output', 'w');
+        // Header tabel
+        $headers = ["No", "Nama Tenant", "Pendapatan Kotor (Pesan Antar)", "Ongkir", "Pendapatan Bersih (Pesan Antar)", "Pendapatan Kotor (Ambil Sendiri)", "Pendapatan Bersih (Ambil Sendiri)"];
+        $sheet->fromArray($headers, NULL, 'A1');
 
-        $headers = [
-            "Content-type" => "text/csv",
-            "Content-Disposition" => "attachment; filename=$fileName",
-            "Pragma" => "no-cache",
-            "Expires" => "0"
-        ];
+        // Data isi
+        $row = 2;
+        foreach ($transaksiTenant as $index => $p) {
+            $sheet->fromArray([
+                $index + 1,
+                $p->nama_tenant,
+                $p->pendapatan_kotor_1,
+                $p->total_ongkir,
+                $p->pendapatan_bersih_1,
+                $p->pendapatan_kotor_2,
+                $p->pendapatan_bersih_2,
+            ], NULL, "A{$row}");
+            $row++;
+        }
 
-        return response()->stream(function () use ($transaksiTenant, $handle) {
-            fputcsv($handle, ["No", "Nama Tenant", "Pendapatan Kotor (Pesan Antar)", "Ongkir", "Pendapatan Bersih (Pesan Antar)", "Pendapatan Kotor (Ambil Sendiri)", "Pendapatan Bersih (Ambil Sendiri)"]);
+        // Auto size kolom biar rapi
+        foreach (range('A', $sheet->getHighestColumn()) as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
 
-            foreach ($transaksiTenant as $index => $p) {
-                fputcsv($handle, [
-                    $index + 1,
-                    $p->nama_tenant,
-                    $p->pendapatan_kotor_1,
-                    $p->total_ongkir,
-                    $p->pendapatan_bersih_1,
-                    $p->pendapatan_kotor_2,
-                    $p->pendapatan_bersih_2
-                ]);
-            }
+        // Nama file
+        $fileName = "transaksi_tenant_" . date('YmdHis') . ".xlsx";
 
-            fclose($handle);
-        }, 200, $headers);
+        // Output ke browser
+        $writer = new Xlsx($spreadsheet);
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $fileName, [
+            "Content-Type" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ]);
     }
 }
