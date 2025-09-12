@@ -437,7 +437,7 @@ class TransaksiTenantController extends Controller
         $lastRow = $sheet->getHighestRow();
         $sheet->getStyle("C2:G{$lastRow}")
             ->getNumberFormat()
-            ->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
+            ->setFormatCode('#,##0');
         // Kalau mau ada Rp di depan, pakai ini:
         // ->setFormatCode('"Rp" #,##0');
 
