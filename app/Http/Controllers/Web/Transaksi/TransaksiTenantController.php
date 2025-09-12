@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
 class TransaksiTenantController extends Controller
 {
@@ -406,7 +407,6 @@ class TransaksiTenantController extends Controller
 
         $transaksiTenant = $query->groupBy('menus.tenant_id', 'tenants.nama_tenant')->get();
 
-        // Mulai bikin Excel
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
 
@@ -414,7 +414,6 @@ class TransaksiTenantController extends Controller
         $headers = ["No", "Nama Tenant", "Pendapatan Kotor (Pesan Antar)", "Ongkir", "Pendapatan Bersih (Pesan Antar)", "Pendapatan Kotor (Ambil Sendiri)", "Pendapatan Bersih (Ambil Sendiri)"];
         $sheet->fromArray($headers, NULL, 'A1');
 
-        // Data isi
         $row = 2;
         foreach ($transaksiTenant as $index => $p) {
             $sheet->fromArray([
@@ -429,15 +428,21 @@ class TransaksiTenantController extends Controller
             $row++;
         }
 
-        // Auto size kolom biar rapi
+        // Auto size kolom
         foreach (range('A', $sheet->getHighestColumn()) as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
-        // Nama file
+        // Format angka dengan pemisah ribuan (mulai kolom C sampai G)
+        $lastRow = $sheet->getHighestRow();
+        $sheet->getStyle("C2:G{$lastRow}")
+            ->getNumberFormat()
+            ->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
+        // Kalau mau ada Rp di depan, pakai ini:
+        // ->setFormatCode('"Rp" #,##0');
+
         $fileName = "transaksi_tenant_" . date('YmdHis') . ".xlsx";
 
-        // Output ke browser
         $writer = new Xlsx($spreadsheet);
         return response()->streamDownload(function () use ($writer) {
             $writer->save('php://output');
