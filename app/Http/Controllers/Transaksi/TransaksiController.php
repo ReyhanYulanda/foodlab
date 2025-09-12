@@ -79,7 +79,11 @@ class TransaksiController extends Controller
             ], 403);
         }
 
-        $transaksi = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user'])
+        $transaksi = Transaksi::with([
+            'listTransaksiDetail.menus.tenants',
+            'user',
+            'checkout'
+        ])
             ->where('id', $id)
             ->where('user_id', $user->id)
             ->first();
@@ -91,11 +95,24 @@ class TransaksiController extends Controller
             ], 404);
         }
 
+        $extra = [];
+        if ($transaksi->checkout) {
+            $extra = [
+                'order_id_midtrans' => $transaksi->checkout->midtrans_request_id,
+                'qr_url' => $transaksi->checkout->kode_bayar,
+                'expiry' => $transaksi->checkout->tgl_akhir_tagihan,
+                'biaya_admin' => $transaksi->checkout->total_biaya_admin,
+            ];
+        }
+
         return response()->json([
             'status' => 'success',
             'message' => 'data berhasil didapatkan',
             'data' => [
-                'transaksi' => $transaksi
+                'transaksi' => array_merge(
+                    $transaksi->toArray(),
+                    $extra
+                )
             ],
         ]);
     }
