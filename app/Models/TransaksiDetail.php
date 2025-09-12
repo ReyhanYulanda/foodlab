@@ -22,10 +22,12 @@ class TransaksiDetail extends Model
 
     public $appends = ['nama_menu', 'kategori_menu'];
 
-    public function getNamaMenuAttribute(){
+    public function getNamaMenuAttribute()
+    {
         return @$this->menus->nama;
     }
-    public function getKategoriMenuAttribute(){
+    public function getKategoriMenuAttribute()
+    {
         return @$this->menus->kategori->nama;
     }
 
@@ -34,7 +36,13 @@ class TransaksiDetail extends Model
         return $this->belongsTo(Transaksi::class, 'transaksi_id');
     }
 
-    public function menus(){
+    public function menus()
+    {
         return $this->belongsTo(Menus::class, 'menu_id', 'id')->withTrashed(true);
+    }
+
+    public function checkouts()
+    {
+        return $this->belongsTo(Checkout::class, 'checkout_id', 'id')->withTrashed(true);
     }
 }
