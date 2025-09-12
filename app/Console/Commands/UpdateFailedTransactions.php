@@ -30,19 +30,19 @@ class UpdateFailedTransactions extends Command
 
                 $this->info("Transaksi ID {$checkout->transaksi_id} diupdate ke gagal_bayar");
             }
+        }
 
-            if ($user && $user->fcm_token) {
-                $firebases
-                    ->withNotification(
-                        'Pesanan gagal dibayar',
-                        'Pesanan #' . $checkout->transaksi->id . ' tidak melakukan pembayaran.'
-                    )
-                    ->withData([
-                        'title' => 'Pesanan gagal dibayar',
-                        'body' => 'Pesanan #' . $checkout->transaksi->id . ' tidak melakukan pembayaran.',
-                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
-                    ])->sendToFallback($fcmUserToken);
-            }
+        if ($user && $user->fcm_token) {
+            $firebases
+                ->withNotification(
+                    'Pesanan gagal dibayar',
+                    'Pesanan #' . $checkout->transaksi->id . ' tidak melakukan pembayaran.'
+                )
+                ->withData([
+                    'title' => 'Pesanan gagal dibayar',
+                    'body' => 'Pesanan #' . $checkout->transaksi->id . ' tidak melakukan pembayaran.',
+                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                ])->sendToFallback($fcmUserToken);
         }
 
         return Command::SUCCESS;
