@@ -51,4 +51,18 @@ class VoucherController extends Controller
             'data'    => $voucher
         ]);
     }
+
+    public function getListVoucher()
+    {
+        $user = Auth::user();
+
+        $vouchers = Voucher::with('cashback')
+            ->where('user_id', $user->id)
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $vouchers
+        ]);
+    }
 }
