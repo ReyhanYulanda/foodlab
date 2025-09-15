@@ -37,6 +37,7 @@ Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function 
     Route::get('/transaksi/{transaksiId}/chat/driver-buyer', [TransaksiController::class, 'getMessageDriverToBuyer']);
     Route::get('/leaderboard/driver', [TransaksiController::class, 'getLeaderboardDriver']);
     Route::get('/list/cashback/active', [CashbackController::class, 'getListCashback']);
+    Route::post('/get/voucher/{referral_code}', [CashbackController::class, 'postGetVoucher']);
 
     Route::get('/auth', [UserController::class, 'index']);
     Route::post('/update-user', [UserController::class, 'update']);
