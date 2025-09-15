@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\ListAktifDriverController;
 use App\Http\Controllers\NotifikasiController;
+use App\Http\Controllers\Web\CashbackController;
 
 Route::get('/verify-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])
     ->middleware(['signed'])
@@ -58,6 +59,7 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
     Route::resource('menu-kategori', MenuKategori::class);
     Route::resource('ruangan', WebRuanganController::class);
     Route::resource('gedung', GedungController::class);
+    Route::resource('cashback', CashbackController::class);
     Route::resource('pembayaran', PembayaranController::class);
     Route::resource('pengaturan', PengaturanController::class);
 
