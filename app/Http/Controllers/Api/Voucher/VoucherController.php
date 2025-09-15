@@ -23,15 +23,27 @@ class VoucherController extends Controller
         if (!$cashback) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Cashback tidak ditemukan atau tidak valid'
+                'message' => 'Promo tidak ditemukan atau tidak valid'
             ], 404);
+        }
+
+        // Cek apakah user sudah pernah ambil voucher ini
+        $alreadyClaimed = Voucher::where('user_id', $user->id)
+            ->where('cashback_id', $cashback->id)
+            ->exists();
+
+        if ($alreadyClaimed) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Promo sudah diambil sebelumnya'
+            ], 400);
         }
 
         // Pastikan masih ada quantity
         if ($cashback->quantity <= 0) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Cashback sudah habis'
+                'message' => 'Promo sudah habis'
             ], 400);
         }
 
