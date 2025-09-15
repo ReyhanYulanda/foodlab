@@ -3,6 +3,7 @@
 use App\Events\NotifyUserWhenTransaksiUpdated;
 use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\Cashback\CashbackController;
 use App\Http\Controllers\Api\PengaturanController;
 use App\Http\Controllers\Api\RuanganController;
 use App\Http\Controllers\Kelola\TenantController as KelolaTenantController;
@@ -35,7 +36,7 @@ Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function 
     Route::get('/transaksi/{transaksiId}/chat/tenant-buyer', [TransaksiController::class, 'getMessageTenantToBuyer']);
     Route::get('/transaksi/{transaksiId}/chat/driver-buyer', [TransaksiController::class, 'getMessageDriverToBuyer']);
     Route::get('/leaderboard/driver', [TransaksiController::class, 'getLeaderboardDriver']);
-
+    Route::get('/list/cashback/active', [CashbackController::class, 'getListCashback']);
 
     Route::get('/auth', [UserController::class, 'index']);
     Route::post('/update-user', [UserController::class, 'update']);
