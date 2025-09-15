@@ -9,12 +9,9 @@ use Illuminate\Http\Request;
 
 class CashbackController extends Controller
 {
-    public function getListCashback(Request $request)
+    public function getListCashback()
     {
-        $perPage = $request->input('per_page', 10);
-
-        $cashbacks = Cashback::where('is_valid', true)
-            ->paginate($perPage);
+        $cashbacks = Cashback::where('is_valid', true)->get();
 
         return response()->json([
             'status' => 'success',
