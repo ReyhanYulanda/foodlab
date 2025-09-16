@@ -59,6 +59,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(TransaksiSaldoKoin::class);
     }
 
+    public function koin()
+    {
+        return $this->hasOne(SaldoKoin::class);
+    }
+
     public function sendPasswordResetNotification($token)
     {
         $this->notify(new ResetPasswordNotification($token));

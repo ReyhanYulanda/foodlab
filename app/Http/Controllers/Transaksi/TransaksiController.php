@@ -19,6 +19,7 @@ use App\Models\Menus;
 use App\Models\Pengaturan;
 use App\Models\Ruangan;
 use App\Models\TopUp;
+use App\Models\Voucher;
 use App\Response\ResponseApi;
 use App\Services\Firebases;
 use App\Services\Midtrans;
@@ -392,6 +393,51 @@ class TransaksiController extends Controller
                 }
             }
 
+            $voucherId = $request->input('voucher_id');
+            $assignCashback = 0;
+            if ($voucherId) {
+                $voucher = Voucher::with('cashback')
+                    ->where('id', $voucherId)
+                    ->where('user_id', $user->id)
+                    ->first();
+
+                if (!$voucher) {
+                    return response()->json([
+                        'status'  => 'failed',
+                        'message' => 'Voucher tidak valid'
+                    ], 400);
+                }
+
+                if ($voucher->user_id != $user->id) {
+                    return response()->json([
+                        'status'  => 'failed',
+                        'message' => 'Voucher bukan milik anda'
+                    ], 400);
+                }
+                if ($voucher->quantity <= 0) {
+                    return response()->json([
+                        'status'  => 'failed',
+                        'message' => 'Voucher sudah habis'
+                    ], 400);
+                }
+
+                $cashback = $voucher->cashback;
+
+                if (!$cashback || !$cashback->is_valid) {
+                    return response()->json([
+                        'status'  => 'failed',
+                        'message' => 'Cashback tidak valid'
+                    ], 400);
+                }
+
+                $assignCashback = $totalFinal * $cashback->amount;
+
+                if ($assignCashback > $cashback->max_cashback) {
+                    $assignCashback = $cashback->max_cashback;
+                }
+                $voucher->decrement('quantity');
+            }
+
             $ongkosKirimFix = $request->isAntar ? $ongkosKirim : 0;
 
             $transaksi = Transaksi::create([
@@ -406,6 +452,7 @@ class TransaksiController extends Controller
                 'ongkos_kirim' => $ongkosKirimFix,
                 'biaya_layanan' => $biayaLayanan,
                 'catatan_lokasi_pengantaran' => $request->catatan_lokasi_pengantaran ?? null,
+                'cashback_amount' => $assignCashback,
             ]);
 
             do {
