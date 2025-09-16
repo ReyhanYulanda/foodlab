@@ -12,7 +12,7 @@ class RuanganController extends Controller
     public function index()
     {
         $ruangan = Ruangan::with('gedung')
-            ->orderBy('nama', 'asc') // urutkan berdasarkan kolom nama
+            ->orderBy('kode_ruangan', 'asc')
             ->get();
 
         return ResponseApi::success(compact('ruangan'), 'data berhasil diambil');
