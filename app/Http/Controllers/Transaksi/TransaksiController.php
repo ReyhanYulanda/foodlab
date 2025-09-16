@@ -258,7 +258,7 @@ class TransaksiController extends Controller
         if ($tenant->isOnline == 0) {
             return response()->json([
                 'status' => 'failed',
-                'message' => 'Toko sedang tutup'
+                'message' => ['Toko sedang tutup']
             ], 400);
         }
 
@@ -270,7 +270,7 @@ class TransaksiController extends Controller
         if ($request->isAntar && $jumlahDriver == 0) {
             return response()->json([
                 'status' => 'failed',
-                'message' => 'Tidak ada driver online saat ini. Silakan coba lagi nanti.'
+                'message' => ['Tidak ada driver online saat ini. Silakan coba lagi nanti.']
             ], 400);
         }
 
