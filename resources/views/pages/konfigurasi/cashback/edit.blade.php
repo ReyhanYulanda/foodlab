@@ -110,7 +110,7 @@
                                     <label for="start_date" class="form-label">Start Date</label>
                                     <input type="date" class="form-control @error('start_date') is-invalid @enderror"
                                         id="start_date" name="start_date"
-                                        value="{{ old('start_date', $cashback->start_date ? $cashback->start_date->format('Y-m-d') : '') }}">
+                                        value="{{ old('start_date', $cashback->start_date ? \Carbon\Carbon::parse($cashback->start_date)->format('Y-m-d') : '') }}">
                                     @error('start_date')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
@@ -122,7 +122,7 @@
                                     <label for="end_date" class="form-label">End Date</label>
                                     <input type="date" class="form-control @error('end_date') is-invalid @enderror"
                                         id="end_date" name="end_date"
-                                        value="{{ old('end_date', $cashback->end_date ? $cashback->end_date->format('Y-m-d') : '') }}">
+                                        value="{{ old('end_date', $cashback->end_date ? \Carbon\Carbon::parse($cashback->end_date)->format('Y-m-d') : '') }}">
                                     @error('end_date')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
