@@ -400,11 +400,19 @@ class TransaksiController extends Controller
                     ->where('id', $voucherId)
                     ->where('user_id', $user->id)
                     ->first();
+                $cashback = $voucher->cashback;
 
                 if (!$voucher) {
                     return response()->json([
                         'status'  => 'failed',
                         'message' => 'Voucher tidak valid'
+                    ], 400);
+                }
+
+                if ($totalFinal < $cashback->minimal_beli) {
+                    return response()->json([
+                        'status'  => 'failed',
+                        'message' => 'Total belanja minimal ' . ($cashback->minimal_beli)
                     ], 400);
                 }
 
