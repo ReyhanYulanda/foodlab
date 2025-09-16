@@ -14,7 +14,8 @@ class AddVoucherIdColumnToTransaksiTable extends Migration
     public function up()
     {
         Schema::table('transaksi', function (Blueprint $table) {
-            $table->unsignedBigInteger('voucher_id')->nullable()->after('id');
+            $table->unsignedBigInteger('voucher_id')->nullable()->after('cashback_amount');
+            $table->foreign('voucher_id')->references('id')->on('vouchers')->onDelete('set null');
         });
     }
 
@@ -26,6 +27,7 @@ class AddVoucherIdColumnToTransaksiTable extends Migration
     public function down()
     {
         Schema::table('transaksi', function (Blueprint $table) {
+            $table->dropForeign(['voucher_id']);
             $table->dropColumn('voucher_id');
         });
     }

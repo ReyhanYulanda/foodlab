@@ -31,7 +31,8 @@ class Transaksi extends Model
         'catatan_lokasi_pengantaran',
         'catatan_penolakan',
         'bukti_pengantaran',
-        'cashback_amount'
+        'cashback_amount',
+        'voucher_id'
     ];
 
     protected $appends = ['sub_total', 'gedung', 'nama_ruangan', 'nama_pembeli', 'nama_tenant', 'order_id', 'nama_driver', 'foto_driver'];
@@ -145,5 +146,9 @@ class Transaksi extends Model
     public function checkout()
     {
         return $this->hasOne(Checkout::class, 'transaksi_id', 'id');
+    }
+    public function voucher()
+    {
+        return $this->belongsTo(Voucher::class, 'voucher_id');
     }
 }

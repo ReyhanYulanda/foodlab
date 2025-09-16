@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Pengaturan;
 use App\Models\User;
+use App\Models\Voucher;
 use App\Services\Firebases;
 
 class AutoCancelOrder extends Command
@@ -83,10 +84,6 @@ class AutoCancelOrder extends Command
                     }
                 }
 
-                // if ($transaksi->cashback_amount > 0) {
-                    
-                // }
-
                 $this->refundKoin($transaksi);
 
                 $transaksi->status = 'refund_selesai';
@@ -133,5 +130,13 @@ class AutoCancelOrder extends Command
             'tipe' => 'masuk',
             'deskripsi' => 'Refund pesanan #' . $transaksi->id,
         ]);
+
+        if ($transaksi->cashback_amount > 0 && $transaksi->voucher_id) {
+            $voucher = Voucher::find($transaksi->voucher_id);
+            if ($voucher) {
+                $voucher->increment('quantity', 1);
+                Log::info("Voucher #{$voucher->id} dikembalikan quantity +1 untuk user {$transaksi->user_id}");
+            }
+        }
     }
 }

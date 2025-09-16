@@ -439,6 +439,7 @@ class TransaksiController extends Controller
                 }
 
                 $assignCashback = $totalFinal * $cashback->value;
+                $assignVoucherId = $voucher->id;
 
                 if ($assignCashback > $cashback->max_cashback) {
                     $assignCashback = $cashback->max_cashback;
@@ -461,6 +462,7 @@ class TransaksiController extends Controller
                 'biaya_layanan' => $biayaLayanan,
                 'catatan_lokasi_pengantaran' => $request->catatan_lokasi_pengantaran ?? null,
                 'cashback_amount' => $assignCashback,
+                'voucher_id' => $assignVoucherId ?? null
             ]);
 
             do {
