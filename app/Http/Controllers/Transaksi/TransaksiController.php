@@ -430,7 +430,7 @@ class TransaksiController extends Controller
                     ], 400);
                 }
 
-                $assignCashback = $totalFinal * $cashback->amount;
+                $assignCashback = $totalFinal * $cashback->value;
 
                 if ($assignCashback > $cashback->max_cashback) {
                     $assignCashback = $cashback->max_cashback;
