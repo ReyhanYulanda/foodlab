@@ -83,6 +83,10 @@ class AutoCancelOrder extends Command
                     }
                 }
 
+                // if ($transaksi->cashback_amount > 0) {
+                    
+                // }
+
                 $this->refundKoin($transaksi);
 
                 $transaksi->status = 'refund_selesai';
