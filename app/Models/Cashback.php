@@ -19,6 +19,8 @@ class Cashback extends Model
         'minimal_beli',
         'max_cashback',
         'max_used',
+        'start_date',
+        'end_date',
     ];
 
     protected $casts = [

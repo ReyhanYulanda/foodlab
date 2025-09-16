@@ -38,6 +38,10 @@ class CashbackController extends Controller
             'minimal_beli' => 'required',
             'max_cashback' => 'required',
             'max_used' => 'required',
+            'start_date' => 'required',
+            'end_date' => 'required|date|after:start_date',
+        ], [
+            'end_date.after' => 'Tanggal berakhir harus setelah tanggal mulai.',
         ]);
 
         Cashback::create([
@@ -47,7 +51,9 @@ class CashbackController extends Controller
             'referral_code' => uniqid(),
             'minimal_beli' => $request->minimal_beli,
             'max_cashback' => $request->max_cashback,
-            'max_used' => $request->max_used
+            'max_used' => $request->max_used,
+            'start_date' => $request->start_date,
+            'end_date' => $request->end_date
         ]);
 
         return redirect()->route('cashback.index')->with(["status" => "success", 'message' => "Cashback berhasil ditambahkan"]);
@@ -68,15 +74,21 @@ class CashbackController extends Controller
             'is_valid' => 'required',
             'max_cashback' => 'required',
             'max_used' => 'required',
+            'start_date' => 'required',
+            'end_date' => 'required|date|after:start_date',
+        ], [
+            'end_date.after' => 'Tanggal berakhir harus setelah tanggal mulai.',
         ]);
 
-        Cashback::find($id)->update([
+        Cashback::findOrFail($id)->update([
             'value' => $request->value,
             'quantity' => $request->quantity,
             'minimal_beli' => $request->minimal_beli,
             'max_cashback' => $request->max_cashback,
             'is_valid' => $request->is_valid,
-            'max_used' => $request->max_used
+            'max_used' => $request->max_used,
+            'start_date' => $request->start_date,
+            'end_date' => $request->end_date
         ]);
 
         return redirect()->route('cashback.index')->with(["status" => "success", 'message' => "Cashback berhasil diupdate"]);

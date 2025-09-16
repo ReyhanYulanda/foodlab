@@ -36,6 +36,7 @@
                                 <th>Minimal Pembelian</th>
                                 <th>Maximum Cashback</th>
                                 <th>Max Used</th>
+                                <th>Periode</th>
                                 <th>Aksi</th>
                             </tr>
                         </thead>
@@ -58,10 +59,28 @@
                                     <td>{{ number_format($cbc->max_cashback, 0, ',', '.') }}</td>
                                     <td>{{ $cbc->max_used }}</td>
                                     <td>
+                                        @php
+                                            $now = \Carbon\Carbon::now();
+                                            $start = \Carbon\Carbon::parse($cbc->start_date);
+                                            $end = \Carbon\Carbon::parse($cbc->end_date);
+                                        @endphp
+
+                                        {{ $start->format('d/m/Y') }} - {{ $end->format('d/m/Y') }}
+                                        <br>
+                                        @if ($now->lt($start))
+                                            <span class="badge bg-secondary">Belum Aktif</span>
+                                        @elseif ($now->between($start, $end))
+                                            <span class="badge bg-success">Berlaku</span>
+                                        @else
+                                            <span class="badge bg-danger">Expired</span>
+                                        @endif
+                                    </td>
+                                    <td>
                                         <a href="{{ route('cashback.edit', $cbc->id) }}"
                                             class="btn btn-secondary btn-sm">Edit</a>
                                         <form action="{{ route('cashback.destroy', $cbc->id) }}" class="d-inline"
-                                            method="POST">
+                                            method="POST"
+                                            onsubmit="return confirm('Yakin ingin menghapus cashback ini?');">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-danger btn-sm">Delete</button>
