@@ -9,8 +9,12 @@ use Illuminate\Http\Request;
 
 class RuanganController extends Controller
 {
-    public function index(){
-        $ruangan = Ruangan::with('gedung')->get();
+    public function index()
+    {
+        $ruangan = Ruangan::with('gedung')
+            ->orderBy('nama', 'asc') // urutkan berdasarkan kolom nama
+            ->get();
+
         return ResponseApi::success(compact('ruangan'), 'data berhasil diambil');
     }
 }
