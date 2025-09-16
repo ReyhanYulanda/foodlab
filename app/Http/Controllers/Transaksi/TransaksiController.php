@@ -731,6 +731,15 @@ class TransaksiController extends Controller
                 $transaksi->catatan_penolakan = $request->input('catatan_penolakan');
             }
 
+            if ($transaksi->cashback_amount > 0 && $transaksi->voucher_id) {
+                $voucher = Voucher::find($transaksi->voucher_id);
+
+                if ($voucher) {
+                    $voucher->increment('quantity');
+                    Log::info("Voucher #{$voucher->id} dikembalikan karena refund transaksi #{$transaksi->id}");
+                }
+            }
+
             $transaksi->status = 'pesanan_ditolak';
             $transaksi->save();
 
