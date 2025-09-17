@@ -51,7 +51,7 @@
                                 <h4>Total Transaksi (All Time)</h4>
                             </div>
                             <div class="card-body">
-                                <canvas id="totalChart" height="120"></canvas>
+                                <canvas id="donutChart" height="120"></canvas>
                             </div>
                         </div>
                     </div>
@@ -105,18 +105,18 @@
                 }
             });
 
-            // Chart total transaksi
-            const ctxTotal = document.getElementById('totalChart').getContext('2d');
-            new Chart(ctxTotal, {
-                type: 'bar',
+            // Donut chart total transaksi
+            const ctxDonut = document.getElementById('donutChart').getContext('2d');
+            new Chart(ctxDonut, {
+                type: 'doughnut',
                 data: {
                     labels: ['Transaksi Selesai', 'Refund Selesai'],
                     datasets: [{
                         label: 'Jumlah Transaksi',
                         data: [{{ $totalSelesai }}, {{ $totalRefund }}],
                         backgroundColor: [
-                            'rgba(54, 162, 235, 0.7)', // biru
-                            'rgba(255, 99, 132, 0.7)' // merah
+                            'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 99, 132, 0.7)'
                         ],
                         borderColor: [
                             'rgba(54, 162, 235, 1)',
@@ -128,17 +128,12 @@
                 options: {
                     responsive: true,
                     plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
                         title: {
                             display: true,
                             text: 'Perbandingan Total Transaksi Selesai & Refund Selesai'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                precision: 0
-                            }
                         }
                     }
                 }
