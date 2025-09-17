@@ -6,46 +6,38 @@
     <div class="main-content">
         <div class="title">Dashboard</div>
         <div class="content-wrapper">
-            <div class="row same-height">
-                {{-- Statistik Bulanan --}}
-                <div class="col-md-8">
+            {{-- ROW ATAS --}}
+            <div class="row">
+                <div class="col-md-12">
                     <div class="card">
                         <div class="card-header">
                             <h4>Statistik Bulanan</h4>
                         </div>
                         <div class="card-body">
-                            <canvas id="myChart"></canvas>
+                            <canvas id="chartBulanan"></canvas>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                {{-- Statistik Status --}}
-                <div class="col-md-4">
+            {{-- ROW BAWAH --}}
+            <div class="row mt-4">
+                <div class="col-md-12">
                     <div class="card">
-                        <div class="card-header">
-                            <h4>Statistik</h4>
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h4>Statistik Selesai vs Refund</h4>
+                            <form method="GET" action="{{ route('dashboard') }}">
+                                <select name="mode" onchange="this.form.submit()" class="form-select">
+                                    @foreach ($modes as $key => $label)
+                                        <option value="{{ $key }}" {{ $mode == $key ? 'selected' : '' }}>
+                                            {{ $label }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </form>
                         </div>
                         <div class="card-body">
-                            <div class="progress-wrapper mb-3">
-                                <h5>Pesanan Selesai</h5>
-                                <div class="progress progress-bar-small">
-                                    <div class="progress-bar bg-success"
-                                        style="width: {{ $totalTransaksi > 0 ? ($pesananSelesai / $totalTransaksi) * 100 : 0 }}%">
-                                    </div>
-                                </div>
-                                <small>{{ $pesananSelesai }} dari {{ $totalTransaksi }}</small>
-                            </div>
-                            <div class="progress-wrapper mb-3">
-                                <h5>Pesanan Refund</h5>
-                                <div class="progress progress-bar-small">
-                                    <div class="progress-bar bg-danger"
-                                        style="width: {{ $totalTransaksi > 0 ? ($pesananRefund / $totalTransaksi) * 100 : 0 }}%">
-                                    </div>
-                                </div>
-                                <small>{{ $pesananRefund }} dari {{ $totalTransaksi }}</small>
-                            </div>
-
-                            <canvas id="myChart2"></canvas>
+                            <canvas id="chartCompare"></canvas>
                         </div>
                     </div>
                 </div>
@@ -56,31 +48,46 @@
     @push('jsLibrary')
         <script src="{{ asset('vendor/chart.js/Chart.min.js') }}"></script>
         <script>
-            // Data grafik bulanan
-            const bulanLabels = @json($bulanLabels);
-            const transaksiPerBulan = @json($transaksiPerBulan);
-
-            new Chart(document.getElementById('myChart'), {
+            // Chart Bulanan (row atas, contoh dummy aja)
+            new Chart(document.getElementById('chartBulanan'), {
                 type: 'bar',
                 data: {
-                    labels: bulanLabels,
+                    labels: @json($labels),
                     datasets: [{
-                        label: 'Jumlah Transaksi',
-                        data: transaksiPerBulan,
+                        label: 'Transaksi Bulanan',
+                        data: @json($selesaiData), // sementara isi dari selesaiData biar ada isi
                         backgroundColor: 'rgba(54, 162, 235, 0.6)',
                     }]
                 }
             });
 
-            // Data grafik status
-            new Chart(document.getElementById('myChart2'), {
-                type: 'doughnut',
+            // Chart Compare (row bawah, 2 bar bersampingan)
+            new Chart(document.getElementById('chartCompare'), {
+                type: 'bar',
                 data: {
-                    labels: ['Selesai', 'Refund'],
+                    labels: @json($labels),
                     datasets: [{
-                        data: [{{ $pesananSelesai }}, {{ $pesananRefund }}],
-                        backgroundColor: ['#28a745', '#dc3545']
-                    }]
+                            label: 'Selesai',
+                            data: @json($selesaiData),
+                            backgroundColor: 'rgba(54, 162, 235, 0.7)'
+                        },
+                        {
+                            label: 'Refund',
+                            data: @json($refundData),
+                            backgroundColor: 'rgba(255, 99, 132, 0.7)'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            stacked: false
+                        },
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
                 }
             });
         </script>

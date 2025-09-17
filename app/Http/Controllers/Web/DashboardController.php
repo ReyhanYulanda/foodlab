@@ -13,34 +13,69 @@ use Illuminate\Support\Facades\DB;
 class DashboardController extends Controller
 {
 
-    public function index()
+    public function index(Request $request)
     {
-        $totalTransaksi = Transaksi::count();
-        $totalNominal = Transaksi::sum('total'); // ganti sesuai kolom yg benar
-        $transaksiBulanIni = Transaksi::whereMonth('created_at', now()->month)->count();
+        $mode = $request->get('mode', 'weekly'); // default weekly
 
-        // Label bulan (Jan - Dec)
-        $bulanLabels = collect(range(1, 12))->map(function ($m) {
-            return date('M', mktime(0, 0, 0, $m, 1));
-        });
+        // Data untuk dropdown
+        $modes = [
+            'weekly' => 'Per Tanggal (Minggu ini)',
+            'monthly' => 'Per Minggu (Bulan ini)',
+            'yearly' => 'Per Bulan (Tahun ini)',
+            'all' => 'Per Tahun (All Time)',
+        ];
 
-        // Data transaksi per bulan
-        $transaksiPerBulan = collect(range(1, 12))->map(function ($m) {
-            return Transaksi::whereMonth('created_at', $m)->count();
-        });
+        $labels = [];
+        $selesaiData = [];
+        $refundData = [];
 
-        // Statistik status
-        $pesananSelesai = Transaksi::where('status', 'selesai')->count();
-        $pesananRefund  = Transaksi::where('status', 'refund_selesai')->count();
+        if ($mode === 'weekly') {
+            // x = tanggal minggu ini
+            $start = now()->startOfWeek();
+            $end = now()->endOfWeek();
 
-        return view('dashboard', compact(
-            'totalTransaksi',
-            'totalNominal',
-            'transaksiBulanIni',
-            'bulanLabels',
-            'transaksiPerBulan',
-            'pesananSelesai',
-            'pesananRefund'
-        ));
+            $period = \Carbon\CarbonPeriod::create($start, $end);
+
+            foreach ($period as $date) {
+                $labels[] = $date->format('d M');
+                $selesaiData[] = Transaksi::whereDate('created_at', $date)->where('status', 'selesai')->count();
+                $refundData[] = Transaksi::whereDate('created_at', $date)->where('status', 'refund')->count();
+            }
+        } elseif ($mode === 'monthly') {
+            // x = minggu dalam bulan ini
+            $start = now()->startOfMonth();
+            $end = now()->endOfMonth();
+            $week = 1;
+
+            while ($start <= $end) {
+                $weekStart = $start->copy();
+                $weekEnd = $start->copy()->endOfWeek();
+
+                $labels[] = "Minggu $week";
+                $selesaiData[] = Transaksi::whereBetween('created_at', [$weekStart, $weekEnd])->where('status', 'selesai')->count();
+                $refundData[] = Transaksi::whereBetween('created_at', [$weekStart, $weekEnd])->where('status', 'refund')->count();
+
+                $start->addWeek();
+                $week++;
+            }
+        } elseif ($mode === 'yearly') {
+            // x = bulan
+            for ($m = 1; $m <= 12; $m++) {
+                $labels[] = date('M', mktime(0, 0, 0, $m, 1));
+                $selesaiData[] = Transaksi::whereMonth('created_at', $m)->whereYear('created_at', now()->year)->where('status', 'selesai')->count();
+                $refundData[] = Transaksi::whereMonth('created_at', $m)->whereYear('created_at', now()->year)->where('status', 'refund')->count();
+            }
+        } else {
+            // all time -> per tahun
+            $years = Transaksi::selectRaw('YEAR(created_at) as year')->distinct()->pluck('year');
+
+            foreach ($years as $year) {
+                $labels[] = $year;
+                $selesaiData[] = Transaksi::whereYear('created_at', $year)->where('status', 'selesai')->count();
+                $refundData[] = Transaksi::whereYear('created_at', $year)->where('status', 'refund')->count();
+            }
+        }
+
+        return view('dashboard', compact('modes', 'mode', 'labels', 'selesaiData', 'refundData'));
     }
 }
