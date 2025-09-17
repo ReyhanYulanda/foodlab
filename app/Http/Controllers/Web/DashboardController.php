@@ -39,7 +39,7 @@ class DashboardController extends Controller
             foreach ($period as $date) {
                 $labels[] = $date->format('d M');
                 $selesaiData[] = Transaksi::whereDate('created_at', $date)->where('status', 'selesai')->count();
-                $refundData[] = Transaksi::whereDate('created_at', $date)->where('status', 'refund')->count();
+                $refundData[] = Transaksi::whereDate('created_at', $date)->where('status', 'refund_selesai')->count();
             }
         } elseif ($mode === 'monthly') {
             // x = minggu dalam bulan ini
@@ -53,7 +53,7 @@ class DashboardController extends Controller
 
                 $labels[] = "Minggu $week";
                 $selesaiData[] = Transaksi::whereBetween('created_at', [$weekStart, $weekEnd])->where('status', 'selesai')->count();
-                $refundData[] = Transaksi::whereBetween('created_at', [$weekStart, $weekEnd])->where('status', 'refund')->count();
+                $refundData[] = Transaksi::whereBetween('created_at', [$weekStart, $weekEnd])->where('status', 'refund_selesai')->count();
 
                 $start->addWeek();
                 $week++;
@@ -63,7 +63,7 @@ class DashboardController extends Controller
             for ($m = 1; $m <= 12; $m++) {
                 $labels[] = date('M', mktime(0, 0, 0, $m, 1));
                 $selesaiData[] = Transaksi::whereMonth('created_at', $m)->whereYear('created_at', now()->year)->where('status', 'selesai')->count();
-                $refundData[] = Transaksi::whereMonth('created_at', $m)->whereYear('created_at', now()->year)->where('status', 'refund')->count();
+                $refundData[] = Transaksi::whereMonth('created_at', $m)->whereYear('created_at', now()->year)->where('status', 'refund_selesai')->count();
             }
         } else {
             // all time -> per tahun
@@ -72,7 +72,7 @@ class DashboardController extends Controller
             foreach ($years as $year) {
                 $labels[] = $year;
                 $selesaiData[] = Transaksi::whereYear('created_at', $year)->where('status', 'selesai')->count();
-                $refundData[] = Transaksi::whereYear('created_at', $year)->where('status', 'refund')->count();
+                $refundData[] = Transaksi::whereYear('created_at', $year)->where('status', 'refund_selesai')->count();
             }
         }
 
