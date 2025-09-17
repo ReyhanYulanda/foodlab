@@ -395,17 +395,33 @@ class TransaksiController extends Controller
 
             $voucherId = $request->input('voucher_id');
             $assignCashback = 0;
+
             if ($voucherId) {
                 $voucher = Voucher::with('cashback')
                     ->where('id', $voucherId)
                     ->where('user_id', $user->id)
                     ->first();
-                $cashback = $voucher->cashback;
 
                 if (!$voucher) {
                     return response()->json([
                         'status'  => 'failed',
                         'message' => 'Voucher tidak valid'
+                    ], 400);
+                }
+
+                $cashback = $voucher->cashback;
+
+                if (!$cashback) {
+                    return response()->json([
+                        'status'  => 'failed',
+                        'message' => 'Cashback tidak ditemukan'
+                    ], 400);
+                }
+
+                if (now()->gt($cashback->end_date)) {
+                    return response()->json([
+                        'status'  => 'failed',
+                        'message' => 'Cashback telah expired'
                     ], 400);
                 }
 
@@ -422,6 +438,7 @@ class TransaksiController extends Controller
                         'message' => 'Voucher bukan milik anda'
                     ], 400);
                 }
+
                 if ($voucher->quantity <= 0) {
                     return response()->json([
                         'status'  => 'failed',
@@ -429,9 +446,7 @@ class TransaksiController extends Controller
                     ], 400);
                 }
 
-                $cashback = $voucher->cashback;
-
-                if (!$cashback || !$cashback->is_valid) {
+                if (!$cashback->is_valid) {
                     return response()->json([
                         'status'  => 'failed',
                         'message' => 'Cashback tidak valid'
@@ -444,6 +459,7 @@ class TransaksiController extends Controller
                 if ($assignCashback > $cashback->max_cashback) {
                     $assignCashback = $cashback->max_cashback;
                 }
+
                 $voucher->decrement('quantity');
             }
 

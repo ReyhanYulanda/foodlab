@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\ListAktifDriverController;
 use App\Http\Controllers\NotifikasiController;
 use App\Http\Controllers\Web\CashbackController;
+use App\Http\Controllers\Web\DashboardController;
 
 Route::get('/verify-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])
     ->middleware(['signed'])
@@ -46,9 +47,7 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
         return view('pages.welcome.index');
     })->name('welcome');
 
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::resource('menu', MenuController::class);
     Route::resource('role', RoleController::class);

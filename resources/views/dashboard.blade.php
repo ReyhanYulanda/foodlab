@@ -1,6 +1,6 @@
 <x-master-layout>
     @push('cssLibrary')
-        <link rel="stylesheet" href="{{asset('')}}vendor/chart.js/Chart.min.css">
+        <link rel="stylesheet" href="{{ asset('') }}vendor/chart.js/Chart.min.css">
     @endpush
     <div class="main-content">
         <div class="title">
@@ -240,7 +240,8 @@
                                                 Hi, Mba Inem
                                             </div>
                                             <div class="message-avatar">
-                                                <img src="{{asset('')}}assets/images/avatar1.png" alt="">
+                                                <img src="{{ asset('') }}assets/images/avatar1.png"
+                                                    alt="">
                                             </div>
                                         </div>
                                         <div class="message">
@@ -251,7 +252,8 @@
                                                 How are you?
                                             </div>
                                             <div class="message-avatar">
-                                                <img src="{{asset('')}}assets/images/avatar1.png" alt="">
+                                                <img src="{{ asset('') }}assets/images/avatar1.png"
+                                                    alt="">
                                             </div>
                                         </div>
                                     </li>
@@ -264,7 +266,8 @@
                                                 Hi, i am good
                                             </div>
                                             <div class="message-avatar">
-                                                <img src="{{asset('')}}assets/images/avatar2.png" alt="">
+                                                <img src="{{ asset('') }}assets/images/avatar2.png"
+                                                    alt="">
                                             </div>
                                         </div>
                                     </li>
@@ -277,7 +280,8 @@
                                                 Glad to see you ;)
                                             </div>
                                             <div class="message-avatar">
-                                                <img src="{{asset('')}}assets/images/avatar1.png" alt="">
+                                                <img src="{{ asset('') }}assets/images/avatar1.png"
+                                                    alt="">
                                             </div>
                                         </div>
                                     </li>
@@ -293,7 +297,8 @@
                                                 What do you think about my new Dashboard?
                                             </div>
                                             <div class="message-avatar">
-                                                <img src="{{asset('')}}assets/images/avatar2.png" alt="">
+                                                <img src="{{ asset('') }}assets/images/avatar2.png"
+                                                    alt="">
                                             </div>
                                         </div>
                                     </li>
@@ -306,10 +311,11 @@
                                                 Mba Inem
                                             </div>
                                             <div class="message-text">
-                                                Alo{{asset('')}}
+                                                Alo{{ asset('') }}
                                             </div>
                                             <div class="message-avatar">
-                                                <img src="{{asset('')}}assets/images/avatar2.png" alt="">
+                                                <img src="{{ asset('') }}assets/images/avatar2.png"
+                                                    alt="">
                                             </div>
                                         </div>
                                         <div class="message">
@@ -320,7 +326,8 @@
                                                 Are you there?
                                             </div>
                                             <div class="message-avatar">
-                                                <img src="{{asset('')}}assets/images/avatar2.png" alt="">
+                                                <img src="{{ asset('') }}assets/images/avatar2.png"
+                                                    alt="">
                                             </div>
                                         </div>
                                     </li>
@@ -333,7 +340,8 @@
                                                 Hi, i am here
                                             </div>
                                             <div class="message-avatar">
-                                                <img src="{{asset('')}}assets/images/avatar1.png" alt="">
+                                                <img src="{{ asset('') }}assets/images/avatar1.png"
+                                                    alt="">
                                             </div>
                                         </div>
                                         <div class="message">
@@ -344,7 +352,8 @@
                                                 Your Dashboard is great
                                             </div>
                                             <div class="message-avatar">
-                                                <img src="{{asset('')}}assets/images/avatar1.png" alt="">
+                                                <img src="{{ asset('') }}assets/images/avatar1.png"
+                                                    alt="">
                                             </div>
                                         </div>
                                     </li>
@@ -360,7 +369,8 @@
                                                 How does the binding and digesting work in ReactJS?, Bang?
                                             </div>
                                             <div class="message-avatar">
-                                                <img src="{{asset('')}}assets/images/avatar2.png" alt="">
+                                                <img src="{{ asset('') }}assets/images/avatar2.png"
+                                                    alt="">
                                             </div>
                                         </div>
                                     </li>
@@ -373,7 +383,8 @@
                                                 oh that's your question?
                                             </div>
                                             <div class="message-avatar">
-                                                <img src="{{asset('')}}assets/images/avatar1.png" alt="">
+                                                <img src="{{ asset('') }}assets/images/avatar1.png"
+                                                    alt="">
                                             </div>
                                         </div>
                                         <div class="message">
@@ -384,7 +395,8 @@
                                                 little reduntant, no?
                                             </div>
                                             <div class="message-avatar">
-                                                <img src="{{asset('')}}assets/images/avatar1.png" alt="">
+                                                <img src="{{ asset('') }}assets/images/avatar1.png"
+                                                    alt="">
                                             </div>
                                         </div>
                                         <div class="message">
@@ -395,7 +407,8 @@
                                                 literally we get the question daily
                                             </div>
                                             <div class="message-avatar">
-                                                <img src="{{asset('')}}assets/images/avatar1.png" alt="">
+                                                <img src="{{ asset('') }}assets/images/avatar1.png"
+                                                    alt="">
                                             </div>
                                         </div>
                                     </li>
@@ -420,11 +433,55 @@
 
     </div>
     @push('jsLibrary')
-    <script src="{{asset('')}}vendor/chart.js/Chart.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-    <script src="{{asset('')}}assets/js/pages/index.min.js"></script>
+        <script src="{{ asset('') }}vendor/chart.js/Chart.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+        <script src="{{ asset('') }}assets/js/pages/index.min.js"></script>
     @endpush
-    @push('js')
 
+    @push('js')
+        <script>
+            const ctx = document.getElementById('myChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: @json($labels),
+                    datasets: [{
+                            label: 'Transaksi Selesai',
+                            data: @json($selesai),
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: 'Refund Selesai',
+                            data: @json($refund),
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            tension: 0.3,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Perbandingan Transaksi Selesai & Refund per Bulan'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    }
+                }
+            });
+        </script>
     @endpush
+
 </x-master-layout>
