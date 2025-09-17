@@ -15,39 +15,36 @@ class DashboardController extends Controller
 
     public function index()
     {
-        // Total transaksi (jumlah order)
         $totalTransaksi = Transaksi::count();
-
-        // Total nominal: SUM dari detail (jumlah * harga)
-        $totalNominal = TransaksiDetail::select(DB::raw('SUM(jumlah * harga) as total'))->value('total');
-
-        // Transaksi bulan ini (jumlah order)
+        $totalNominal = Transaksi::sum('total_bayar_user'); // pakai kolom sesuai model
         $transaksiBulanIni = Transaksi::whereMonth('created_at', now()->month)->count();
 
-        // Data per bulan (jumlah order)
-        $bulanLabels = collect(range(1, 12))->map(fn($m) => date('M', mktime(0, 0, 0, $m, 1)));
-        $transaksiPerBulan = collect(range(1, 12))->map(
-            fn($m) =>
-            Transaksi::whereMonth('created_at', $m)->count()
-        );
+        // Labels bulan (Jan - Dec)
+        $labels = collect(range(1, 12))->map(function ($m) {
+            return date('M', mktime(0, 0, 0, $m, 1));
+        });
 
-        // Data per tanggal (bulan ini, jumlah order)
-        $tanggalLabels = range(1, now()->daysInMonth);
-        $transaksiPerTanggal = collect($tanggalLabels)->map(
-            fn($d) =>
-            Transaksi::whereDay('created_at', $d)
-                ->whereMonth('created_at', now()->month)
-                ->count()
-        );
+        // Data transaksi selesai per bulan
+        $selesai = collect(range(1, 12))->map(function ($m) {
+            return Transaksi::whereMonth('created_at', $m)
+                ->where('status_bayar', 'selesai')
+                ->count();
+        });
+
+        // Data refund per bulan
+        $refund = collect(range(1, 12))->map(function ($m) {
+            return Transaksi::whereMonth('created_at', $m)
+                ->where('status_bayar', 'refund')
+                ->count();
+        });
 
         return view('dashboard', compact(
             'totalTransaksi',
             'totalNominal',
             'transaksiBulanIni',
-            'bulanLabels',
-            'transaksiPerBulan',
-            'tanggalLabels',
-            'transaksiPerTanggal'
+            'labels',
+            'selesai',
+            'refund'
         ));
     }
 }
