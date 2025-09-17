@@ -62,7 +62,49 @@
     </div>
 
     @push('js')
+        <script src="{{ asset('vendor/chart.js/Chart.min.js') }}"></script>
         <script>
+            // Chart perbandingan selesai vs refund (weekly / monthly / yearly / all)
+            const ctxCompare = document.getElementById('chartCompare').getContext('2d');
+            new Chart(ctxCompare, {
+                type: 'bar',
+                data: {
+                    labels: @json($labels),
+                    datasets: [{
+                            label: 'Selesai',
+                            data: @json($selesaiData),
+                            backgroundColor: 'rgba(54, 162, 235, 0.7)', // biru
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Refund',
+                            data: @json($refundData),
+                            backgroundColor: 'rgba(255, 99, 132, 0.7)', // merah
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Statistik Transaksi ({{ $modes[$mode] }})'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    }
+                }
+            });
+
             // Chart total transaksi
             const ctxTotal = document.getElementById('totalChart').getContext('2d');
             new Chart(ctxTotal, {
