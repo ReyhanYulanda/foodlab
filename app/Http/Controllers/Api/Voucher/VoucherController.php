@@ -56,6 +56,7 @@ class VoucherController extends Controller
 
         // Decrement quantity cashback
         $cashback->decrement('quantity');
+        $voucher->load('cashback');
 
         return response()->json([
             'status'  => 'success',
@@ -70,6 +71,11 @@ class VoucherController extends Controller
 
         $vouchers = Voucher::with('cashback')
             ->where('user_id', $user->id)
+            ->whereHas('cashback', function ($query) {
+                $query->where('is_valid', 1) 
+                    ->whereDate('start_date', '<=', now())
+                    ->whereDate('end_date', '>=', now());
+            })
             ->get();
 
         return response()->json([
