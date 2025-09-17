@@ -65,17 +65,28 @@ class DashboardController extends Controller
                 $selesaiData[] = Transaksi::whereMonth('created_at', $m)->whereYear('created_at', now()->year)->where('status', 'selesai')->count();
                 $refundData[] = Transaksi::whereMonth('created_at', $m)->whereYear('created_at', now()->year)->where('status', 'refund_selesai')->count();
             }
-        } else {
-            // all time -> per tahun
+        } else { 
             $years = Transaksi::selectRaw('YEAR(created_at) as year')->distinct()->pluck('year');
-
-            foreach ($years as $year) {
-                $labels[] = $year;
-                $selesaiData[] = Transaksi::whereYear('created_at', $year)->where('status', 'selesai')->count();
-                $refundData[] = Transaksi::whereYear('created_at', $year)->where('status', 'refund_selesai')->count();
+            foreach ($years as $y) {
+                $labels[] = $y;
+                $selesaiData[] = Transaksi::whereYear('created_at', $y)
+                    ->where('status', 'selesai')
+                    ->count();
+                $refundData[] = Transaksi::whereYear('created_at', $y)
+                    ->where('status', 'refund_selesai')
+                    ->count();
             }
         }
-
-        return view('dashboard', compact('modes', 'mode', 'labels', 'selesaiData', 'refundData'));
+    
+        $totalSelesai = Transaksi::where('status', 'selesai')->count();
+        $totalRefund = Transaksi::where('status', 'refund_selesai')->count();
+    
+        return view('dashboard', compact(
+            'labels',
+            'selesaiData',
+            'refundData',
+            'totalSelesai',
+            'totalRefund'
+        ));
     }
 }

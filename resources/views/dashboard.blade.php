@@ -42,50 +42,61 @@
                     </div>
                 </div>
             </div>
+
+            <div class="content-wrapper mt-4">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4>Total Transaksi (All Time)</h4>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="totalChart" height="120"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
-    @push('jsLibrary')
-        <script src="{{ asset('vendor/chart.js/Chart.min.js') }}"></script>
+    @push('js')
         <script>
-            // Chart Bulanan (row atas, contoh dummy aja)
-            new Chart(document.getElementById('chartBulanan'), {
+            // Chart total transaksi
+            const ctxTotal = document.getElementById('totalChart').getContext('2d');
+            new Chart(ctxTotal, {
                 type: 'bar',
                 data: {
-                    labels: @json($labels),
+                    labels: ['Transaksi Selesai', 'Refund Selesai'],
                     datasets: [{
-                        label: 'Transaksi Bulanan',
-                        data: @json($selesaiData), // sementara isi dari selesaiData biar ada isi
-                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                        label: 'Jumlah Transaksi',
+                        data: [{{ $totalSelesai }}, {{ $totalRefund }}],
+                        backgroundColor: [
+                            'rgba(54, 162, 235, 0.7)', // biru
+                            'rgba(255, 99, 132, 0.7)' // merah
+                        ],
+                        borderColor: [
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 99, 132, 1)'
+                        ],
+                        borderWidth: 1
                     }]
-                }
-            });
-
-            // Chart Compare (row bawah, 2 bar bersampingan)
-            new Chart(document.getElementById('chartCompare'), {
-                type: 'bar',
-                data: {
-                    labels: @json($labels),
-                    datasets: [{
-                            label: 'Selesai',
-                            data: @json($selesaiData),
-                            backgroundColor: 'rgba(54, 162, 235, 0.7)'
-                        },
-                        {
-                            label: 'Refund',
-                            data: @json($refundData),
-                            backgroundColor: 'rgba(255, 99, 132, 0.7)'
-                        }
-                    ]
                 },
                 options: {
                     responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Perbandingan Total Transaksi Selesai & Refund Selesai'
+                        }
+                    },
                     scales: {
-                        x: {
-                            stacked: false
-                        },
                         y: {
-                            beginAtZero: true
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
                         }
                     }
                 }
