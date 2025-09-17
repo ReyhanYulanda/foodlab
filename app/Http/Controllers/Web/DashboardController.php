@@ -16,7 +16,7 @@ class DashboardController extends Controller
     public function index()
     {
         $totalTransaksi = Transaksi::count();
-        $totalNominal = Transaksi::sum('nominal'); // <-- pakai kolom yang ada
+        $totalNominal = Transaksi::sum('total'); // ✅ pakai kolom yg ada di model
         $transaksiBulanIni = Transaksi::whereMonth('created_at', now()->month)->count();
 
         $labels = collect(range(1, 12))->map(function ($m) {
@@ -25,13 +25,13 @@ class DashboardController extends Controller
 
         $selesai = collect(range(1, 12))->map(function ($m) {
             return Transaksi::whereMonth('created_at', $m)
-                ->where('status_bayar', 'selesai')
+                ->where('status', 'selesai')
                 ->count();
         });
 
         $refund = collect(range(1, 12))->map(function ($m) {
             return Transaksi::whereMonth('created_at', $m)
-                ->where('status_bayar', 'refund')
+                ->where('status', 'refund_selesai')
                 ->count();
         });
 
