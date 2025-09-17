@@ -16,32 +16,31 @@ class DashboardController extends Controller
     public function index()
     {
         $totalTransaksi = Transaksi::count();
-        $totalNominal = Transaksi::sum('total'); // ✅ pakai kolom yg ada di model
+        $totalNominal = Transaksi::sum('total'); // ganti sesuai kolom yg benar
         $transaksiBulanIni = Transaksi::whereMonth('created_at', now()->month)->count();
 
-        $labels = collect(range(1, 12))->map(function ($m) {
+        // Label bulan (Jan - Dec)
+        $bulanLabels = collect(range(1, 12))->map(function ($m) {
             return date('M', mktime(0, 0, 0, $m, 1));
         });
 
-        $selesai = collect(range(1, 12))->map(function ($m) {
-            return Transaksi::whereMonth('created_at', $m)
-                ->where('status', 'selesai')
-                ->count();
+        // Data transaksi per bulan
+        $transaksiPerBulan = collect(range(1, 12))->map(function ($m) {
+            return Transaksi::whereMonth('created_at', $m)->count();
         });
 
-        $refund = collect(range(1, 12))->map(function ($m) {
-            return Transaksi::whereMonth('created_at', $m)
-                ->where('status', 'refund_selesai')
-                ->count();
-        });
+        // Statistik status
+        $pesananSelesai = Transaksi::where('status', 'selesai')->count();
+        $pesananRefund  = Transaksi::where('status', 'refund_selesai')->count();
 
         return view('dashboard', compact(
             'totalTransaksi',
             'totalNominal',
             'transaksiBulanIni',
-            'labels',
-            'selesai',
-            'refund'
+            'bulanLabels',
+            'transaksiPerBulan',
+            'pesananSelesai',
+            'pesananRefund'
         ));
     }
 }

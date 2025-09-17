@@ -1,104 +1,88 @@
 <x-master-layout>
     @push('cssLibrary')
-        <link rel="stylesheet" href="{{ asset('') }}vendor/chart.js/Chart.min.css">
+        <link rel="stylesheet" href="{{ asset('vendor/chart.js/Chart.min.css') }}">
     @endpush
+
     <div class="main-content">
-        <div class="title">
-            Dashboard
-        </div>
+        <div class="title">Dashboard</div>
         <div class="content-wrapper">
             <div class="row same-height">
+                {{-- Statistik Bulanan --}}
                 <div class="col-md-8">
                     <div class="card">
                         <div class="card-header">
-                            <h4>Monthly Sales</h4>
+                            <h4>Statistik Bulanan</h4>
                         </div>
                         <div class="card-body">
-                            <canvas id="myChart" height="642" width="1388"></canvas>
+                            <canvas id="myChart"></canvas>
                         </div>
                     </div>
                 </div>
+
+                {{-- Statistik Status --}}
                 <div class="col-md-4">
                     <div class="card">
                         <div class="card-header">
-                            <h4>Statistics</h4>
+                            <h4>Statistik</h4>
                         </div>
                         <div class="card-body">
-                            <div class="progress-wrapper">
-                                <h4>Pesanan Selesai</h4>
+                            <div class="progress-wrapper mb-3">
+                                <h5>Pesanan Selesai</h5>
                                 <div class="progress progress-bar-small">
-                                    <div class="progress-bar progress-bar-small" style="width: 25%" role="progressbar"
-                                        aria-valuenow="10" aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-bar bg-success"
+                                        style="width: {{ $totalTransaksi > 0 ? ($pesananSelesai / $totalTransaksi) * 100 : 0 }}%">
                                     </div>
                                 </div>
+                                <small>{{ $pesananSelesai }} dari {{ $totalTransaksi }}</small>
                             </div>
-                            <div class="progress-wrapper">
-                                <h4>Pesanan Refund</h4>
+                            <div class="progress-wrapper mb-3">
+                                <h5>Pesanan Refund</h5>
                                 <div class="progress progress-bar-small">
-                                    <div class="progress-bar progress-bar-small bg-pink" style="width: 45%"
-                                        role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-bar bg-danger"
+                                        style="width: {{ $totalTransaksi > 0 ? ($pesananRefund / $totalTransaksi) * 100 : 0 }}%">
                                     </div>
                                 </div>
+                                <small>{{ $pesananRefund }} dari {{ $totalTransaksi }}</small>
                             </div>
-                            <canvas id="myChart2" height="842" width="1388"></canvas>
+
+                            <canvas id="myChart2"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        
-
     </div>
-    @push('jsLibrary')
-        <script src="{{ asset('') }}vendor/chart.js/Chart.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-        <script src="{{ asset('') }}assets/js/pages/index.min.js"></script>
-    @endpush
 
-    @push('js')
+    @push('jsLibrary')
+        <script src="{{ asset('vendor/chart.js/Chart.min.js') }}"></script>
         <script>
-            const ctx = document.getElementById('myChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'line',
+            // Data grafik bulanan
+            const bulanLabels = @json($bulanLabels);
+            const transaksiPerBulan = @json($transaksiPerBulan);
+
+            new Chart(document.getElementById('myChart'), {
+                type: 'bar',
                 data: {
-                    labels: @json($labels),
+                    labels: bulanLabels,
                     datasets: [{
-                            label: 'Transaksi Selesai',
-                            data: @json($selesai),
-                            borderColor: 'rgba(75, 192, 192, 1)',
-                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                            tension: 0.3,
-                            fill: true
-                        },
-                        {
-                            label: 'Refund Selesai',
-                            data: @json($refund),
-                            borderColor: 'rgba(255, 99, 132, 1)',
-                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                            tension: 0.3,
-                            fill: true
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: 'Perbandingan Transaksi Selesai & Refund per Bulan'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                precision: 0
-                            }
-                        }
-                    }
+                        label: 'Jumlah Transaksi',
+                        data: transaksiPerBulan,
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                    }]
+                }
+            });
+
+            // Data grafik status
+            new Chart(document.getElementById('myChart2'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Selesai', 'Refund'],
+                    datasets: [{
+                        data: [{{ $pesananSelesai }}, {{ $pesananRefund }}],
+                        backgroundColor: ['#28a745', '#dc3545']
+                    }]
                 }
             });
         </script>
     @endpush
-
 </x-master-layout>
