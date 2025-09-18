@@ -756,10 +756,8 @@ class TransaksiController extends Controller
                 $debugData = [
                     'transaksi_id'        => $transaksi->id,
                     'transaksi_tenant_id' => $transaksi->tenant_id,
-                    'tenant_user_id'      => optional($transaksi->tenant)->user_id,
+                    'current_tenant_id'   => optional($currentUser->tenant)->id,
                     'current_user_id'     => $currentUser->id,
-                    'equal_check'         => optional($transaksi->tenant)->user_id == $currentUser->id,
-                    'strict_check'        => optional($transaksi->tenant)->user_id === $currentUser->id,
                     'isTenant'            => $isTenant,
                     'can_admin'           => $currentUser->can('admin cancel order'),
                 ];
