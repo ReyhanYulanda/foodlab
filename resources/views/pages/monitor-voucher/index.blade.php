@@ -19,20 +19,24 @@
                                 <th>No</th>
                                 <th>Nama User</th>
                                 <th>Voucher ID</th>
+                                <th>Voucher Quantity</th>
+                                <th>Referral Code</th>
                                 <th>Cashback Amount</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($data as $index => $item)
+                            @forelse($transaksis as $index => $item)
                                 <tr>
                                     <td>{{ $index + 1 }}</td>
-                                    <td>{{ $item['user_name'] ?? 'Tidak diketahui' }}</td>
-                                    <td>{{ $item['voucher_id'] ?? '-' }}</td>
-                                    <td>Rp {{ number_format($item['cashback_amount'], 0, ',', '.') }}</td>
+                                    <td>{{ $item->user->name ?? 'Tidak diketahui' }}</td>
+                                    <td>{{ $item->voucher_id ?? '-' }}</td>
+                                    <td>{{ $item->voucher->quantity ?? '-' }}</td>
+                                    <td>{{ $item->voucher->cashback->referral_code ?? '-' }}</td>
+                                    <td>{{ number_format($item->cashback_amount, 0, ',', '.') }}</td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="4" class="text-center">Tidak ada transaksi dengan cashback.</td>
+                                    <td colspan="6" class="text-center">Tidak ada transaksi dengan cashback.</td>
                                 </tr>
                             @endforelse
                         </tbody>

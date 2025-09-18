@@ -13,20 +13,10 @@ class MonitorVoucherController extends Controller
 {
     public function monitorVoucher()
     {
-        // Ambil transaksi yang punya cashback
-        $transaksis = Transaksi::with(['user', 'voucher'])
+        $transaksis = Transaksi::with(['user', 'voucher.cashback'])
             ->where('cashback_amount', '>', 0)
-            ->get(['id', 'user_id', 'voucher_id', 'cashback_amount']);
+            ->get();
 
-        // Mapping data sesuai kebutuhan
-        $data = $transaksis->map(function ($trx) {
-            return [
-                'cashback_amount' => $trx->cashback_amount,
-                'user_name'       => $trx->user ? $trx->user->name : null,
-                'voucher_id'      => $trx->voucher_id,
-            ];
-        });
-
-        return view('pages.monitor-voucher.index', compact('data'));
+        return view('pages.monitor-voucher.index', compact('transaksis'));
     }
 }
