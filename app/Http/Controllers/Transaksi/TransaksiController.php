@@ -749,8 +749,7 @@ class TransaksiController extends Controller
 
             if ($transaksi->status === 'pesanan_diproses') {
                 $isAdmin  = $currentUser->can('admin cancel order');
-                $isTenant = $currentUser->can('tenant cancel order')
-                    && $transaksi->tenant
+                $isTenant = $transaksi->tenant
                     && $transaksi->tenant->user_id === $currentUser->id;
 
                 if (!($isAdmin || $isTenant)) {
