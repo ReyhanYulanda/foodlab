@@ -28,7 +28,7 @@ class VoucherController extends Controller
         }
 
         // Cek apakah user sudah pernah ambil voucher ini
-        // $alreadyClaimed = Voucher::where('user_id', $user->id)
+        // $alreadyClaimed = Voucher::where('user_id', $user->id)   
         //     ->where('cashback_id', $cashback->id)
         //     ->exists();
 
@@ -55,7 +55,7 @@ class VoucherController extends Controller
         ]);
 
         // Decrement quantity cashback
-        $cashback->decrement('quantity');
+        // $cashback->decrement('quantity');
         $voucher->load('cashback');
 
         return response()->json([
@@ -74,7 +74,8 @@ class VoucherController extends Controller
             ->whereHas('cashback', function ($query) {
                 $query->where('is_valid', 1) 
                     ->whereDate('start_date', '<=', now())
-                    ->whereDate('end_date', '>=', now());
+                    ->whereDate('end_date', '>=', now())
+                    ->where('quantity', '>', 0);
             })
             ->get();
 

@@ -99,9 +99,9 @@ class TenantOrderService
         }
 
         if (
-            $request->status === 'pesanan_diproses' &&
+            $request->status === 'selesai' &&
             $transaksi->cashback_amount > 0 &&
-            $transaksi->status !== 'pesanan_diproses'
+            $transaksi->status !== 'selesai'
         ) {
             $user = $transaksi->user;
 

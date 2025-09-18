@@ -135,10 +135,16 @@ class AutoCancelOrder extends Command
         CatatVoucher::where('transaksi_id', $transaksi->id)->delete();
 
         if ($transaksi->cashback_amount > 0 && $transaksi->voucher_id) {
-            $voucher = Voucher::find($transaksi->voucher_id);
+            $voucher = $transaksi->voucher;
+
             if ($voucher) {
-                $voucher->increment('quantity', 1);
-                Log::info("Voucher #{$voucher->id} dikembalikan quantity +1 untuk user {$transaksi->user_id}");
+                $voucher->increment('quantity');
+
+                if ($voucher->cashback) {
+                    $voucher->cashback->increment('quantity');
+                }
+
+                Log::info("Voucher #{$voucher->id} dikembalikan karena refund transaksi #{$transaksi->id}");
             }
         }
     }

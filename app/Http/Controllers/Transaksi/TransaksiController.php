@@ -6,6 +6,7 @@ use App\Helper\TransaksiCek;
 use App\Http\Controllers\Controller;
 use App\Jobs\CekMidtransTopupStatusJob;
 use App\Jobs\CekTopupStatusJob;
+use App\Models\Cashback;
 use App\Models\CatatVoucher;
 use App\Models\ChatMessage;
 use App\Models\Checkout;
@@ -419,6 +420,13 @@ class TransaksiController extends Controller
                     ], 400);
                 }
 
+                if ($cashback->quantity <= 0) {
+                    return response()->json([
+                        'status'  => 'failed',
+                        'message' => 'Cashback sudah habis'
+                    ], 400);
+                }
+
                 if (now()->gt($cashback->end_date)) {
                     return response()->json([
                         'status'  => 'failed',
@@ -461,6 +469,7 @@ class TransaksiController extends Controller
                     $assignCashback = $cashback->max_cashback;
                 }
 
+                $cashback->decrement('quantity');
                 $voucher->decrement('quantity');
             }
 
@@ -767,10 +776,15 @@ class TransaksiController extends Controller
             CatatVoucher::where('transaksi_id', $transaksi->id)->delete();
 
             if ($transaksi->cashback_amount > 0 && $transaksi->voucher_id) {
-                $voucher = Voucher::find($transaksi->voucher_id);
+                $voucher = $transaksi->voucher;
 
                 if ($voucher) {
                     $voucher->increment('quantity');
+
+                    if ($voucher->cashback) {
+                        $voucher->cashback->increment('quantity');
+                    }
+
                     Log::info("Voucher #{$voucher->id} dikembalikan karena refund transaksi #{$transaksi->id}");
                 }
             }
