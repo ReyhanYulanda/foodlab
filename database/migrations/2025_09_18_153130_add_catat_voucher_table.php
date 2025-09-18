@@ -16,7 +16,7 @@ class AddCatatVoucherTable extends Migration
         Schema::create('catat_vouchers', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->foreignId('transaksi_id')->constrained()->onDelete('cascade');
+            $table->foreignId('transaksi_id')->constrained('transaksi')->onDelete('cascade');
             $table->foreignId('voucher_id')->constrained()->onDelete('cascade');
             $table->integer('quantity_voucher')->nullable();
             $table->integer('cashback_amount')->nullable();
