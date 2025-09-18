@@ -747,11 +747,15 @@ class TransaksiController extends Controller
                 return ResponseApi::error("Refund sebelumnya gagal. Silakan hubungi admin", 400);
             }
 
-            if (
-                $transaksi->status === 'pesanan_diproses' &&
-                !$currentUser->can('admin cancel order')
-            ) {
-                return ResponseApi::error("Pesanan sedang diproses. Tidak bisa dibatalkan", 400);
+            if ($transaksi->status === 'pesanan_diproses') {
+                $isAdmin  = $currentUser->can('admin cancel order');
+                $isTenant = $currentUser->can('tenant cancel order') &&
+                    $transaksi->tenant &&
+                    $transaksi->tenant->user_id === $currentUser->id;
+
+                if (!($isAdmin || $isTenant)) {
+                    return ResponseApi::error("Pesanan sedang diproses. Tidak bisa dibatalkan", 400);
+                }
             }
 
             if ($request->has('catatan_penolakan')) {
@@ -759,7 +763,7 @@ class TransaksiController extends Controller
             }
 
             CatatVoucher::where('transaksi_id', $transaksi->id)->delete();
-            
+
             if ($transaksi->cashback_amount > 0 && $transaksi->voucher_id) {
                 $voucher = Voucher::find($transaksi->voucher_id);
 
