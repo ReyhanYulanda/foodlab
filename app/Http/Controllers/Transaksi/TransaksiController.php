@@ -747,13 +747,17 @@ class TransaksiController extends Controller
                 return ResponseApi::error("Refund sebelumnya gagal. Silakan hubungi admin", 400);
             }
 
-            if ($transaksi->status === 'pesanan_diproses') {
-                $isAdmin  = $currentUser->can('admin cancel order');
-                $isTenant = $transaksi->tenant->user_id === $currentUser->id;
-
-                if (!($isAdmin || $isTenant)) {
-                    return ResponseApi::error("Pesanan sedang diproses. Tidak bisa dibatalkan", 400);
-                }
+            if (
+                $transaksi->status === 'pesanan_diproses' &&
+                !(
+                    $currentUser->can('admin cancel order') ||
+                    (
+                        $currentUser->can('tenant cancel order') &&
+                        optional($transaksi->tenant)->user_id === $currentUser->id
+                    )
+                )
+            ) {
+                return ResponseApi::error("Pesanan sedang diproses. Tidak bisa dibatalkan", 400);
             }
 
             if ($request->has('catatan_penolakan')) {
