@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\CatatVoucher;
 use Illuminate\Console\Command;
 use App\Models\Transaksi;
 use Carbon\Carbon;
@@ -130,6 +131,8 @@ class AutoCancelOrder extends Command
             'tipe' => 'masuk',
             'deskripsi' => 'Refund pesanan #' . $transaksi->id,
         ]);
+
+        CatatVoucher::where('transaksi_id', $transaksi->id)->delete();
 
         if ($transaksi->cashback_amount > 0 && $transaksi->voucher_id) {
             $voucher = Voucher::find($transaksi->voucher_id);
