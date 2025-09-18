@@ -14,6 +14,7 @@
                             <tr>
                                 <th>No</th>
                                 <th>Nama User</th>
+                                <th>ID Transaksi</th>
                                 <th>Voucher ID</th>
                                 <th>Voucher Quantity</th>
                                 <th>Referral Code</th>
@@ -26,6 +27,7 @@
                                 <tr>
                                     <td>{{ $index + 1 }}</td>
                                     <td>{{ $item->user->name ?? 'Tidak diketahui' }}</td>
+                                    <td>{{ $item->transaksi_id }}</td>
                                     <td>{{ $item->voucher_id }}</td>
                                     <td>{{ $item->quantity_voucher ?? '-' }}</td>
                                     <td>{{ $item->voucher->cashback->referral_code ?? '-' }}</td>
