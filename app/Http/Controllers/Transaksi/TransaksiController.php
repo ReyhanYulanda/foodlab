@@ -747,7 +747,7 @@ class TransaksiController extends Controller
                 return ResponseApi::error("Refund sebelumnya gagal. Silakan hubungi admin", 400);
             }
 
-            $isTenant = (int) optional($transaksi->tenant)->user_id === (int) $currentUser->id;
+            $isTenant = $transaksi->tenant_id == optional($currentUser->tenant)->id;
 
             if (
                 $transaksi->status === 'pesanan_diproses' &&
