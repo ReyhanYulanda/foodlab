@@ -753,7 +753,7 @@ class TransaksiController extends Controller
                     $currentUser->can('admin cancel order') ||
                     (
                         $currentUser->can('tenant cancel order') &&
-                        optional($transaksi->tenant)->user_id === $currentUser->id
+                        optional($transaksi->tenant)->user_id == $currentUser->id
                     )
                 )
             ) {
