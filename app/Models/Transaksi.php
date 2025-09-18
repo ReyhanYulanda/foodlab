@@ -156,4 +156,9 @@ class Transaksi extends Model
     {
         return $this->hasOne(CatatVoucher::class, 'transaksi_id', 'id');
     }
+
+    public function tenant()
+    {
+        return $this->belongsTo(Tenants::class, 'tenant_id', 'id');
+    }
 }
