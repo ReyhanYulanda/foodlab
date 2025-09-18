@@ -6,6 +6,7 @@ use App\Helper\TransaksiCek;
 use App\Http\Controllers\Controller;
 use App\Jobs\CekMidtransTopupStatusJob;
 use App\Jobs\CekTopupStatusJob;
+use App\Models\CatatVoucher;
 use App\Models\ChatMessage;
 use App\Models\Checkout;
 use App\Models\FcmToken;
@@ -488,6 +489,16 @@ class TransaksiController extends Controller
             // SIMPAN ke database
             $transaksi->kode_pemesanan = $kodePemesanan;
             $transaksi->save();
+
+            if ($voucherId) {
+                CatatVoucher::create([
+                    'user_id'         => $user->id,
+                    'transaksi_id'    => $transaksi->id,
+                    'voucher_id'      => $voucher->id,
+                    'quantity_voucher' => $voucher->quantity,
+                    'cashback_amount' => $assignCashback,
+                ]);
+            }
 
             $success = $this->storeTransakasiDetail($request, $transaksi);
 

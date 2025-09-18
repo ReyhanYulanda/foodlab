@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Models\CatatVoucher;
 use App\Models\Transaksi;
 use App\Models\TransaksiDetail;
 use Carbon\Carbon;
@@ -13,10 +14,11 @@ class MonitorVoucherController extends Controller
 {
     public function monitorVoucher()
     {
-        $transaksis = Transaksi::with(['user', 'voucher.cashback'])
-            ->where('cashback_amount', '>', 0)
+        // ambil data dari catat_voucher beserta relasinya
+        $catatVouchers = CatatVoucher::with(['user', 'transaksi', 'voucher.cashback'])
+            ->orderBy('created_at', 'desc')
             ->get();
 
-        return view('pages.monitor-voucher.index', compact('transaksis'));
+        return view('pages.monitor-voucher.index', compact('catatVouchers'));
     }
 }
