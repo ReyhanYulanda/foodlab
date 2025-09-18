@@ -751,7 +751,7 @@ class TransaksiController extends Controller
 
             if (
                 $transaksi->status === 'pesanan_diproses' &&
-                !$currentUser->can('admin cancel order')
+                !($currentUser->can('admin cancel order') || $isTenant)
             ) {
                 return ResponseApi::error("Pesanan sedang diproses. Tidak bisa dibatalkan", 400);
             }
