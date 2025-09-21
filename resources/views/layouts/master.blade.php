@@ -6,16 +6,9 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     {{-- <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"> --}}
-    <div class="sidebar-header p-4 text-center">
-        <a href="{{ route('dashboard') }}" class="text-2xl font-bold text-gray-900 hover:text-blue-500">
-            FoodLab &mdash; PENS
-        </a>
-    </div>
-
-    <a href="{{ route('dashboard') }}">
-        <img src="{{ asset('storage/images/logo/logo-foodlab.png') }}" alt="FoodLab Logo" class="h-10 w-auto" />
-    </a>
-
+    <title>FoodLab &mdash; PENS</title>
+    <link rel="icon" href="{{ asset('storage/images/logo/logo-foodlab.png') }}" type="image/x-icon">
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css"
         integrity="sha512-HK5fgLBL+xu6dm/Ii3z4xhlSUyZgTT9tuc/hSrtw6uzJOvgRr2a9jyxxT1ely+B+xFAmJKVSTbpM/CuL7qxO8w=="
         crossorigin="anonymous" />
@@ -46,8 +39,8 @@
     @stack('css')
     <style>
         .dataTables_wrapper .dataTables_scroll {
-            box-shadow: none !important;
-        }
+    box-shadow: none !important;
+}
     </style>
 
     <!-- Select2 CSS -->
@@ -104,27 +97,29 @@
                 position: 'topRight'
             });
         }
+
+
     </script>
 
     <script>
         @if ($errors->any())
             @foreach ($errors->all() as $error)
-                showMessage('error', "{{ $error }}");
+                showMessage('error', "{{$error}}");
             @endforeach
         @endif
 
-        @if (Session::has('status'))
-            showMessage('success', '{{ Session::get('message') ?? '' }}');
+        @if(Session::has('status'))
+            showMessage('success', '{{Session::get("message") ?? ''}}');
         @endisset
     </script>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // Cari semua form dengan method POST dan yang punya _method DELETE
-            document.querySelectorAll('form').forEach(function(form) {
+            document.querySelectorAll('form').forEach(function (form) {
                 const methodInput = form.querySelector('input[name="_method"]');
                 if (methodInput && methodInput.value === 'DELETE') {
-                    form.addEventListener('submit', function(e) {
+                    form.addEventListener('submit', function (e) {
                         const confirmed = confirm('Apakah Anda yakin ingin menghapus data ini?');
                         if (!confirmed) {
                             e.preventDefault(); // Batalkan submit
@@ -134,7 +129,7 @@
             });
         });
     </script>
-
+    
     @stack('js')
 </body>
 
