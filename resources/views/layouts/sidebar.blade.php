@@ -4,14 +4,16 @@
         <!-- Side Nav Bar-->
 
         <div class="sidebar-header">
-            <div class="hidden sm:block text-4xl font-bold">
-                <h2>Food<span class="text-red-400">Lab</span></h2>
-                <p class="text-sm text-center">PENS Canteen</p>
-            </div>
+            <a href="{{ route('dashboard') }}">
+                <div class="hidden sm:block text-4xl font-bold">
+                    <h2>Food<span class="text-red-400">Lab</span></h2>
+                    <p class="text-sm text-center">PENS Canteen</p>
+                </div>
+            </a>
             <div class="close-sidebar action-toggle">
                 <i class="ti-close"></i>
             </div>
-        </div>
+        </div>        
 
         <div class="sidebar-content">
             <ul class="flex h-full w-full flex-col">
