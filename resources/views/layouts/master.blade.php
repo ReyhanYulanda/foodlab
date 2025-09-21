@@ -6,7 +6,12 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     {{-- <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"> --}}
-    <title>FoodLab &mdash; PENS</title>
+    <div class="sidebar-header p-4 text-center">
+        <a href="{{ route('dashboard') }}" class="text-2xl font-bold text-gray-900 hover:text-blue-500">
+            FoodLab &mdash; PENS
+        </a>
+    </div>
+
     <a href="{{ route('dashboard') }}">
         <img src="{{ asset('storage/images/logo/logo-foodlab.png') }}" alt="FoodLab Logo" class="h-10 w-auto" />
     </a>
