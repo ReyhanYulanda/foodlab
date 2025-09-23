@@ -12,22 +12,24 @@ class TransaksiDriverController extends Controller
 {
     public function TransaksiDriver()
     {
-        // Ambil persentase biaya ongkir dari tabel pengaturan
+        // Ambil persentase biaya ongkir dari tabel pengaturan (default 10%)
         $pengaturanPotongan = Pengaturan::where('nama', 'biaya_ongkos_kirim')->first();
-        $persentasePotongan = $pengaturanPotongan ? (float)$pengaturanPotongan->nilai : 0;
+        $persentasePotongan = $pengaturanPotongan ? (float)$pengaturanPotongan->nilai : 10;
 
         // Ambil transaksi yang selesai dan sudah ada driver_id
-        $data = Transaksi::select('driver_id',
-                    DB::raw('SUM(ongkos_kirim) as pendapatan_kotor'),
-                    DB::raw('SUM(ongkos_kirim) as total_ongkir'))
+        $data = Transaksi::select(
+            'driver_id',
+            DB::raw('SUM(ongkos_kirim) as total_ongkir')
+        )
             ->whereNotNull('driver_id')
             ->where('status', 'selesai')
             ->groupBy('driver_id')
             ->with('driver')
             ->get()
             ->map(function ($item) use ($persentasePotongan) {
-                // Hitung pendapatan bersih berdasarkan persen
-                $item->pendapatan_bersih = $item->total_ongkir - ($item->total_ongkir * $persentasePotongan / 100);
+                // Hitung pendapatan Pens & Driver
+                $item->pendapatan_pens = $item->total_ongkir * $persentasePotongan / 100;
+                $item->pendapatan_driver = $item->total_ongkir - $item->pendapatan_pens;
                 return $item;
             });
 
@@ -48,5 +50,4 @@ class TransaksiDriverController extends Controller
 
         return view('pages.transaksi.rincianTransaksiDriver.index', compact('driver', 'transaksi'));
     }
-
 }
