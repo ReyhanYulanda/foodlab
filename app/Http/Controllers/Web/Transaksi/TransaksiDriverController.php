@@ -10,24 +10,34 @@ use Illuminate\Http\Request;
 
 class TransaksiDriverController extends Controller
 {
-    public function TransaksiDriver()
+    public function TransaksiDriver(Request $request)
     {
-        // Ambil persentase biaya ongkir dari tabel pengaturan
+        // Ambil persentase biaya ongkir (default 10%)
         $pengaturanPotongan = Pengaturan::where('nama', 'biaya_ongkos_kirim')->first();
-        $persentasePotongan = $pengaturanPotongan ? (float)$pengaturanPotongan->nilai : 0;
+        $persentasePotongan = $pengaturanPotongan ? (float)$pengaturanPotongan->nilai : 10;
 
-        // Ambil transaksi yang selesai dan sudah ada driver_id
-        $data = Transaksi::select('driver_id',
-                    DB::raw('SUM(ongkos_kirim) as pendapatan_kotor'),
-                    DB::raw('SUM(ongkos_kirim) as total_ongkir'))
+        // Query transaksi
+        $query = Transaksi::select(
+            'driver_id',
+            DB::raw('SUM(ongkos_kirim) as total_ongkir')
+        )
             ->whereNotNull('driver_id')
-            ->where('status', 'selesai')
-            ->groupBy('driver_id')
+            ->where('status', 'selesai');
+
+        // Filter berdasarkan tanggal
+        if ($request->start_date) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+        if ($request->end_date) {
+            $query->whereDate('created_at', '<=', $request->end_date);
+        }
+
+        $data = $query->groupBy('driver_id')
             ->with('driver')
             ->get()
             ->map(function ($item) use ($persentasePotongan) {
-                // Hitung pendapatan bersih berdasarkan persen
-                $item->pendapatan_bersih = $item->total_ongkir - ($item->total_ongkir * $persentasePotongan / 100);
+                $item->pendapatan_pens = $item->total_ongkir * $persentasePotongan / 100;
+                $item->pendapatan_driver = $item->total_ongkir - $item->pendapatan_pens;
                 return $item;
             });
 
@@ -48,5 +58,4 @@ class TransaksiDriverController extends Controller
 
         return view('pages.transaksi.rincianTransaksiDriver.index', compact('driver', 'transaksi'));
     }
-
 }
