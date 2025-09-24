@@ -234,9 +234,9 @@ class TenantController extends Controller
             ->where('tenants.id', $tenantId);
 
         if ($filterDate) {
-            $query->whereDate('transaksi.created_at', $filterDate);
+            $query->whereDate('transaksi.updated_at', $filterDate);
         } elseif ($startDate && $endDate) {
-            $query->whereBetween('transaksi.created_at', [$startDate, $endDate]);
+            $query->whereBetween('transaksi.updated_at', [$startDate, $endDate]);
         }
 
         $transaksiTenant = $query->groupBy('tenants.id', 'tenants.nama_tenant')->get();
