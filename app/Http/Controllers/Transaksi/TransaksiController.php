@@ -1858,6 +1858,7 @@ class TransaksiController extends Controller
             ->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
                 $q->whereBetween('updated_at', [$dateStart, $dateEnd]);
             })
+            ->orderBy('updated_at', 'desc')
             ->get();
 
         foreach ($transaksiSelesai as $trx) {
