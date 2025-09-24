@@ -1753,21 +1753,22 @@ class TransaksiController extends Controller
             $startOfMonth = Carbon::create($year, $month, 1)->startOfMonth();
             $endOfMonth   = Carbon::create($year, $month, 1)->endOfMonth();
 
-            $weeks = $startOfMonth->diffInWeeks($endOfMonth) + 1; // jumlah minggu
+            $week = 1;
+            $current = $startOfMonth->copy();
 
-            for ($w = 1; $w <= $weeks; $w++) {
-                $weekStart = (clone $startOfMonth)->addWeeks($w - 1)->startOfWeek();
-                $weekEnd   = (clone $weekStart)->endOfWeek();
+            while ($current <= $endOfMonth) {
+                $weekStart = $current->copy()->startOfWeek();
+                $weekEnd   = $current->copy()->endOfWeek();
 
-                // jangan keluar dari bulan
-                if ($weekStart->month != $month) {
+                // batasin supaya nggak keluar dari bulan
+                if ($weekStart < $startOfMonth) {
                     $weekStart = $startOfMonth;
                 }
-                if ($weekEnd->month != $month) {
+                if ($weekEnd > $endOfMonth) {
                     $weekEnd = $endOfMonth;
                 }
 
-                $labels[] = "Minggu {$w}";
+                $labels[] = "Minggu {$week}";
 
                 $selesaiData[] = Transaksi::where('tenant_id', $tenantId)
                     ->where('status', 'selesai')
@@ -1778,6 +1779,9 @@ class TransaksiController extends Controller
                     ->where('status', 'refund')
                     ->whereBetween('created_at', [$weekStart, $weekEnd])
                     ->count();
+
+                $current = $weekEnd->addDay(); // lompat ke hari setelah minggu ini
+                $week++;
             }
 
             $dateStart = $startOfMonth;
