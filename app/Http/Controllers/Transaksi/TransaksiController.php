@@ -1753,18 +1753,20 @@ class TransaksiController extends Controller
             $dateStart = Carbon::create($year, 1, 1)->startOfYear();
             $dateEnd   = Carbon::create($year, 12, 31)->endOfYear();
         } elseif ($year && $month && !$date) {
-            // mode monthly → data per minggu
             $startOfMonth = Carbon::create($year, $month, 1)->startOfMonth();
             $endOfMonth   = Carbon::create($year, $month, 1)->endOfMonth();
 
+            $current = $startOfMonth->copy();
             $week = 1;
-            $daysInMonth = $startOfMonth->daysInMonth;
-            $weekCount   = ceil($daysInMonth / 7);
 
-            for ($week = 1; $week <= $weekCount; $week++) {
-                $weekStart = $startOfMonth->copy()->addDays(($week - 1) * 7);
-                $weekEnd   = $weekStart->copy()->addDays(6);
+            while ($current <= $endOfMonth) {
+                $weekStart = $current->copy()->startOfWeek(Carbon::MONDAY);
+                $weekEnd   = $current->copy()->endOfWeek(Carbon::SUNDAY);
 
+                // pastikan gak keluar bulan
+                if ($weekStart < $startOfMonth) {
+                    $weekStart = $startOfMonth;
+                }
                 if ($weekEnd > $endOfMonth) {
                     $weekEnd = $endOfMonth;
                 }
@@ -1784,6 +1786,9 @@ class TransaksiController extends Controller
                     ->where('status', 'refund_selesai')
                     ->whereBetween('created_at', [$weekStart, $weekEnd])
                     ->count();
+
+                $current = $weekEnd->addDay(); // lanjut ke minggu berikutnya
+                $week++;
             }
 
             $dateStart = $startOfMonth;
@@ -1834,8 +1839,8 @@ class TransaksiController extends Controller
         })->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
             $q->whereBetween('created_at', [$dateStart, $dateEnd]);
         })
-        ->orderBy('created_at', 'asc')
-        ->get();
+            ->orderBy('created_at', 'asc')
+            ->get();
 
         foreach ($transaksiQuery as $trx) {
             $harga = max(0, (int)$trx->total - (int)($trx->ongkos_kirim ?? 0));
