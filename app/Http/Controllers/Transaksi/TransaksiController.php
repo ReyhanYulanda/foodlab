@@ -1741,7 +1741,7 @@ class TransaksiController extends Controller
                     ->count();
 
                 $refundData[] = Transaksi::where('tenant_id', $tenantId)
-                    ->where('status', 'refund')
+                    ->where('status', 'refund_selesai')
                     ->whereBetween('created_at', [$start, $end])
                     ->count();
             }
@@ -1776,7 +1776,7 @@ class TransaksiController extends Controller
                     ->count();
 
                 $refundData[] = Transaksi::where('tenant_id', $tenantId)
-                    ->where('status', 'refund')
+                    ->where('status', 'refund_selesai')
                     ->whereBetween('created_at', [$weekStart, $weekEnd])
                     ->count();
 
@@ -1799,7 +1799,7 @@ class TransaksiController extends Controller
                 ->count();
 
             $refundData[] = Transaksi::where('tenant_id', $tenantId)
-                ->where('status', 'refund')
+                ->where('status', 'refund_selesai')
                 ->whereBetween('created_at', [$start, $end])
                 ->count();
 
@@ -1814,7 +1814,7 @@ class TransaksiController extends Controller
                 ->count();
 
             $refundData[] = Transaksi::where('tenant_id', $tenantId)
-                ->where('status', 'refund')
+                ->where('status', 'refund_selesai')
                 ->count();
         }
 
