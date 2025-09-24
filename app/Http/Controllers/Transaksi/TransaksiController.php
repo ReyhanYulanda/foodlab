@@ -193,6 +193,7 @@ class TransaksiController extends Controller
             $transaksi = Transaksi::whereHas('listTransaksiDetail.menus', function ($menus) use ($tenant) {
                 return $menus->where('tenant_id', $tenant->id);
             })
+                ->whereNotIn('status', ['pending', 'gagal_bayar'])
                 ->with([
                     'listTransaksiDetail.menus.tenants' => function ($tenants) use ($tenant) {
                         $tenants->where('id', $tenant->id);
