@@ -1735,12 +1735,16 @@ class TransaksiController extends Controller
 
                 $labels[] = Carbon::create($year, $m, 1)->format('F');
 
-                $selesaiData[] = Transaksi::where('tenant_id', $tenantId)
+                $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+                    $q->where('user_id', $tenantId);
+                })
                     ->where('status', 'selesai')
                     ->whereBetween('created_at', [$start, $end])
                     ->count();
 
-                $refundData[] = Transaksi::where('tenant_id', $tenantId)
+                $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+                    $q->where('user_id', $tenantId);
+                })
                     ->where('status', 'refund_selesai')
                     ->whereBetween('created_at', [$start, $end])
                     ->count();
@@ -1770,12 +1774,16 @@ class TransaksiController extends Controller
 
                 $labels[] = "Minggu {$week}";
 
-                $selesaiData[] = Transaksi::where('tenant_id', $tenantId)
+                $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+                    $q->where('user_id', $tenantId);
+                })
                     ->where('status', 'selesai')
                     ->whereBetween('created_at', [$weekStart, $weekEnd])
                     ->count();
 
-                $refundData[] = Transaksi::where('tenant_id', $tenantId)
+                $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+                    $q->where('user_id', $tenantId);
+                })
                     ->where('status', 'refund_selesai')
                     ->whereBetween('created_at', [$weekStart, $weekEnd])
                     ->count();
@@ -1793,12 +1801,16 @@ class TransaksiController extends Controller
 
             $labels[] = $start->format('d F Y');
 
-            $selesaiData[] = Transaksi::where('tenant_id', $tenantId)
+            $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+                $q->where('user_id', $tenantId);
+            })
                 ->where('status', 'selesai')
                 ->whereBetween('created_at', [$start, $end])
                 ->count();
 
-            $refundData[] = Transaksi::where('tenant_id', $tenantId)
+            $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+                $q->where('user_id', $tenantId);
+            })
                 ->where('status', 'refund_selesai')
                 ->whereBetween('created_at', [$start, $end])
                 ->count();
@@ -1809,21 +1821,25 @@ class TransaksiController extends Controller
             // mode all time
             $labels[] = 'All Time';
 
-            $selesaiData[] = Transaksi::where('tenant_id', $tenantId)
+            $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+                $q->where('user_id', $tenantId);
+            })
                 ->where('status', 'selesai')
                 ->count();
 
-            $refundData[] = Transaksi::where('tenant_id', $tenantId)
+            $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+                $q->where('user_id', $tenantId);
+            })
                 ->where('status', 'refund_selesai')
                 ->count();
         }
 
         // transaksi detail (list) sesuai filter
-        $transaksiQuery = Transaksi::where('tenant_id', $tenantId)
-            ->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
-                $q->whereBetween('created_at', [$dateStart, $dateEnd]);
-            })
-            ->get();
+        $transaksiQuery = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+            $q->where('user_id', $tenantId);
+        })->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
+            $q->whereBetween('created_at', [$dateStart, $dateEnd]);
+        })->get();
 
         foreach ($transaksiQuery as $trx) {
             $harga = ($trx->total ?? 0) - ($trx->ongkos_kirim ?? 0);
@@ -1839,7 +1855,9 @@ class TransaksiController extends Controller
         }
 
         // total pendapatan bersih
-        $totalPendapatan = Transaksi::where('tenant_id', $tenantId)
+        $totalPendapatan = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+            $q->where('user_id', $tenantId);
+        })
             ->where('status', 'selesai')
             ->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
                 $q->whereBetween('created_at', [$dateStart, $dateEnd]);
