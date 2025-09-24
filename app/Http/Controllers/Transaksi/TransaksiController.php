@@ -1713,142 +1713,133 @@ class TransaksiController extends Controller
 
     public function getPenghasilanTenant(Request $request)
     {
-        $currentUser = $request->user();
-        $tenant = Tenants::where('user_id', $currentUser->id)->firstOrFail();
-        $tenantId = $tenant->id;
+        $tenantId = $request->user()->id; // ambil id tenant dari user login
+        $year     = $request->query('year');
+        $month    = $request->query('month');
+        $date     = $request->query('date');
 
-        $date  = $request->get('date');   // ex: 1
-        $month = $request->get('month');  // ex: 12
-        $year  = $request->get('year');   // ex: 2025
+        $labels        = [];
+        $selesaiData   = [];
+        $refundData    = [];
+        $transaksiList = [];
 
-        $labels = [];
-        $selesaiData = [];
-        $refundData = [];
+        // default: all time
+        $dateStart = null;
+        $dateEnd   = null;
 
-        $transaksiQuery = Transaksi::with('listTransaksiDetail.menus')
-            ->whereHas('listTransaksiDetail.menus', function ($q) use ($tenantId) {
-                $q->where('tenant_id', $tenantId);
-            });
-
-        // --- Filter date range ---
-        if ($date && $month && $year) {
-            // DAILY
-            $targetDate = Carbon::createFromDate($year, $month, $date);
-            $transaksiQuery->whereDate('created_at', $targetDate);
-
-            $labels[] = $targetDate->format('d M Y');
-            $mode = 'daily';
-        } elseif ($month && $year) {
-            // MONTHLY (by week)
-            $start = Carbon::createFromDate($year, $month, 1)->startOfMonth();
-            $end   = $start->copy()->endOfMonth();
-            $mode = 'weekly';
-
-            while ($start <= $end) {
-                $weekStart = $start->copy();
-                $weekEnd   = $start->copy()->endOfWeek();
-
-                $labels[] = "Minggu " . $weekStart->format('W');
-
-                $selesaiData[] = TransaksiDetail::join('menus', 'transaksi_detail.menu_id', '=', 'menus.id')
-                    ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id')
-                    ->where('menus.tenant_id', $tenantId)
-                    ->whereBetween('transaksi.created_at', [$weekStart, $weekEnd])
-                    ->where('transaksi.status', 'selesai')
-                    ->sum('transaksi_detail.harga') * 0.9;
-
-                $refundData[] = TransaksiDetail::join('menus', 'transaksi_detail.menu_id', '=', 'menus.id')
-                    ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id')
-                    ->where('menus.tenant_id', $tenantId)
-                    ->whereBetween('transaksi.created_at', [$weekStart, $weekEnd])
-                    ->where('transaksi.status', 'refund_selesai')
-                    ->sum('transaksi_detail.harga');
-
-                $start->addWeek();
-            }
-        } elseif ($year) {
-            // YEARLY (by month)
-            $mode = 'monthly';
-
+        if ($year && !$month && !$date) {
+            // mode yearly → data per bulan
             for ($m = 1; $m <= 12; $m++) {
-                $labels[] = date('M', mktime(0, 0, 0, $m, 1));
+                $start = Carbon::create($year, $m, 1)->startOfMonth();
+                $end   = Carbon::create($year, $m, 1)->endOfMonth();
 
-                $selesaiData[] = TransaksiDetail::join('menus', 'transaksi_detail.menu_id', '=', 'menus.id')
-                    ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id')
-                    ->where('menus.tenant_id', $tenantId)
-                    ->whereMonth('transaksi.created_at', $m)
-                    ->whereYear('transaksi.created_at', $year)
-                    ->where('transaksi.status', 'selesai')
-                    ->sum('transaksi_detail.harga') * 0.9;
+                $labels[] = Carbon::create($year, $m, 1)->format('F');
 
-                $refundData[] = TransaksiDetail::join('menus', 'transaksi_detail.menu_id', '=', 'menus.id')
-                    ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id')
-                    ->where('menus.tenant_id', $tenantId)
-                    ->whereMonth('transaksi.created_at', $m)
-                    ->whereYear('transaksi.created_at', $year)
-                    ->where('transaksi.status', 'refund_selesai')
-                    ->sum('transaksi_detail.harga');
+                $selesaiData[] = Transaksi::where('tenant_id', $tenantId)
+                    ->where('status', 'selesai')
+                    ->whereBetween('created_at', [$start, $end])
+                    ->count();
+
+                $refundData[] = Transaksi::where('tenant_id', $tenantId)
+                    ->where('status', 'refund')
+                    ->whereBetween('created_at', [$start, $end])
+                    ->count();
             }
 
-            $transaksiQuery->whereYear('created_at', $year);
+            $dateStart = Carbon::create($year, 1, 1)->startOfYear();
+            $dateEnd   = Carbon::create($year, 12, 31)->endOfYear();
+        } elseif ($year && $month && !$date) {
+            // mode monthly → data per minggu
+            $weeks = Carbon::create($year, $month, 1)->weeksInMonth;
+            for ($w = 1; $w <= $weeks; $w++) {
+                $start = Carbon::create($year, $month, 1)->startOfMonth()->addWeeks($w - 1)->startOfWeek();
+                $end   = (clone $start)->endOfWeek();
+
+                $labels[] = "Minggu {$w}";
+
+                $selesaiData[] = Transaksi::where('tenant_id', $tenantId)
+                    ->where('status', 'selesai')
+                    ->whereBetween('created_at', [$start, $end])
+                    ->count();
+
+                $refundData[] = Transaksi::where('tenant_id', $tenantId)
+                    ->where('status', 'refund')
+                    ->whereBetween('created_at', [$start, $end])
+                    ->count();
+            }
+
+            $dateStart = Carbon::create($year, $month, 1)->startOfMonth();
+            $dateEnd   = Carbon::create($year, $month, 1)->endOfMonth();
+        } elseif ($year && $month && $date) {
+            // mode daily → data 1 hari
+            $start = Carbon::create($year, $month, $date)->startOfDay();
+            $end   = Carbon::create($year, $month, $date)->endOfDay();
+
+            $labels[] = $start->format('d F Y');
+
+            $selesaiData[] = Transaksi::where('tenant_id', $tenantId)
+                ->where('status', 'selesai')
+                ->whereBetween('created_at', [$start, $end])
+                ->count();
+
+            $refundData[] = Transaksi::where('tenant_id', $tenantId)
+                ->where('status', 'refund')
+                ->whereBetween('created_at', [$start, $end])
+                ->count();
+
+            $dateStart = $start;
+            $dateEnd   = $end;
         } else {
-            // ALL TIME (by year)
-            $mode = 'all';
+            // mode all time
+            $labels[] = 'All Time';
 
-            $years = Transaksi::selectRaw('YEAR(created_at) as year')
-                ->distinct()
-                ->pluck('year');
+            $selesaiData[] = Transaksi::where('tenant_id', $tenantId)
+                ->where('status', 'selesai')
+                ->count();
 
-            foreach ($years as $y) {
-                $labels[] = $y;
-
-                $selesaiData[] = TransaksiDetail::join('menus', 'transaksi_detail.menu_id', '=', 'menus.id')
-                    ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id')
-                    ->where('menus.tenant_id', $tenantId)
-                    ->whereYear('transaksi.created_at', $y)
-                    ->where('transaksi.status', 'selesai')
-                    ->sum('transaksi_detail.harga') * 0.9;
-
-                $refundData[] = TransaksiDetail::join('menus', 'transaksi_detail.menu_id', '=', 'menus.id')
-                    ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id')
-                    ->where('menus.tenant_id', $tenantId)
-                    ->whereYear('transaksi.created_at', $y)
-                    ->where('transaksi.status', 'refund_selesai')
-                    ->sum('transaksi_detail.harga');
-            }
+            $refundData[] = Transaksi::where('tenant_id', $tenantId)
+                ->where('status', 'refund')
+                ->count();
         }
 
-        // Ambil transaksi detail sesuai filter
-        $transaksi = $transaksiQuery->get()->map(function ($trx) use ($tenantId) {
-            $totalHarga = $trx->listTransaksiDetail
-                ->filter(fn($d) => $d->menus->tenant_id == $tenantId)
-                ->sum('harga');
+        // transaksi detail (list) sesuai filter
+        $transaksiQuery = Transaksi::where('tenant_id', $tenantId)
+            ->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
+                $q->whereBetween('created_at', [$dateStart, $dateEnd]);
+            })
+            ->get();
 
-            return [
-                'id'              => $trx->id,
-                'status'          => $trx->status,
-                'created_at'      => $trx->created_at->toDateTimeString(),
-                'pendapatan_bersih' => $totalHarga * 0.9,
+        foreach ($transaksiQuery as $trx) {
+            $harga = $trx->total ?? 0;
+            $bersih = $trx->status === 'selesai' ? $harga - (0.1 * $harga) : 0;
+
+            $transaksiList[] = [
+                'id'                => $trx->id,
+                'status'            => $trx->status,
+                'harga'             => $harga,
+                'pendapatan_bersih' => $bersih,
+                'tanggal'           => $trx->created_at->format('d-m-Y H:i:s'),
             ];
-        });
+        }
 
-        // Total di range
-        $totalPendapatan = $transaksi->sum('pendapatan_bersih');
+        // total pendapatan bersih
+        $totalPendapatan = Transaksi::where('tenant_id', $tenantId)
+            ->where('status', 'selesai')
+            ->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
+                $q->whereBetween('created_at', [$dateStart, $dateEnd]);
+            })
+            ->sum('total');
+
+        $totalPendapatanBersih = $totalPendapatan - (0.1 * $totalPendapatan);
 
         return response()->json([
-            'mode'         => $mode,
-            'labels'       => $labels,
-            'selesaiData'  => $selesaiData,
-            'refundData'   => $refundData,
-            'totalSelesai' => array_sum($selesaiData),
-            'totalRefund'  => array_sum($refundData),
-            'totalPendapatan' => $totalPendapatan,
-            'transaksi'    => $transaksi,
-            'filters'      => [
-                'date'  => $date,
-                'month' => $month,
-                'year'  => $year
-            ]
+            'labels'            => $labels,
+            'selesaiData'       => $selesaiData,
+            'refundData'        => $refundData,
+            'totalSelesai'      => array_sum($selesaiData),
+            'totalRefund'       => array_sum($refundData),
+            'totalPendapatan'   => $totalPendapatanBersih,
+            'transaksi'         => $transaksiList,
         ]);
     }
 }
