@@ -1799,11 +1799,13 @@ class TransaksiController extends Controller
             $dateStart = $startOfMonth;
             $dateEnd   = $endOfMonth;
         } elseif ($year && $month && $date) {
-            // mode daily
-            $start = Carbon::create($year, $month, $date)->startOfDay();
-            $end   = Carbon::create($year, $month, $date)->endOfDay();
+            // mode daily → dari jam 06:00 hari sebelumnya s/d 05:59 hari ini
+            $filterDate = Carbon::create($year, $month, $date);
 
-            $labels[] = $start->format('d F Y');
+            $start = $filterDate->copy()->subDay()->setTime(6, 0, 0);
+            $end   = $filterDate->copy()->setTime(5, 59, 59);
+
+            $labels[] = $filterDate->format('d F Y') . " (06:00 - 05:59)";
 
             $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
                 $q->where('user_id', $tenantId);
