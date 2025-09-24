@@ -1750,26 +1750,38 @@ class TransaksiController extends Controller
             $dateEnd   = Carbon::create($year, 12, 31)->endOfYear();
         } elseif ($year && $month && !$date) {
             // mode monthly → data per minggu
-            $weeks = Carbon::create($year, $month, 1)->weeksInMonth;
+            $startOfMonth = Carbon::create($year, $month, 1)->startOfMonth();
+            $endOfMonth   = Carbon::create($year, $month, 1)->endOfMonth();
+
+            $weeks = $startOfMonth->diffInWeeks($endOfMonth) + 1; // jumlah minggu
+
             for ($w = 1; $w <= $weeks; $w++) {
-                $start = Carbon::create($year, $month, 1)->startOfMonth()->addWeeks($w - 1)->startOfWeek();
-                $end   = (clone $start)->endOfWeek();
+                $weekStart = (clone $startOfMonth)->addWeeks($w - 1)->startOfWeek();
+                $weekEnd   = (clone $weekStart)->endOfWeek();
+
+                // jangan keluar dari bulan
+                if ($weekStart->month != $month) {
+                    $weekStart = $startOfMonth;
+                }
+                if ($weekEnd->month != $month) {
+                    $weekEnd = $endOfMonth;
+                }
 
                 $labels[] = "Minggu {$w}";
 
                 $selesaiData[] = Transaksi::where('tenant_id', $tenantId)
                     ->where('status', 'selesai')
-                    ->whereBetween('created_at', [$start, $end])
+                    ->whereBetween('created_at', [$weekStart, $weekEnd])
                     ->count();
 
                 $refundData[] = Transaksi::where('tenant_id', $tenantId)
                     ->where('status', 'refund')
-                    ->whereBetween('created_at', [$start, $end])
+                    ->whereBetween('created_at', [$weekStart, $weekEnd])
                     ->count();
             }
 
-            $dateStart = Carbon::create($year, $month, 1)->startOfMonth();
-            $dateEnd   = Carbon::create($year, $month, 1)->endOfMonth();
+            $dateStart = $startOfMonth;
+            $dateEnd   = $endOfMonth;
         } elseif ($year && $month && $date) {
             // mode daily → data 1 hari
             $start = Carbon::create($year, $month, $date)->startOfDay();
