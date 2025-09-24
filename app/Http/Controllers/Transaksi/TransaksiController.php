@@ -1826,7 +1826,7 @@ class TransaksiController extends Controller
             ->get();
 
         foreach ($transaksiQuery as $trx) {
-            $harga = $trx->total - $trx->ongkos_kirim ?? 0;
+            $harga = ($trx->total ?? 0) - ($trx->ongkos_kirim ?? 0);
             $bersih = $trx->status === 'selesai' ? $harga - (0.1 * $harga) : 0;
 
             $transaksiList[] = [
@@ -1850,12 +1850,20 @@ class TransaksiController extends Controller
 
         return response()->json([
             'labels'            => $labels,
-            'selesaiData'       => $selesaiData,
-            'refundData'        => $refundData,
-            'totalSelesai'      => array_sum($selesaiData),
-            'totalRefund'       => array_sum($refundData),
-            'totalPendapatan'   => $totalPendapatanBersih,
-            'transaksi'         => $transaksiList,
+            'selesaiData'       => array_map('intval', $selesaiData),
+            'refundData'        => array_map('intval', $refundData),
+            'totalSelesai'      => intval(array_sum($selesaiData)),
+            'totalRefund'       => intval(array_sum($refundData)),
+            'totalPendapatan'   => intval($totalPendapatanBersih),
+            'transaksi'         => collect($transaksiList)->map(function ($trx) {
+                return [
+                    'id'                => intval($trx['id']),
+                    'status'            => $trx['status'],
+                    'harga'             => intval($trx['harga']),
+                    'pendapatan_bersih' => intval($trx['pendapatan_bersih']),
+                    'tanggal'           => $trx['tanggal'],
+                ];
+            }),
         ]);
     }
 }
