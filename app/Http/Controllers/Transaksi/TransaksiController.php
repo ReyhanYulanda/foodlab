@@ -1849,16 +1849,21 @@ class TransaksiController extends Controller
         }
 
         // total pendapatan bersih
-        $totalPendapatan = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+        $totalPendapatan = 0;
+
+        $transaksiSelesai = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
             $q->where('user_id', $tenantId);
         })
             ->where('status', 'selesai')
             ->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
                 $q->whereBetween('created_at', [$dateStart, $dateEnd]);
             })
-            ->sum('total');
+            ->get();
 
-        $totalPendapatanBersih = $totalPendapatan - (0.1 * $totalPendapatan);
+        foreach ($transaksiSelesai as $trx) {
+            $harga = ($trx->total ?? 0) - ($trx->ongkos_kirim ?? 0);
+            $totalPendapatan += $harga - (0.1 * $harga);
+        }
 
         return response()->json([
             'labels'            => $labels,
