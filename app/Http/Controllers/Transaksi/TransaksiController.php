@@ -1873,7 +1873,7 @@ class TransaksiController extends Controller
             'refundData'        => array_map('intval', $refundData),
             'totalSelesai'      => intval(array_sum($selesaiData)),
             'totalRefund'       => intval(array_sum($refundData)),
-            'totalPendapatan'   => intval($totalPendapatan),
+            'totalPendapatan'   => $totalPendapatan,
             'transaksi'         => collect($transaksiList)->map(function ($trx) {
                 return [
                     'id'                => intval($trx['id']),
