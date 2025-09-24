@@ -1826,7 +1826,7 @@ class TransaksiController extends Controller
             ->get();
 
         foreach ($transaksiQuery as $trx) {
-            $harga = $trx->total ?? 0;
+            $harga = $trx->total - $trx->ongkos_kirim ?? 0;
             $bersih = $trx->status === 'selesai' ? $harga - (0.1 * $harga) : 0;
 
             $transaksiList[] = [
