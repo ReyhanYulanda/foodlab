@@ -26,6 +26,7 @@ use App\Response\ResponseApi;
 use App\Services\Firebases;
 use App\Services\Midtrans;
 use App\Traits\CanAntar;
+use Carbon\CarbonPeriod;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -1733,7 +1734,7 @@ class TransaksiController extends Controller
                 $start = Carbon::create($year, $m, 1)->startOfMonth();
                 $end   = Carbon::create($year, $m, 1)->endOfMonth();
 
-                $labels[] = Carbon::create($year, $m, 1)->format('F');
+                $labels[] = $start->format('F');
 
                 $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
                     $q->where('user_id', $tenantId);
@@ -1753,17 +1754,22 @@ class TransaksiController extends Controller
             $dateStart = Carbon::create($year, 1, 1)->startOfYear();
             $dateEnd   = Carbon::create($year, 12, 31)->endOfYear();
         } elseif ($year && $month && !$date) {
+            // mode monthly → data per minggu
             $startOfMonth = Carbon::create($year, $month, 1)->startOfMonth();
             $endOfMonth   = Carbon::create($year, $month, 1)->endOfMonth();
 
-            $current = $startOfMonth->copy();
+            // bikin periode dari awal minggu bulan sampai akhir minggu bulan
+            $period = CarbonPeriod::create(
+                $startOfMonth->copy()->startOfWeek(Carbon::MONDAY),
+                '1 week',
+                $endOfMonth->copy()->endOfWeek(Carbon::SUNDAY)
+            );
+
             $week = 1;
+            foreach ($period as $weekStart) {
+                $weekEnd = $weekStart->copy()->endOfWeek(Carbon::SUNDAY);
 
-            while ($current <= $endOfMonth) {
-                $weekStart = $current->copy()->startOfWeek(Carbon::MONDAY);
-                $weekEnd   = $current->copy()->endOfWeek(Carbon::SUNDAY);
-
-                // pastikan gak keluar bulan
+                // batasi supaya tidak keluar bulan
                 if ($weekStart < $startOfMonth) {
                     $weekStart = $startOfMonth;
                 }
@@ -1787,14 +1793,13 @@ class TransaksiController extends Controller
                     ->whereBetween('updated_at', [$weekStart, $weekEnd])
                     ->count();
 
-                $current = $weekEnd->addDay(); // lanjut ke minggu berikutnya
                 $week++;
             }
 
             $dateStart = $startOfMonth;
             $dateEnd   = $endOfMonth;
         } elseif ($year && $month && $date) {
-            // mode daily → data 1 hari
+            // mode daily
             $start = Carbon::create($year, $month, $date)->startOfDay();
             $end   = Carbon::create($year, $month, $date)->endOfDay();
 
@@ -1833,7 +1838,7 @@ class TransaksiController extends Controller
                 ->count();
         }
 
-        // transaksi detail (list) sesuai filter
+        // transaksi detail (list)
         $transaksiQuery = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
             $q->where('user_id', $tenantId);
         })->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
@@ -1857,7 +1862,6 @@ class TransaksiController extends Controller
 
         // total pendapatan bersih
         $totalPendapatan = 0;
-
         $transaksiSelesai = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
             $q->where('user_id', $tenantId);
         })
@@ -1878,7 +1882,7 @@ class TransaksiController extends Controller
             'refundData'        => array_map('intval', $refundData),
             'totalSelesai'      => intval(array_sum($selesaiData)),
             'totalRefund'       => intval(array_sum($refundData)),
-            'totalPendapatan'   => $totalPendapatan,
+            'totalPendapatan'   => intval($totalPendapatan),
             'transaksi'         => collect($transaksiList)->map(function ($trx) {
                 return [
                     'id'                => intval($trx['id']),
