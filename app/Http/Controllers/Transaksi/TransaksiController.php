@@ -198,7 +198,7 @@ class TransaksiController extends Controller
                     },
                     'user'
                 ])
-                ->orderByDesc('created_at')
+                ->orderByDesc('updated_at')
                 ->paginate($perPage, ['*'], 'page', $page);
 
             return response()->json([
