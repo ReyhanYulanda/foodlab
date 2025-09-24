@@ -83,6 +83,7 @@ Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function 
 
         // SHOWTRANSAKSI
         Route::get('/history-transaksi-tenant', [KelolaTenantController::class, 'showHistoryTransaksiTenant']);
+        Route::get('/penghasilan-transaksi-tenant', [TransaksiController::class, 'getPenghasilanTenant']);
 
         // PROFILE TENANT
         Route::get('/profile-tenant', [ProfileTenantController::class, 'show']);
