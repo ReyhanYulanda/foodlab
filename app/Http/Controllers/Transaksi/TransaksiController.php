@@ -1739,14 +1739,14 @@ class TransaksiController extends Controller
                     $q->where('user_id', $tenantId);
                 })
                     ->where('status', 'selesai')
-                    ->whereBetween('updated_at', [$start, $end])
+                    ->whereBetween('created_at', [$start, $end])
                     ->count();
 
                 $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
                     $q->where('user_id', $tenantId);
                 })
                     ->where('status', 'refund_selesai')
-                    ->whereBetween('updated_at', [$start, $end])
+                    ->whereBetween('created_at', [$start, $end])
                     ->count();
             }
 
@@ -1775,14 +1775,14 @@ class TransaksiController extends Controller
                     $q->where('user_id', $tenantId);
                 })
                     ->where('status', 'selesai')
-                    ->whereBetween('updated_at', [$weekStart, $weekEnd])
+                    ->whereBetween('created_at', [$weekStart, $weekEnd])
                     ->count();
 
                 $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
                     $q->where('user_id', $tenantId);
                 })
                     ->where('status', 'refund_selesai')
-                    ->whereBetween('updated_at', [$weekStart, $weekEnd])
+                    ->whereBetween('created_at', [$weekStart, $weekEnd])
                     ->count();
             }
 
@@ -1799,14 +1799,14 @@ class TransaksiController extends Controller
                 $q->where('user_id', $tenantId);
             })
                 ->where('status', 'selesai')
-                ->whereBetween('updated_at', [$start, $end])
+                ->whereBetween('created_at', [$start, $end])
                 ->count();
 
             $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
                 $q->where('user_id', $tenantId);
             })
                 ->where('status', 'refund_selesai')
-                ->whereBetween('updated_at', [$start, $end])
+                ->whereBetween('created_at', [$start, $end])
                 ->count();
 
             $dateStart = $start;
@@ -1832,8 +1832,10 @@ class TransaksiController extends Controller
         $transaksiQuery = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
             $q->where('user_id', $tenantId);
         })->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
-            $q->whereBetween('updated_at', [$dateStart, $dateEnd]);
-        })->get();
+            $q->whereBetween('created_at', [$dateStart, $dateEnd]);
+        })
+        ->orderBy('created_at', 'asc')
+        ->get();
 
         foreach ($transaksiQuery as $trx) {
             $harga = max(0, (int)$trx->total - (int)($trx->ongkos_kirim ?? 0));
@@ -1844,7 +1846,7 @@ class TransaksiController extends Controller
                 'status'            => $trx->status,
                 'harga'             => $harga,
                 'pendapatan_bersih' => $bersih,
-                'tanggal'           => $trx->updated_at->format('d-m-Y H:i:s'),
+                'tanggal'           => $trx->created_at->format('d-m-Y H:i:s'),
             ];
         }
 
@@ -1856,9 +1858,8 @@ class TransaksiController extends Controller
         })
             ->where('status', 'selesai')
             ->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
-                $q->whereBetween('updated_at', [$dateStart, $dateEnd]);
+                $q->whereBetween('created_at', [$dateStart, $dateEnd]);
             })
-            ->orderBy('created_at', 'desc')
             ->get();
 
         foreach ($transaksiSelesai as $trx) {
