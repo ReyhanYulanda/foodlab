@@ -1858,7 +1858,7 @@ class TransaksiController extends Controller
         })
             ->where('status', 'selesai')
             ->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
-                $q->whereBetween('created_at', [$dateStart, $dateEnd]);
+                $q->whereBetween('updated_at', [$dateStart, $dateEnd]);
             })
             ->get();
 
