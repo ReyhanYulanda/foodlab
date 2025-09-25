@@ -1766,11 +1766,11 @@ class TransaksiController extends Controller
                 $endOfMonth->copy()->endOfWeek(Carbon::SUNDAY)
             );
 
+            $weekRanges = []; 
             $week = 1;
             foreach ($period as $weekStart) {
                 $weekEnd = $weekStart->copy()->endOfWeek(Carbon::SUNDAY);
 
-                // batasi supaya tidak keluar bulan
                 if ($weekStart < $startOfMonth) {
                     $weekStart = $startOfMonth;
                 }
@@ -1779,6 +1779,7 @@ class TransaksiController extends Controller
                 }
 
                 $labels[] = "Minggu {$week}";
+                $weekRanges["Minggu {$week}"] = [$weekStart, $weekEnd]; // simpan rentang
 
                 $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
                     $q->where('user_id', $tenantId);
@@ -1857,15 +1858,11 @@ class TransaksiController extends Controller
             // tentukan label transaksi
             $labelTrx = null;
 
-            if ($year && $month && !$date) {
-                $weekNumber = ceil($trx->updated_at->day / 7);
-                $labelTrx = "Minggu {$weekNumber}";
-            } elseif ($year && !$month && !$date) {
-                $labelTrx = $trx->updated_at->format('F');
-            } elseif ($year && $month && $date) {
-                $labelTrx = $trx->updated_at->format('d F Y');
-            } else {
-                $labelTrx = 'All Time';
+            foreach ($weekRanges as $label => [$start, $end]) {
+                if ($trx->updated_at->between($start, $end)) {
+                    $labelTrx = $label;
+                    break;
+                }
             }
 
             $transaksiList[] = [
