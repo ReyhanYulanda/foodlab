@@ -1818,7 +1818,7 @@ class TransaksiController extends Controller
                 $dayStart = $day->copy()->startOfDay();
                 $dayEnd   = $day->copy()->endOfDay();
 
-                $labels[] = $day->translatedFormat('l'); // Senin, Selasa, dst
+                $labels[] = $day->locale('id')->translatedFormat('l'); // Senin, Selasa, dst (bahasa Indonesia)
 
                 $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
                     $q->where('user_id', $tenantId);
@@ -1864,16 +1864,23 @@ class TransaksiController extends Controller
             $harga = max(0, (int)$trx->total - (int)($trx->ongkos_kirim ?? 0));
             $bersih = $trx->status === 'selesai' ? $harga - (0.1 * $harga) : 0;
 
-            // tentukan label transaksi
+            // default null
             $labelTrx = null;
 
             if (!empty($weekRanges)) {
+                // mode monthly → cari minggu transaksi
                 foreach ($weekRanges as $label => [$start, $end]) {
                     if ($trx->updated_at->between($start, $end)) {
                         $labelTrx = $label;
                         break;
                     }
                 }
+            } elseif ($year && $month && $date) {
+                // mode daily → pakai nama hari
+                $labelTrx = $trx->updated_at->locale('id')->translatedFormat('l');
+            } else {
+                // fallback (yearly / all time) → bisa pakai bulan atau null
+                $labelTrx = $trx->updated_at->locale('id')->translatedFormat('F');
             }
 
             $transaksiList[] = [
