@@ -1854,12 +1854,27 @@ class TransaksiController extends Controller
             $harga = max(0, (int)$trx->total - (int)($trx->ongkos_kirim ?? 0));
             $bersih = $trx->status === 'selesai' ? $harga - (0.1 * $harga) : 0;
 
+            // tentukan label transaksi
+            $labelTrx = null;
+
+            if ($year && $month && !$date) {
+                $weekNumber = ceil($trx->updated_at->day / 7);
+                $labelTrx = "Minggu {$weekNumber}";
+            } elseif ($year && !$month && !$date) {
+                $labelTrx = $trx->updated_at->format('F');
+            } elseif ($year && $month && $date) {
+                $labelTrx = $trx->updated_at->format('d F Y');
+            } else {
+                $labelTrx = 'All Time';
+            }
+
             $transaksiList[] = [
                 'id'                => $trx->id,
                 'status'            => $trx->status,
                 'harga'             => $harga,
                 'pendapatan_bersih' => $bersih,
                 'tanggal'           => $trx->updated_at->format('d-m-Y H:i:s'),
+                'label'             => $labelTrx,
             ];
         }
 
@@ -1886,14 +1901,14 @@ class TransaksiController extends Controller
             'totalSelesai'      => intval(array_sum($selesaiData)),
             'totalRefund'       => intval(array_sum($refundData)),
             'totalPendapatan'   => intval($totalPendapatan),
-            'transaksi' => collect($transaksiList)->map(function ($trx) use ($labels) {
+            'transaksi' => collect($transaksiList)->map(function ($trx) {
                 return [
                     'id'                => intval($trx['id']),
                     'status'            => $trx['status'],
                     'harga'             => intval($trx['harga']),
-                    'labels'            => $labels, // ditambahkan di sini
                     'pendapatan_bersih' => intval($trx['pendapatan_bersih']),
                     'tanggal'           => $trx['tanggal'],
+                    'label'             => $trx['label'],
                 ];
             }),
         ]);
