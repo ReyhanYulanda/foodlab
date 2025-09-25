@@ -1886,11 +1886,12 @@ class TransaksiController extends Controller
             'totalSelesai'      => intval(array_sum($selesaiData)),
             'totalRefund'       => intval(array_sum($refundData)),
             'totalPendapatan'   => intval($totalPendapatan),
-            'transaksi'         => collect($transaksiList)->map(function ($trx) {
+            'transaksi' => collect($transaksiList)->map(function ($trx) use ($labels) {
                 return [
                     'id'                => intval($trx['id']),
                     'status'            => $trx['status'],
                     'harga'             => intval($trx['harga']),
+                    'labels'            => $labels, // ditambahkan di sini
                     'pendapatan_bersih' => intval($trx['pendapatan_bersih']),
                     'tanggal'           => $trx['tanggal'],
                 ];
