@@ -1802,60 +1802,37 @@ class TransaksiController extends Controller
             $dateEnd   = $endOfMonth;
         } elseif ($year && $month && $date) {
             // mode daily → ambil minggu dari tanggal yang dipilih
-            $filterDate   = Carbon::create($year, $month, $date);
-            $startOfMonth = $filterDate->copy()->startOfMonth();
-            $endOfMonth   = $filterDate->copy()->endOfMonth();
+            $filterDate = Carbon::create($year, $month, $date);
 
-            // bikin periode mingguan untuk bulan itu
-            $period = CarbonPeriod::create(
-                $startOfMonth->copy()->startOfWeek(Carbon::MONDAY),
-                '1 week',
-                $endOfMonth->copy()->endOfWeek(Carbon::SUNDAY)
-            );
+            // tentukan rentang minggu (Senin - Minggu) berdasarkan tanggal itu
+            $startOfWeek = $filterDate->copy()->startOfWeek(Carbon::MONDAY);
+            $endOfWeek   = $filterDate->copy()->endOfWeek(Carbon::SUNDAY);
 
-            $weekRanges = [];
-            $week       = 1;
-            $selectedRange = null;
+            $dateStart = $startOfWeek;
+            $dateEnd   = $endOfWeek;
 
-            foreach ($period as $weekStart) {
-                $weekEnd = $weekStart->copy()->endOfWeek(Carbon::SUNDAY);
+            // looping setiap hari dalam minggu itu
+            $period = CarbonPeriod::create($startOfWeek, $endOfWeek);
 
-                if ($weekStart < $startOfMonth) {
-                    $weekStart = $startOfMonth;
-                }
-                if ($weekEnd > $endOfMonth) {
-                    $weekEnd = $endOfMonth;
-                }
+            foreach ($period as $day) {
+                $dayStart = $day->copy()->startOfDay();
+                $dayEnd   = $day->copy()->endOfDay();
 
-                // cek apakah filterDate ada dalam rentang minggu ini
-                if ($filterDate->between($weekStart, $weekEnd)) {
-                    $labels[]      = "Minggu {$week}";
-                    $selectedRange = [$weekStart, $weekEnd];
-                    break;
-                }
-
-                $week++;
-            }
-
-            if ($selectedRange) {
-                [$start, $end] = $selectedRange;
+                $labels[] = $day->translatedFormat('l'); // Senin, Selasa, dst
 
                 $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
                     $q->where('user_id', $tenantId);
                 })
                     ->where('status', 'selesai')
-                    ->whereBetween('updated_at', [$start, $end])
+                    ->whereBetween('updated_at', [$dayStart, $dayEnd])
                     ->count();
 
                 $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
                     $q->where('user_id', $tenantId);
                 })
                     ->where('status', 'refund_selesai')
-                    ->whereBetween('updated_at', [$start, $end])
+                    ->whereBetween('updated_at', [$dayStart, $dayEnd])
                     ->count();
-
-                $dateStart = $start;
-                $dateEnd   = $end;
             }
         } else {
             // mode all time
