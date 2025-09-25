@@ -1801,30 +1801,62 @@ class TransaksiController extends Controller
             $dateStart = $startOfMonth;
             $dateEnd   = $endOfMonth;
         } elseif ($year && $month && $date) {
-            // mode daily → dari jam 06:00 hari sebelumnya s/d 05:59 hari ini
-            $filterDate = Carbon::create($year, $month, $date);
+            // mode daily → ambil minggu dari tanggal yang dipilih
+            $filterDate   = Carbon::create($year, $month, $date);
+            $startOfMonth = $filterDate->copy()->startOfMonth();
+            $endOfMonth   = $filterDate->copy()->endOfMonth();
 
-            $start = $filterDate->copy()->subDay()->setTime(6, 0, 0);
-            $end   = $filterDate->copy()->setTime(5, 59, 59);
+            // bikin periode mingguan untuk bulan itu
+            $period = CarbonPeriod::create(
+                $startOfMonth->copy()->startOfWeek(Carbon::MONDAY),
+                '1 week',
+                $endOfMonth->copy()->endOfWeek(Carbon::SUNDAY)
+            );
 
-            $labels[] = $filterDate->format('d F Y') . " (06:00 - 05:59)";
+            $weekRanges = [];
+            $week       = 1;
+            $selectedRange = null;
 
-            $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
-                $q->where('user_id', $tenantId);
-            })
-                ->where('status', 'selesai')
-                ->whereBetween('updated_at', [$start, $end])
-                ->count();
+            foreach ($period as $weekStart) {
+                $weekEnd = $weekStart->copy()->endOfWeek(Carbon::SUNDAY);
 
-            $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
-                $q->where('user_id', $tenantId);
-            })
-                ->where('status', 'refund_selesai')
-                ->whereBetween('updated_at', [$start, $end])
-                ->count();
+                if ($weekStart < $startOfMonth) {
+                    $weekStart = $startOfMonth;
+                }
+                if ($weekEnd > $endOfMonth) {
+                    $weekEnd = $endOfMonth;
+                }
 
-            $dateStart = $start;
-            $dateEnd   = $end;
+                // cek apakah filterDate ada dalam rentang minggu ini
+                if ($filterDate->between($weekStart, $weekEnd)) {
+                    $labels[]      = "Minggu {$week}";
+                    $selectedRange = [$weekStart, $weekEnd];
+                    break;
+                }
+
+                $week++;
+            }
+
+            if ($selectedRange) {
+                [$start, $end] = $selectedRange;
+
+                $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+                    $q->where('user_id', $tenantId);
+                })
+                    ->where('status', 'selesai')
+                    ->whereBetween('updated_at', [$start, $end])
+                    ->count();
+
+                $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+                    $q->where('user_id', $tenantId);
+                })
+                    ->where('status', 'refund_selesai')
+                    ->whereBetween('updated_at', [$start, $end])
+                    ->count();
+
+                $dateStart = $start;
+                $dateEnd   = $end;
+            }
         } else {
             // mode all time
             $labels[] = 'All Time';
