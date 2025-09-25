@@ -1766,7 +1766,7 @@ class TransaksiController extends Controller
                 $endOfMonth->copy()->endOfWeek(Carbon::SUNDAY)
             );
 
-            $weekRanges = []; 
+            $weekRanges = [];
             $week = 1;
             foreach ($period as $weekStart) {
                 $weekEnd = $weekStart->copy()->endOfWeek(Carbon::SUNDAY);
@@ -1858,10 +1858,12 @@ class TransaksiController extends Controller
             // tentukan label transaksi
             $labelTrx = null;
 
-            foreach ($weekRanges as $label => [$start, $end]) {
-                if ($trx->updated_at->between($start, $end)) {
-                    $labelTrx = $label;
-                    break;
+            if (!empty($weekRanges)) {
+                foreach ($weekRanges as $label => [$start, $end]) {
+                    if ($trx->updated_at->between($start, $end)) {
+                        $labelTrx = $label;
+                        break;
+                    }
                 }
             }
 
