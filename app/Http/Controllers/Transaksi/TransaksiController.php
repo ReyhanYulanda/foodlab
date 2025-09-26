@@ -1735,7 +1735,7 @@ class TransaksiController extends Controller
                 $start = Carbon::create($year, $m, 1)->startOfMonth();
                 $end   = Carbon::create($year, $m, 1)->endOfMonth();
 
-                $labels[] = $start->format('F');
+                $labels[] = $start->locale('id')->translatedFormat('F');
 
                 $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
                     $q->where('user_id', $tenantId);
