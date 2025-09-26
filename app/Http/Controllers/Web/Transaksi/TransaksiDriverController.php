@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use App\Models\Transaksi;
 use App\Models\Pengaturan;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class TransaksiDriverController extends Controller
@@ -44,23 +45,33 @@ class TransaksiDriverController extends Controller
         return view('pages.transaksi.driver.index', compact('data'));
     }
 
-    public function detailTransaksiDriver($driver_id)
+    public function detailTransaksiDriver(Request $request, $driver_id)
     {
-        $driver = Transaksi::find($driver_id);
+        // Ambil driver dari relasi user
+        $driver = User::find($driver_id);
 
         if (!$driver) {
             return redirect()->back()->with('error', 'Driver tidak ditemukan.');
         }
 
-        $transaksi = Transaksi::where('driver_id', $driver_id)
-            ->where('status', 'selesai')
-            ->get();
+        $query = Transaksi::where('driver_id', $driver_id)
+            ->where('status', 'selesai');
+
+        // Filter tanggal kalau ada request
+        if ($request->start_date) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+        if ($request->end_date) {
+            $query->whereDate('created_at', '<=', $request->end_date);
+        }
+
+        // Kalau mau default langsung hari ini saja (tanpa request):
+        // $query->whereDate('created_at', Carbon::today());
+
+        $transaksi = $query->get();
 
         return view('pages.transaksi.rincianTransaksiDriver.index', compact('driver', 'transaksi'));
     }
 
-    public function detailPencairanTransaksiDriver($driver_id)
-    {
-    }
-
+    public function detailPencairanTransaksiDriver($driver_id) {}
 }
