@@ -92,6 +92,7 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
 
     Route::get('/transaksi_driver', [TransaksiDriverController::class, 'transaksiDriver'])->name('transaksi.driver');
     Route::get('/transaksi_driver/{id}', [TransaksiDriverController::class, 'detailTransaksiDriver'])->name('detail.transaksi.driver');
+    Route::get('/transaksi_driver/pencairan/{id}', [TransaksiDriverController::class, 'detailPencairanTransaksiDriver'])->name('detail.pencairan.transaksi.driver');
     // Route::get('/export-transaksi-tenant', [TransaksiDriverController::class, 'exportCsv'])->name('export.transaksi.driver');
 
     Route::get('/monitor_voucher', [MonitorVoucherController::class, 'monitorVoucher'])->name('monitor.voucher');

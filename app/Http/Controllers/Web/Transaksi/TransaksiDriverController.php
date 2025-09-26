@@ -58,4 +58,9 @@ class TransaksiDriverController extends Controller
 
         return view('pages.transaksi.rincianTransaksiDriver.index', compact('driver', 'transaksi'));
     }
+
+    public function detailPencairanTransaksiDriver($driver_id)
+    {
+    }
+
 }

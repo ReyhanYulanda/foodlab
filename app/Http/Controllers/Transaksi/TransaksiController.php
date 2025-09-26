@@ -1909,14 +1909,29 @@ class TransaksiController extends Controller
             $totalPendapatan += $harga - (0.1 * $harga);
         }
 
+        $filteredLabels = [];
+        $filteredSelesai = [];
+        $filteredRefund = [];
+
+        foreach ($labels as $i => $label) {
+            $selesai = $selesaiData[$i] ?? 0;
+            $refund  = $refundData[$i] ?? 0;
+
+            if ($selesai > 0 || $refund > 0) {
+                $filteredLabels[]  = $label;
+                $filteredSelesai[] = $selesai;
+                $filteredRefund[]  = $refund;
+            }
+        }
+
         return response()->json([
-            'labels'            => $labels,
-            'selesaiData'       => array_map('intval', $selesaiData),
-            'refundData'        => array_map('intval', $refundData),
-            'totalSelesai'      => intval(array_sum($selesaiData)),
-            'totalRefund'       => intval(array_sum($refundData)),
-            'totalPendapatan'   => intval($totalPendapatan),
-            'transaksi' => collect($transaksiList)->map(function ($trx) {
+            'labels'          => $filteredLabels,
+            'selesaiData'     => array_map('intval', $filteredSelesai),
+            'refundData'      => array_map('intval', $filteredRefund),
+            'totalSelesai'    => intval(array_sum($filteredSelesai)),
+            'totalRefund'     => intval(array_sum($filteredRefund)),
+            'totalPendapatan' => intval($totalPendapatan),
+            'transaksi'       => collect($transaksiList)->map(function ($trx) {
                 return [
                     'id'                => intval($trx['id']),
                     'status'            => $trx['status'],

@@ -41,6 +41,12 @@
                                             Rincian
                                         </a>
                                     </td>
+                                    <td>
+                                        <a href="{{ route('detail.pencairan.transaksi.driver', $item->driver_id) }}"
+                                            class="btn btn-primary btn-sm">
+                                            Cairkan
+                                        </a>
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
