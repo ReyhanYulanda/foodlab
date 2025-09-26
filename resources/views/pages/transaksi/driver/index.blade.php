@@ -36,7 +36,7 @@
                                     <td>Rp {{ number_format($item->pendapatan_pens, 0, ',', '.') }}</td>
                                     <td>Rp {{ number_format($item->pendapatan_driver, 0, ',', '.') }}</td>
                                     <td>
-                                        <a href="{{ route('detail.transaksi.driver', $item->driver_id) }}"
+                                        <a href="{{ route('detail.transaksi.driver', ['id' => $item->driver_id, 'start_date' => request('start_date'), 'end_date' => request('end_date')]) }}"
                                             class="btn btn-primary btn-sm">
                                             Rincian
                                         </a>
