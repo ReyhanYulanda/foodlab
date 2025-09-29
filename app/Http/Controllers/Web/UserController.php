@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Models\DriverDetail;
 
 class UserController extends Controller
 {
@@ -66,8 +67,14 @@ class UserController extends Controller
         if($request->roles){
             foreach($request->roles as $role){
                 $user->assignRole($role);
+                if ($role === 'masbro') {
+                    DriverDetail::firstOrCreate(
+                        ['user_id' => $user->id],
+                        ['no_rekening' => null]
+                    );
+                }
             }
-        }
+        }        
 
         return redirect()->route('user.index')->with(["status" => "success", 'message' => "User berhasil ditambahkan"]);
     }
@@ -109,7 +116,14 @@ class UserController extends Controller
 
         if($request->roles){
             $user->syncRoles($request->roles);
-        }
+        
+            if (in_array('masbro', $request->roles)) {
+                DriverDetail::firstOrCreate(
+                    ['user_id' => $user->id],
+                    ['no_rekening' => null]
+                );
+            }
+        }        
 
         return redirect()->route('user.index')->with(["status" => "success", 'message' => "User berhasil diupdate"]);;
     }
