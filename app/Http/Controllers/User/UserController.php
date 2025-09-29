@@ -241,16 +241,9 @@ class UserController extends Controller
             // ✅ Update dilakukan setelah pengecekan selesai
             $user->update($data);
 
-            if ($user->hasRole('masbro') && $request->filled('no_rekening')) {
-                DriverDetail::updateOrCreate(
-                    ['user_id' => $user->id],
-                    ['no_rekening' => $request->no_rekening]
-                );
-            }
-
             return response()->json([
                 'messages' => 'Update Berhasil',
-                'data' => $user->load('driverDetail')
+                'data' => $user
             ]);
         } catch (\Throwable $e) {
             return ResponseApi::serverError();
@@ -294,5 +287,57 @@ class UserController extends Controller
                 'data' => $deleted
             ]);
         }
+    }
+
+    public function postRekeningPencairan(Request $request)
+    {
+        $user = Auth::user();
+
+        // Pastikan hanya role masbro yang boleh
+        if ($user->hasRole !== 'masbro') {
+            return response()->json([
+                'message' => 'Akses ditolak. Hanya driver yang bisa update rekening.'
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'no_rekening' => 'required|string|max:50',
+        ]);
+
+        // updateOrCreate → kalau belum ada bikin, kalau ada update
+        $driverDetail = DriverDetail::updateOrCreate(
+            ['user_id' => $user->id],
+            ['no_rekening' => $validated['no_rekening']]
+        );
+
+        return response()->json([
+            'message' => 'Rekening berhasil disimpan',
+            'data' => $driverDetail
+        ]);
+    }
+
+    public function getDataDriver(Request $request)
+    {
+        $user = Auth::user();
+
+        if (! $user->hasRole('masbro')) {
+            return response()->json([
+                'message' => 'Akses ditolak. Hanya driver yang bisa mengakses data ini.'
+            ], 403);
+        }
+
+        $driverDetail = $user->driverDetail;
+
+        if (! $driverDetail) {
+            return response()->json([
+                'message' => 'Data driver belum tersedia.',
+                'data' => null
+            ], 404);
+        }
+
+        return response()->json([
+            'message' => 'Data driver berhasil diambil',
+            'data' => $driverDetail
+        ]);
     }
 }

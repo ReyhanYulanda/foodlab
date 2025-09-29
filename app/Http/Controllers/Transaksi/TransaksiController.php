@@ -89,26 +89,29 @@ class TransaksiController extends Controller
     public function orderUserById(Request $request, $id)
     {
         $user = $request->user();
-        $permission = $user->can('read order user');
-        $permission = true;
 
-        if (!$permission) {
+        if (! $user->can('read order user')) {
             return response()->json([
                 'status' => 'failed',
                 'message' => 'tidak memiliki akses',
             ], 403);
         }
 
-        $transaksi = Transaksi::with([
+        $query = Transaksi::with([
             'listTransaksiDetail.menus.tenants',
             'user',
             'checkout'
-        ])
-            ->where('id', $id)
-            ->where('user_id', $user->id)
-            ->first();
+        ])->where('id', $id);
 
-        if (!$transaksi) {
+        if ($user->hasRole('tenant')) {
+            $query->forTenant($user->id);
+        } else {
+            $query->where('user_id', $user->id);
+        }
+
+        $transaksi = $query->first();
+
+        if (! $transaksi) {
             return response()->json([
                 'status' => 'failed',
                 'message' => 'Transaksi tidak ditemukan',

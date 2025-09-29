@@ -161,4 +161,11 @@ class Transaksi extends Model
     {
         return $this->belongsTo(Tenants::class, 'tenant_id', 'id');
     }
+
+    public function scopeForTenant($query, $tenantUserId)
+    {
+        return $query->whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantUserId) {
+            $q->where('user_id', $tenantUserId);
+        });
+    }
 }

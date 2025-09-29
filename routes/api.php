@@ -96,6 +96,8 @@ Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function 
         Route::get('/order', [PesananController::class, 'index']);
         Route::match(['put', 'post'], '/order/{transaksiId}', [PesananController::class, 'update']);
         Route::post('/ping-to-buyer/{transaksiId}', [TransaksiController::class, 'pushNotificationDriverToBuyer']);
+        Route::post('/post/rekening-pencairan', [UserController::class, 'postRekeningPencairan']);
+        Route::get('/get/data-driver', [UserController::class, 'getDataDriver']);
     });
 
     Route::put('/update-fcm-token', [UserController::class, 'updateFcmToken']);
