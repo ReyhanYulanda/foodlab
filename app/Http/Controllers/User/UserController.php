@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\DriverDetail;
 use App\Models\Konfigurrasi\Menu;
 use App\Models\Transaksi;
 use App\Models\User;
@@ -240,9 +241,16 @@ class UserController extends Controller
             // ✅ Update dilakukan setelah pengecekan selesai
             $user->update($data);
 
+            if ($user->hasRole('masbro') && $request->filled('no_rekening')) {
+                DriverDetail::updateOrCreate(
+                    ['user_id' => $user->id],
+                    ['no_rekening' => $request->no_rekening]
+                );
+            }
+
             return response()->json([
                 'messages' => 'Update Berhasil',
-                'data' => $user
+                'data' => $user->load('driverDetail')
             ]);
         } catch (\Throwable $e) {
             return ResponseApi::serverError();
