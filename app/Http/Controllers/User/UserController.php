@@ -318,7 +318,7 @@ class UserController extends Controller
 
     public function getDataDriver(Request $request)
     {
-        $user = Auth::user();
+        $user = $request->user();
 
         if (! $user->hasRole('masbro')) {
             return response()->json([
