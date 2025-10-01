@@ -26,7 +26,7 @@
                             <select name="sender_id" class="form-control">
                                 <option value="">-- Pilih Pengirim --</option>
                                 @foreach ($users as $user)
-                                    <option value="{{ $user->id }}">{{ $user->name }} (Saldo: {{ $user->saldo }})
+                                    <option value="{{ $user->id }}">{{ $user->email }} (Saldo: {{ $user->saldo }})
                                     </option>
                                 @endforeach
                             </select>
@@ -37,7 +37,7 @@
                             <select name="receiver_id" class="form-control">
                                 <option value="">-- Pilih Penerima --</option>
                                 @foreach ($users as $user)
-                                    <option value="{{ $user->id }}">{{ $user->name }} (Saldo: {{ $user->saldo }})
+                                    <option value="{{ $user->id }}">{{ $user->email }} (Saldo: {{ $user->saldo }})
                                     </option>
                                 @endforeach
                             </select>
