@@ -14,7 +14,7 @@ class TransferCoinController extends Controller
     public function index()
     {
         $users = User::all();
-        return view('transfer_coin.index', compact('users'));
+        return view('pages.transfer-koin.index', compact('users'));
     }
 
     public function transferCoin(Request $request)
