@@ -77,6 +77,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Voucher::class);
     }
 
+    public function getSaldoAttribute()
+    {
+        return $this->koin ? $this->koin->jumlah : 0;
+    }
+
     public function driverDetail()
     {
         return $this->hasOne(DriverDetail::class);
