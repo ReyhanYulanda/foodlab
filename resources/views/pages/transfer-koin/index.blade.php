@@ -27,7 +27,7 @@
                                 <option value="">-- Pilih Pengirim --</option>
                                 @foreach ($users as $user)
                                     <option value="{{ $user->id }}">
-                                        {{ $user->email }} (Saldo: {{ $user->saldo }})
+                                        {{ $user->email }} (Saldo: {{ number_format($user->saldo, 0, ',', '.') }})
                                     </option>
                                 @endforeach
                             </select>
@@ -39,7 +39,7 @@
                                 <option value="">-- Pilih Penerima --</option>
                                 @foreach ($users as $user)
                                     <option value="{{ $user->id }}">
-                                        {{ $user->email }} (Saldo: {{ $user->saldo }})
+                                        {{ $user->email }} (Saldo: {{ number_format($user->saldo, 0, ',', '.') }})
                                     </option>
                                 @endforeach
                             </select>
