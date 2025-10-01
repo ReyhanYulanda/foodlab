@@ -23,10 +23,10 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\ListAktifDriverController;
 use App\Http\Controllers\NotifikasiController;
-use App\Http\Controllers\TransferCoinController;
 use App\Http\Controllers\Web\CashbackController;
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\MonitorVoucherController;
+use App\Http\Controllers\Web\SaldoKoin\TransferCoinController;
 use App\Http\Controllers\Web\Transaksi\MonitorTransaksiController;
 
 Route::get('/verify-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])

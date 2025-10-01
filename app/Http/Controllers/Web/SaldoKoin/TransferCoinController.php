@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Web\SaldoKoin;
 
+use App\Http\Controllers\Controller;
 use App\Models\SaldoKoin;
 use App\Models\TransaksiSaldoKoin;
 use App\Models\User;
