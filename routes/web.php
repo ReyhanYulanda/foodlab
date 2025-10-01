@@ -102,8 +102,8 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
     Route::get('/monitor_pesanan', [MonitorTransaksiController::class, 'monitorPesanan'])->name('monitor.pesanan');
     Route::post('/monitor_pesanan/cancel/{id}', [MonitorTransaksiController::class, 'postCancel'])->name('monitor.pesanan.cancel');
 
-    Route::get('/transfer_coin', [TransferCoinController::class, 'transferCoin'])->name('transfer.coin');
-    Route::post('/transfer_coin', [TransferCoinController::class, 'transferCoin'])->name('transfer.coin.post');
+    Route::get('/transfer_coin', [TransferCoinController::class, 'index'])->name('transfer.coin.index');
+    Route::post('/transfer_coin', [TransferCoinController::class, 'transferCoin'])->name('transfer.coin.store');
 
     Route::get('/status_pesanan_transaksi', [StatusPesananTransaksiTenantController::class, 'statuspesanantransaksi'])->name('status.pesanan.transaksi.tenant');
 });

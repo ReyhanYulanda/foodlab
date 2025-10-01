@@ -11,10 +11,10 @@ use Illuminate\Support\Facades\DB;
 
 class TransferCoinController extends Controller
 {
-    public function formTransferCoin()
+    public function index()
     {
-        $users = User::select('id', 'name', 'email')->get();
-        return view('pages.transfer-koin.index', compact('users'));
+        $users = User::all();
+        return view('transfer_coin.index', compact('users'));
     }
 
     public function transferCoin(Request $request)
@@ -32,14 +32,12 @@ class TransferCoinController extends Controller
             $receiverSaldo = SaldoKoin::where('user_id', $request->receiver_id)->lockForUpdate()->first();
 
             if (!$senderSaldo || $senderSaldo->jumlah < $request->jumlah) {
-                return back()->with('error', 'Saldo pengirim tidak mencukupi');
+                return back()->withErrors(['message' => 'Saldo pengirim tidak mencukupi']);
             }
 
-            // ambil user detail
             $senderUser   = User::find($request->sender_id);
             $receiverUser = User::find($request->receiver_id);
 
-            // update saldo
             $senderSaldo->decrement('jumlah', $request->jumlah);
             $receiverSaldo ? $receiverSaldo->increment('jumlah', $request->jumlah)
                 : SaldoKoin::create([
@@ -47,7 +45,6 @@ class TransferCoinController extends Controller
                     'jumlah'  => $request->jumlah
                 ]);
 
-            // catat transaksi pengirim (keluar)
             TransaksiSaldoKoin::create([
                 'user_id'   => $request->sender_id,
                 'jumlah'    => $request->jumlah * (-1),
@@ -55,7 +52,6 @@ class TransferCoinController extends Controller
                 'deskripsi' => 'Transfer koin ke ' . $receiverUser->name
             ]);
 
-            // catat transaksi penerima (masuk)
             TransaksiSaldoKoin::create([
                 'user_id'   => $request->receiver_id,
                 'jumlah'    => $request->jumlah,
@@ -63,7 +59,7 @@ class TransferCoinController extends Controller
                 'deskripsi' => 'Menerima koin dari ' . $senderUser->name
             ]);
 
-            return back()->with('success', 'Transfer sebesar Rp ' . number_format($request->jumlah, 0, ',', '.') . ' berhasil.');
+            return redirect()->route('transfer.coin.index')->with('success', 'Transfer berhasil');
         });
     }
 }
