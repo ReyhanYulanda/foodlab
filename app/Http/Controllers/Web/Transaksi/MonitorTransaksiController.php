@@ -26,7 +26,7 @@ class MonitorTransaksiController extends Controller
             ->latest()
             ->paginate(10);
 
-        return view('monitor.monitor_pesanan', compact('transaksi'));
+        return view('pages.transaksi.monitor-pesanan.index', compact('transaksi'));
     }
 
     public function postCancel(Request $request, $id, Firebases $firebases)
