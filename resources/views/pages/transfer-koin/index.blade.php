@@ -23,10 +23,11 @@
                         @csrf
                         <div class="form-group">
                             <label>Pengirim</label>
-                            <select name="sender_id" class="form-control">
+                            <select name="sender_id" class="form-control select2">
                                 <option value="">-- Pilih Pengirim --</option>
                                 @foreach ($users as $user)
-                                    <option value="{{ $user->id }}">{{ $user->email }} (Saldo: {{ $user->saldo }})
+                                    <option value="{{ $user->id }}">
+                                        {{ $user->email }} (Saldo: {{ $user->saldo }})
                                     </option>
                                 @endforeach
                             </select>
@@ -34,10 +35,11 @@
 
                         <div class="form-group mt-2">
                             <label>Penerima</label>
-                            <select name="receiver_id" class="form-control">
+                            <select name="receiver_id" class="form-control select2">
                                 <option value="">-- Pilih Penerima --</option>
                                 @foreach ($users as $user)
-                                    <option value="{{ $user->id }}">{{ $user->email }} (Saldo: {{ $user->saldo }})
+                                    <option value="{{ $user->id }}">
+                                        {{ $user->email }} (Saldo: {{ $user->saldo }})
                                     </option>
                                 @endforeach
                             </select>
@@ -53,5 +55,13 @@
                 </div>
             </div>
         </div>
+        <script>
+            $(document).ready(function() {
+                $('.select2').select2({
+                    placeholder: "Cari pengguna...",
+                    allowClear: true
+                });
+            });
+        </script>
     </div>
 </x-master-layout>
