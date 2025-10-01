@@ -47,7 +47,7 @@
 
                         <div class="form-group mt-2">
                             <label>Jumlah</label>
-                            <input type="number" name="jumlah" class="form-control" min="1" required>
+                            <input type="text" id="jumlah" name="jumlah" class="form-control" required>
                         </div>
 
                         <button type="submit" class="btn btn-primary mt-3">Transfer</button>
@@ -55,13 +55,33 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    @push('js')
         <script>
             $(document).ready(function() {
                 $('.select2').select2({
                     placeholder: "Cari pengguna...",
                     allowClear: true
                 });
+
+                // format angka ribuan di input jumlah
+                const jumlahInput = document.getElementById('jumlah');
+
+                jumlahInput.addEventListener('input', function() {
+                    let value = this.value.replace(/\./g, ''); // hapus titik lama
+                    if (!isNaN(value) && value !== "") {
+                        this.value = new Intl.NumberFormat('id-ID').format(value);
+                    } else {
+                        this.value = "";
+                    }
+                });
+
+                // sebelum form submit, ubah ke angka murni (hapus titik)
+                jumlahInput.form.addEventListener('submit', function() {
+                    jumlahInput.value = jumlahInput.value.replace(/\./g, '');
+                });
             });
         </script>
-    </div>
+    @endpush
 </x-master-layout>
