@@ -1,0 +1,68 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\SaldoKoin;
+use App\Models\TransaksiSaldoKoin;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+class TransferCoinController extends Controller
+{
+    public function formTransferCoin()
+    {
+        $users = User::select('id', 'name', 'email')->get();
+        return view('pages.transfer-koin.index', compact('users'));
+    }
+
+    public function transferCoin(Request $request)
+    {
+        $this->authorize('read transfer_coin');
+
+        $request->validate([
+            'sender_id'   => 'required|exists:users,id',
+            'receiver_id' => 'required|exists:users,id|different:sender_id',
+            'jumlah'      => 'required|integer|min:1',
+        ]);
+
+        return DB::transaction(function () use ($request) {
+            $senderSaldo   = SaldoKoin::where('user_id', $request->sender_id)->lockForUpdate()->first();
+            $receiverSaldo = SaldoKoin::where('user_id', $request->receiver_id)->lockForUpdate()->first();
+
+            if (!$senderSaldo || $senderSaldo->jumlah < $request->jumlah) {
+                return back()->with('error', 'Saldo pengirim tidak mencukupi');
+            }
+
+            // ambil user detail
+            $senderUser   = User::find($request->sender_id);
+            $receiverUser = User::find($request->receiver_id);
+
+            // update saldo
+            $senderSaldo->decrement('jumlah', $request->jumlah);
+            $receiverSaldo ? $receiverSaldo->increment('jumlah', $request->jumlah)
+                : SaldoKoin::create([
+                    'user_id' => $request->receiver_id,
+                    'jumlah'  => $request->jumlah
+                ]);
+
+            // catat transaksi pengirim (keluar)
+            TransaksiSaldoKoin::create([
+                'user_id'   => $request->sender_id,
+                'jumlah'    => $request->jumlah * (-1),
+                'tipe'      => 'keluar',
+                'deskripsi' => 'Transfer koin ke ' . $receiverUser->name
+            ]);
+
+            // catat transaksi penerima (masuk)
+            TransaksiSaldoKoin::create([
+                'user_id'   => $request->receiver_id,
+                'jumlah'    => $request->jumlah,
+                'tipe'      => 'masuk',
+                'deskripsi' => 'Menerima koin dari ' . $senderUser->name
+            ]);
+
+            return back()->with('success', 'Transfer sebesar Rp ' . number_format($request->jumlah, 0, ',', '.') . ' berhasil.');
+        });
+    }
+}

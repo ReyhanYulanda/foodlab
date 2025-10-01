@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\ListAktifDriverController;
 use App\Http\Controllers\NotifikasiController;
+use App\Http\Controllers\TransferCoinController;
 use App\Http\Controllers\Web\CashbackController;
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\MonitorVoucherController;
@@ -97,9 +98,12 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
     // Route::get('/export-transaksi-tenant', [TransaksiDriverController::class, 'exportCsv'])->name('export.transaksi.driver');
 
     Route::get('/monitor_voucher', [MonitorVoucherController::class, 'monitorVoucher'])->name('monitor.voucher');
-    
+
     Route::get('/monitor_pesanan', [MonitorTransaksiController::class, 'monitorPesanan'])->name('monitor.pesanan');
     Route::post('/monitor_pesanan/cancel/{id}', [MonitorTransaksiController::class, 'postCancel'])->name('monitor.pesanan.cancel');
+
+    Route::get('/transfer_coin', [TransferCoinController::class, 'transferCoin'])->name('transfer.coin');
+    Route::post('/transfer_coin', [TransferCoinController::class, 'transferCoin'])->name('transfer.coin.post');
 
     Route::get('/status_pesanan_transaksi', [StatusPesananTransaksiTenantController::class, 'statuspesanantransaksi'])->name('status.pesanan.transaksi.tenant');
 });
