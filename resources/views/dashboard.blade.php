@@ -42,6 +42,40 @@
                 </div>
             </div>
 
+            {{-- LIST REFUND --}}
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h4>Daftar Refund Selesai (Monitoring Tenant)</h4>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-bordered table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>No</th>
+                                        <th>Nama Tenant</th>
+                                        <th>Jumlah Refund</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse ($refundList as $index => $refund)
+                                        <tr>
+                                            <td>{{ $index + 1 }}</td>
+                                            <td>{{ $refund['tenant_nama'] }}</td>
+                                            <td>{{ $refund['refund_qty'] }}</td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="3" class="text-center">Belum ada data refund</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
