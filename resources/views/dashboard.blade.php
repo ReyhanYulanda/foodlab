@@ -62,8 +62,8 @@
                                     @forelse ($refundList as $index => $refund)
                                         <tr>
                                             <td>{{ $index + 1 }}</td>
-                                            <td>{{ $refund->tenant_nama ?? '-' }}</td>
-                                            <td>{{ $refund->refund_qty ?? 0 }}</td>
+                                            <td>{{ $refund['tenant_nama'] }}</td>
+                                            <td>{{ $refund['refund_qty'] }}</td>
                                         </tr>
                                     @empty
                                         <tr>
