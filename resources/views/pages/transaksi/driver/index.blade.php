@@ -25,6 +25,7 @@
                                 <th>Nama Driver</th>
                                 <th>Pendapatan Pens (10%)</th>
                                 <th>Pendapatan Driver (90%)</th>
+                                <th>Saldo Driver</th>
                                 <th>Aksi</th>
                             </tr>
                         </thead>
@@ -35,18 +36,20 @@
                                     <td>{{ $item->driver->name ?? 'Tidak diketahui' }}</td>
                                     <td>Rp {{ number_format($item->pendapatan_pens, 0, ',', '.') }}</td>
                                     <td>Rp {{ number_format($item->pendapatan_driver, 0, ',', '.') }}</td>
+                                    <td>Rp {{ number_format($item->saldo_driver, 0, ',', '.') }}</td>
                                     <td>
                                         <a href="{{ route('detail.transaksi.driver', ['id' => $item->driver_id, 'start_date' => request('start_date'), 'end_date' => request('end_date')]) }}"
                                             class="btn btn-primary btn-sm">
                                             Rincian
                                         </a>
                                     </td>
-                                    <td>
+                                    
+                                    {{-- <td>
                                         <a href="{{ route('detail.pencairan.transaksi.driver', $item->driver_id) }}"
                                             class="btn btn-primary btn-sm">
                                             Cairkan
                                         </a>
-                                    </td>
+                                    </td> --}}
                                 </tr>
                             @empty
                                 <tr>
