@@ -34,7 +34,7 @@ class TransaksiDriverController extends Controller
         }
 
         $data = $query->groupBy('driver_id')
-            ->with('driver.saldoKoin')
+            ->with('driver.koin')
             ->get()
             ->map(function ($item) use ($persentasePotongan) {
                 $item->pendapatan_pens = $item->total_ongkir * $persentasePotongan / 100;
