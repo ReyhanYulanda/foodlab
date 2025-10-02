@@ -92,8 +92,8 @@ class DashboardController extends Controller
             ->get()
             ->map(function ($item) {
                 return [
-                    'tenant_nama' => optional($item->menus->tenants)->nama_tenant,
-                    'total_refund' => $item->total_refund,
+                    'tenant_nama' => optional($item->menus->tenants)->nama_tenant ?? '-',
+                    'total_refund' => $item->total_refund ?? 0,
                 ];
             });
 
