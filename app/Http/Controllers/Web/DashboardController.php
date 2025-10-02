@@ -81,20 +81,18 @@ class DashboardController extends Controller
         $totalSelesai = Transaksi::where('status', 'selesai')->count();
         $totalRefund = Transaksi::where('status', 'refund_selesai')->count();
 
-        $refundList = Transaksi::with(['listTransaksiDetail.menus.tenants.pemilik'])
+        $refundList = Transaksi::with(['listTransaksiDetail.menus.tenants'])
             ->where('status', 'refund_selesai')
             ->get()
-            ->map(function ($transaksi) {
+            ->flatMap(function ($transaksi) {
                 return $transaksi->listTransaksiDetail->map(function ($detail) use ($transaksi) {
                     return [
-                        'transaksi_id' => $transaksi->id,
-                        'tenant_nama' => $detail->menus->tenants->nama_tenant ?? '-',
-                        'tenant_user_id' => $detail->menus->tenants->user_id ?? null,
-                        'refund_qty' => $detail->qty,
+                        'tenant_nama'  => $detail->menus->tenants->nama_tenant ?? '-',
+                        'refund_qty'   => $detail->qty ?? 0,
                     ];
                 });
             })
-            ->flatten();
+            ->values(); // reset key
 
         return view('dashboard', compact(
             'labels',
