@@ -34,12 +34,12 @@ class TransaksiDriverController extends Controller
         }
 
         $data = $query->groupBy('driver_id')
-            ->with('driver.koin')
+            ->with(['driver.koin']) 
             ->get()
             ->map(function ($item) use ($persentasePotongan) {
                 $item->pendapatan_pens = $item->total_ongkir * $persentasePotongan / 100;
                 $item->pendapatan_driver = $item->total_ongkir - $item->pendapatan_pens;
-                $item->saldo_driver = $item->driver->saldoKoin->jumlah ?? 0;
+                $item->saldo_driver = $item->driver->saldo ?? 0; 
                 return $item;
             });
 
@@ -69,8 +69,5 @@ class TransaksiDriverController extends Controller
         return view('pages.transaksi.rincianTransaksiDriver.index', compact('driver', 'transaksi'));
     }
 
-    public function detailPencairanTransaksiDriver($driver_id) 
-    {
-        
-    }
+    public function detailPencairanTransaksiDriver($driver_id) {}
 }
