@@ -59,17 +59,13 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @forelse ($refundList as $index => $refund)
+                                    @foreach ($refundList as $index => $refund)
                                         <tr>
                                             <td>{{ $index + 1 }}</td>
-                                            <td>{{ $refund->tenant_nama }}</td>
-                                            <td>{{ number_format($refund->total_refund, 0, ',', '.') }}</td>
+                                            <td>{{ $refund['tenant_nama'] }}</td>
+                                            <td>{{ number_format($refund['total_refund'], 0, ',', '.') }}</td>
                                         </tr>
-                                    @empty
-                                        <tr>
-                                            <td colspan="3" class="text-center">Belum ada data refund</td>
-                                        </tr>
-                                    @endforelse
+                                    @endforeach
                                 </tbody>
                             </table>
                         </div>

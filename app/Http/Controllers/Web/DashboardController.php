@@ -81,19 +81,21 @@ class DashboardController extends Controller
         $totalSelesai = Transaksi::where('status', 'selesai')->count();
         $totalRefund = Transaksi::where('status', 'refund_selesai')->count();
 
-        $refundList = \App\Models\TransaksiDetail::select(
-            'menus.tenant_id',
-            DB::raw('SUM(transaksi_detail.jumlah) as total_refund')
-        )
+        $refundList = \App\Models\TransaksiDetail::selectRaw('menus.tenant_id, SUM(transaksi_detail.jumlah) as total_refund')
             ->join('transaksi', 'transaksi.id', '=', 'transaksi_detail.transaksi_id')
             ->join('menus', 'menus.id', '=', 'transaksi_detail.menu_id')
-            ->join('tenants', 'tenants.id', '=', 'menus.tenant_id')
             ->where('transaksi.status', 'refund_selesai')
             ->whereNull('transaksi.deleted_at')
             ->whereNull('transaksi_detail.deleted_at')
-            ->groupBy('menus.tenant_id', 'tenants.nama_tenant')
-            ->selectRaw('tenants.nama_tenant as tenant_nama')
-            ->get();
+            ->groupBy('menus.tenant_id')
+            ->with(['menus.tenants:id,nama_tenant'])
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'tenant_nama' => optional($item->menus->tenants)->nama_tenant,
+                    'total_refund' => $item->total_refund,
+                ];
+            });
 
         return view('dashboard', compact(
             'labels',
