@@ -81,22 +81,19 @@ class DashboardController extends Controller
         $totalSelesai = Transaksi::where('status', 'selesai')->count();
         $totalRefund = Transaksi::where('status', 'refund_selesai')->count();
 
-        $refundList = TransaksiDetail::whereHas('transaksi', function ($q) {
-            $q->where('status', 'refund_selesai');
-        })
-            ->with(['menus.tenants']) // ambil tenant
-            ->select('menu_id', DB::raw('SUM(qty) as total_refund'))
-            ->groupBy('menu_id')
-            ->get()
-            ->groupBy('menus.tenant_id') // kelompokkan per tenant
-            ->map(function ($items, $tenantId) {
-                $tenant = optional($items->first()->menus->tenants);
-                return [
-                    'tenant_nama' => $tenant->nama_tenant ?? '-',
-                    'refund_qty'  => $items->sum('total_refund'),
-                ];
-            })
-            ->values();
+        $refundList = \App\Models\TransaksiDetail::select(
+            'menus.tenant_id',
+            DB::raw('SUM(transaksi_detail.jumlah) as total_refund')
+        )
+            ->join('transaksi', 'transaksi.id', '=', 'transaksi_detail.transaksi_id')
+            ->join('menus', 'menus.id', '=', 'transaksi_detail.menu_id')
+            ->join('tenants', 'tenants.id', '=', 'menus.tenant_id')
+            ->where('transaksi.status', 'refund_selesai')
+            ->whereNull('transaksi.deleted_at')
+            ->whereNull('transaksi_detail.deleted_at')
+            ->groupBy('menus.tenant_id', 'tenants.nama_tenant')
+            ->selectRaw('tenants.nama_tenant as tenant_nama')
+            ->get();
 
         return view('dashboard', compact(
             'labels',
