@@ -62,8 +62,8 @@
                                     @foreach ($refundList as $index => $refund)
                                         <tr>
                                             <td>{{ $index + 1 }}</td>
-                                            <td>{{ $refund['tenant_nama'] }}</td>
-                                            <td>{{ number_format($refund['total_refund'], 0, ',', '.') }}</td>
+                                            <td>{{ $refund->nama_tenant }}</td>
+                                            <td>{{ number_format($refund->total_refund, 0, ',', '.') }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
