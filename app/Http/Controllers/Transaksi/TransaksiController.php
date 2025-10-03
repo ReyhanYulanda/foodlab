@@ -250,7 +250,7 @@ class TransaksiController extends Controller
         if ($tenants->count() > 1) {
             return response()->json([
                 'status' => 'failed',
-                'message' => 'Semua menu harus berasal dari 1 tenant saja',
+                'message' => ['Semua menu harus berasal dari 1 tenant saja'],
             ], 400);
         }
 
