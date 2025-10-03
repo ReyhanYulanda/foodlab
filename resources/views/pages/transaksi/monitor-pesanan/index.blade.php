@@ -39,7 +39,7 @@
                                     <td>
                                         <span class="badge bg-info">{{ $trx->status }}</span>
                                     </td>
-                                    <td>Rp {{ number_format($trx->total, 0, ',', '.') }}</td>
+                                    <td>{{ number_format($trx->total, 0, ',', '.') }}</td>
                                     <td>{{ $trx->created_at->format('d-m-Y H:i') }}</td>
                                     <td>{{ $trx->catatan ?? '-' }}</td>
                                     <td>

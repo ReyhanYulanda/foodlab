@@ -1,6 +1,6 @@
 <x-master-layout>
     <div class="main-content">
-        <div class="title">Transfer Coin</div>
+        <div class="title">Transfer Koin</div>
         <div class="content-wrapper">
             <div class="card">
                 <div class="card-body">
