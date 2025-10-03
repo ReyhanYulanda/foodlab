@@ -243,6 +243,17 @@ class TransaksiController extends Controller
         }
 
         $menu_ids = collect($request->menus)->pluck('id')->toArray();
+        $tenants = Menus::whereIn('id', $menu_ids)
+            ->pluck('tenant_id')
+            ->unique();
+
+        if ($tenants->count() > 1) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Semua menu harus berasal dari 1 tenant saja',
+            ], 400);
+        }
+
         $menuFirst = Menus::with('tenant.pemilik')->find($menu_ids[0]);
 
         if (!$menuFirst || !$menuFirst->tenant) {
