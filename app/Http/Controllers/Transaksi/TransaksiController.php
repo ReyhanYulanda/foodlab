@@ -1738,7 +1738,6 @@ class TransaksiController extends Controller
         $selesaiData   = [];
         $refundData    = [];
         $transaksiList = [];
-        $weekRanges    = [];
 
         // default: all time
         $dateStart = null;
@@ -1774,16 +1773,77 @@ class TransaksiController extends Controller
             $startOfMonth = Carbon::create($year, $month, 1)->startOfMonth();
             $endOfMonth   = Carbon::create($year, $month, 1)->endOfMonth();
 
-            for ($week = 1; $week <= 5; $week++) {
-                $weekStart = $startOfMonth->copy()->addWeeks($week - 1)->startOfWeek(Carbon::MONDAY);
-                $weekEnd   = $weekStart->copy()->endOfWeek(Carbon::SUNDAY);
+            // 1) Bentuk minggu mentah (Senin–Minggu), lalu clamp ke dalam bulan
+            $period = CarbonPeriod::create(
+                $startOfMonth->copy()->startOfWeek(Carbon::MONDAY),
+                '1 week',
+                $endOfMonth->copy()->endOfWeek(Carbon::SUNDAY)
+            );
 
-                // pastikan tetap di bulan yang sama
-                if ($weekStart->gt($endOfMonth)) break;
-                if ($weekEnd->gt($endOfMonth)) $weekEnd = $endOfMonth;
+            $rawWeeks = [];
+            foreach ($period as $weekStart) {
+                $weekEnd = $weekStart->copy()->endOfWeek(Carbon::SUNDAY);
 
-                $labels[] = "Minggu {$week}";
-                $weekRanges["Minggu {$week}"] = [$weekStart, $weekEnd];
+                // Clamp ke bulan
+                if ($weekStart < $startOfMonth) $weekStart = $startOfMonth->copy();
+                if ($weekEnd   > $endOfMonth)   $weekEnd   = $endOfMonth->copy();
+
+                // Abaikan jika sudah invalid setelah clamp
+                if ($weekStart > $weekEnd) continue;
+
+                $rawWeeks[] = [$weekStart, $weekEnd];
+            }
+
+            // 2) Normalisasi ke maksimal 5 minggu:
+            //    Jika dapat 6 minggu, gabungkan minggu dengan durasi paling kecil ke tetangganya.
+            if (count($rawWeeks) > 5) {
+                // Hitung durasi (hari) tiap minggu
+                $durations = array_map(function ($range) {
+                    /** @var Carbon $a; @var Carbon $b */
+                    [$a, $b] = $range;
+                    return $a->diffInDays($b) + 1; // inklusif
+                }, $rawWeeks);
+
+                $minIdx = array_keys($durations, min($durations))[0];
+
+                // Prefer merge minggu parsial awal ke minggu berikutnya,
+                // kalau parsialnya di akhir, merge ke sebelumnya.
+                if ($minIdx === 0 && isset($rawWeeks[1])) {
+                    // Gabungkan awal → minggu ke-2
+                    $rawWeeks[1][0] = $rawWeeks[0][0]->copy();
+                    array_splice($rawWeeks, 0, 1);
+                } elseif ($minIdx === count($rawWeeks) - 1 && isset($rawWeeks[$minIdx - 1])) {
+                    // Gabungkan akhir → minggu sebelumnya
+                    $rawWeeks[$minIdx - 1][1] = $rawWeeks[$minIdx][1]->copy();
+                    array_splice($rawWeeks, $minIdx, 1);
+                } else {
+                    // Parsial di tengah: pilih tetangga dengan durasi lebih kecil agar gabungan tetap seimbang
+                    $leftDur  = $durations[$minIdx - 1] ?? PHP_INT_MAX;
+                    $rightDur = $durations[$minIdx + 1] ?? PHP_INT_MAX;
+
+                    if ($rightDur <= $leftDur && isset($rawWeeks[$minIdx + 1])) {
+                        // merge ke kanan
+                        $rawWeeks[$minIdx + 1][0] = $rawWeeks[$minIdx][0]->copy();
+                        array_splice($rawWeeks, $minIdx, 1);
+                    } else {
+                        // merge ke kiri
+                        $rawWeeks[$minIdx - 1][1] = $rawWeeks[$minIdx][1]->copy();
+                        array_splice($rawWeeks, $minIdx, 1);
+                    }
+                }
+            }
+
+            // 3) Pakai $rawWeeks (sudah <= 5) sebagai $weekRanges final
+            $weekRanges = [];
+            $labels = [];
+            $selesaiData = [];
+            $refundData = [];
+
+            $week = 1;
+            foreach ($rawWeeks as [$weekStart, $weekEnd]) {
+                $label = "Minggu {$week}";
+                $labels[] = $label;
+                $weekRanges[$label] = [$weekStart, $weekEnd];
 
                 $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
                     $q->where('user_id', $tenantId);
@@ -1798,6 +1858,8 @@ class TransaksiController extends Controller
                     ->where('status', 'refund_selesai')
                     ->whereBetween('updated_at', [$weekStart, $weekEnd])
                     ->count();
+
+                $week++;
             }
 
             $dateStart = $startOfMonth;
@@ -1806,19 +1868,21 @@ class TransaksiController extends Controller
             // mode daily → ambil minggu dari tanggal yang dipilih
             $filterDate = Carbon::create($year, $month, $date);
 
+            // tentukan rentang minggu (Senin - Minggu) berdasarkan tanggal itu
             $startOfWeek = $filterDate->copy()->startOfWeek(Carbon::MONDAY);
             $endOfWeek   = $filterDate->copy()->endOfWeek(Carbon::SUNDAY);
 
             $dateStart = $startOfWeek;
             $dateEnd   = $endOfWeek;
 
+            // looping setiap hari dalam minggu itu
             $period = CarbonPeriod::create($startOfWeek, $endOfWeek);
 
             foreach ($period as $day) {
                 $dayStart = $day->copy()->startOfDay();
                 $dayEnd   = $day->copy()->endOfDay();
 
-                $labels[] = $day->locale('id')->translatedFormat('l');
+                $labels[] = $day->locale('id')->translatedFormat('l'); // Senin, Selasa, dst (bahasa Indonesia)
 
                 $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
                     $q->where('user_id', $tenantId);
@@ -1864,9 +1928,11 @@ class TransaksiController extends Controller
             $harga = max(0, (int)$trx->total - (int)($trx->ongkos_kirim ?? 0));
             $bersih = $trx->status === 'selesai' ? $harga - (0.1 * $harga) : 0;
 
+            // default null
             $labelTrx = null;
 
             if (!empty($weekRanges)) {
+                // mode monthly → cari minggu transaksi
                 foreach ($weekRanges as $label => [$start, $end]) {
                     if ($trx->updated_at->between($start, $end)) {
                         $labelTrx = $label;
@@ -1874,8 +1940,10 @@ class TransaksiController extends Controller
                     }
                 }
             } elseif ($year && $month && $date) {
+                // mode daily → pakai nama hari
                 $labelTrx = $trx->updated_at->locale('id')->translatedFormat('l');
             } else {
+                // fallback (yearly / all time) → bisa pakai bulan atau null
                 $labelTrx = $trx->updated_at->locale('id')->translatedFormat('F');
             }
 
