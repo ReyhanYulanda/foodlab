@@ -299,7 +299,7 @@ class TransaksiController extends Controller
                 'message' => 'Semua menu harus berasal dari 1 tenant saja',
             ], 400);
         }
-        
+
         $menuFirst = Menus::with('tenant.pemilik')->find($menu_ids[0]);
 
         if (!$menuFirst || !$menuFirst->tenant) {
@@ -1738,6 +1738,7 @@ class TransaksiController extends Controller
         $selesaiData   = [];
         $refundData    = [];
         $transaksiList = [];
+        $weekRanges    = [];
 
         // default: all time
         $dateStart = null;
@@ -1769,31 +1770,20 @@ class TransaksiController extends Controller
             $dateStart = Carbon::create($year, 1, 1)->startOfYear();
             $dateEnd   = Carbon::create($year, 12, 31)->endOfYear();
         } elseif ($year && $month && !$date) {
-            // mode monthly → data per minggu
+            // mode monthly → data per minggu (maks 5 minggu)
             $startOfMonth = Carbon::create($year, $month, 1)->startOfMonth();
             $endOfMonth   = Carbon::create($year, $month, 1)->endOfMonth();
 
-            // bikin periode dari awal minggu bulan sampai akhir minggu bulan
-            $period = CarbonPeriod::create(
-                $startOfMonth->copy()->startOfWeek(Carbon::MONDAY),
-                '1 week',
-                $endOfMonth->copy()->endOfWeek(Carbon::SUNDAY)
-            );
+            for ($week = 1; $week <= 5; $week++) {
+                $weekStart = $startOfMonth->copy()->addWeeks($week - 1)->startOfWeek(Carbon::MONDAY);
+                $weekEnd   = $weekStart->copy()->endOfWeek(Carbon::SUNDAY);
 
-            $weekRanges = [];
-            $week = 1;
-            foreach ($period as $weekStart) {
-                $weekEnd = $weekStart->copy()->endOfWeek(Carbon::SUNDAY);
-
-                if ($weekStart < $startOfMonth) {
-                    $weekStart = $startOfMonth;
-                }
-                if ($weekEnd > $endOfMonth) {
-                    $weekEnd = $endOfMonth;
-                }
+                // pastikan tetap di bulan yang sama
+                if ($weekStart->gt($endOfMonth)) break;
+                if ($weekEnd->gt($endOfMonth)) $weekEnd = $endOfMonth;
 
                 $labels[] = "Minggu {$week}";
-                $weekRanges["Minggu {$week}"] = [$weekStart, $weekEnd]; // simpan rentang
+                $weekRanges["Minggu {$week}"] = [$weekStart, $weekEnd];
 
                 $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
                     $q->where('user_id', $tenantId);
@@ -1808,8 +1798,6 @@ class TransaksiController extends Controller
                     ->where('status', 'refund_selesai')
                     ->whereBetween('updated_at', [$weekStart, $weekEnd])
                     ->count();
-
-                $week++;
             }
 
             $dateStart = $startOfMonth;
@@ -1818,21 +1806,19 @@ class TransaksiController extends Controller
             // mode daily → ambil minggu dari tanggal yang dipilih
             $filterDate = Carbon::create($year, $month, $date);
 
-            // tentukan rentang minggu (Senin - Minggu) berdasarkan tanggal itu
             $startOfWeek = $filterDate->copy()->startOfWeek(Carbon::MONDAY);
             $endOfWeek   = $filterDate->copy()->endOfWeek(Carbon::SUNDAY);
 
             $dateStart = $startOfWeek;
             $dateEnd   = $endOfWeek;
 
-            // looping setiap hari dalam minggu itu
             $period = CarbonPeriod::create($startOfWeek, $endOfWeek);
 
             foreach ($period as $day) {
                 $dayStart = $day->copy()->startOfDay();
                 $dayEnd   = $day->copy()->endOfDay();
 
-                $labels[] = $day->locale('id')->translatedFormat('l'); // Senin, Selasa, dst (bahasa Indonesia)
+                $labels[] = $day->locale('id')->translatedFormat('l');
 
                 $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
                     $q->where('user_id', $tenantId);
@@ -1878,11 +1864,9 @@ class TransaksiController extends Controller
             $harga = max(0, (int)$trx->total - (int)($trx->ongkos_kirim ?? 0));
             $bersih = $trx->status === 'selesai' ? $harga - (0.1 * $harga) : 0;
 
-            // default null
             $labelTrx = null;
 
             if (!empty($weekRanges)) {
-                // mode monthly → cari minggu transaksi
                 foreach ($weekRanges as $label => [$start, $end]) {
                     if ($trx->updated_at->between($start, $end)) {
                         $labelTrx = $label;
@@ -1890,10 +1874,8 @@ class TransaksiController extends Controller
                     }
                 }
             } elseif ($year && $month && $date) {
-                // mode daily → pakai nama hari
                 $labelTrx = $trx->updated_at->locale('id')->translatedFormat('l');
             } else {
-                // fallback (yearly / all time) → bisa pakai bulan atau null
                 $labelTrx = $trx->updated_at->locale('id')->translatedFormat('F');
             }
 
