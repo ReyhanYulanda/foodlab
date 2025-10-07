@@ -44,7 +44,7 @@ class RatingMoodController extends Controller
 
         RatingMood::create($validated);
 
-        return redirect()->route('rating_mood.index')->with('success', 'Mood berhasil ditambahkan.');
+        return redirect()->route('pages.konfigurasi.RatingMood.index')->with('success', 'Mood berhasil ditambahkan.');
     }
 
     /**
@@ -67,7 +67,7 @@ class RatingMoodController extends Controller
 
         $rating_mood->update($validated);
 
-        return redirect()->route('rating_mood.index')->with('success', 'Mood berhasil diperbarui.');
+        return redirect()->route('pages.konfigurasi.RatingMood.index')->with('success', 'Mood berhasil diperbarui.');
     }
 
     /**
@@ -77,6 +77,6 @@ class RatingMoodController extends Controller
     {
         $rating_mood->delete();
 
-        return redirect()->route('rating_mood.index')->with('success', 'Mood berhasil dihapus.');
+        return redirect()->route('pages.konfigurasi.RatingMood.index')->with('success', 'Mood berhasil dihapus.');
     }
 }
