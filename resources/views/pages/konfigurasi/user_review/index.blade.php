@@ -31,12 +31,15 @@
                         <tbody>
                             @forelse($ratings as $index => $rating)
                                 @php
-                                    $ratingColor = match (true) {
-                                        $rating->rating <= 3 => 'bg-danger text-white', // Merah untuk rating 1–3
-                                        $rating->rating <= 6 => 'bg-warning text-dark', // Kuning untuk rating 4–6
-                                        $rating->rating <= 8 => 'bg-info text-dark', // Biru muda untuk rating 7–8
-                                        default => 'bg-success text-white', // Hijau untuk rating 9–10
-                                    };
+                                    if ($rating->rating <= 3) {
+                                        $ratingColor = 'bg-danger text-white'; // Merah untuk rating 1–3
+                                    } elseif ($rating->rating <= 6) {
+                                        $ratingColor = 'bg-warning text-dark'; // Kuning untuk rating 4–6
+                                    } elseif ($rating->rating <= 8) {
+                                        $ratingColor = 'bg-info text-dark'; // Biru muda untuk rating 7–8
+                                    } else {
+                                        $ratingColor = 'bg-success text-white'; // Hijau untuk rating 9–10
+                                    }
                                 @endphp
 
                                 <tr>
