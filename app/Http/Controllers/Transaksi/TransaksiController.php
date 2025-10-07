@@ -97,21 +97,15 @@ class TransaksiController extends Controller
             ], 403);
         }
 
-        $query = Transaksi::with([
+        // Ambil transaksi yang dimiliki user (pembeli) atau tenant (pemilik toko)
+        $transaksi = Transaksi::with([
             'listTransaksiDetail.menus.tenants',
             'user',
             'checkout'
-        ])->where('id', $id);
-
-        if ($user->hasRole('tenant')) {
-            // Tenant: lihat order yang masuk ke tokonya
-            $query->forTenant($user->id);
-        } else {
-            // User: lihat order yang dia buat sendiri (tanpa filter !=)
-            $query->where('user_id', $user->id);
-        }
-
-        $transaksi = $query->first();
+        ])
+            ->forUserOrTenant($user->id)
+            ->where('id', $id)
+            ->first();
 
         if (! $transaksi) {
             return response()->json([
@@ -120,6 +114,7 @@ class TransaksiController extends Controller
             ], 404);
         }
 
+        // Data tambahan dari tabel checkout
         $extra = [];
         if ($transaksi->checkout) {
             $extra = [

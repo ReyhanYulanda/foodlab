@@ -168,4 +168,14 @@ class Transaksi extends Model
             $q->where('user_id', $tenantUserId);
         });
     }
+
+    public function scopeForUserOrTenant($query, $userId)
+    {
+        return $query->where(function ($q) use ($userId) {
+            $q->where('user_id', $userId) // pembeli
+                ->orWhereHas('listTransaksiDetail.menus.tenants', function ($q2) use ($userId) {
+                    $q2->where('user_id', $userId); // tenant
+                });
+        });
+    }
 }
