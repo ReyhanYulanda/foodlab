@@ -103,16 +103,12 @@ class TransaksiController extends Controller
             'checkout'
         ])->where('id', $id);
 
-        // Jika tenant → lihat order masuk ke tokonya
         if ($user->hasRole('tenant')) {
+            // Tenant: lihat order yang masuk ke tokonya
             $query->forTenant($user->id);
-        }
-        // Jika user biasa → lihat order yang dia buat
-        else {
-            $query->whereHas('listTransaksiDetail.menus.tenants', function ($tenant) use ($user) {
-                $tenant->where('user_id', '!=', $user->id);
-            })
-                ->where('user_id', $user->id);
+        } else {
+            // User: lihat order yang dia buat sendiri (tanpa filter !=)
+            $query->where('user_id', $user->id);
         }
 
         $transaksi = $query->first();
