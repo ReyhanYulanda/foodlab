@@ -30,11 +30,22 @@
                         </thead>
                         <tbody>
                             @forelse($ratings as $index => $rating)
+                                @php
+                                    // Tentukan warna berdasarkan nilai rating
+                                    $ratingColor = match (true) {
+                                        $rating->rating <= 3 => 'bg-danger',
+                                        $rating->rating <= 6 => 'bg-warning text-dark',
+                                        $rating->rating <= 8 => 'bg-success-subtle text-dark',
+                                        default => 'bg-success',
+                                    };
+                                @endphp
                                 <tr>
                                     <td>{{ $ratings->firstItem() + $index }}</td>
                                     <td>{{ $rating->user->name ?? 'Tidak diketahui' }}</td>
                                     <td>
-                                        <span class="badge bg-success">{{ $rating->rating }}</span>
+                                        <span class="badge {{ $ratingColor }}">
+                                            {{ $rating->rating }}
+                                        </span>
                                     </td>
                                     <td>{{ $rating->description }}</td>
                                     <td>
