@@ -110,7 +110,7 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
 
     Route::get('/status_pesanan_transaksi', [StatusPesananTransaksiTenantController::class, 'statuspesanantransaksi'])->name('status.pesanan.transaksi.tenant');
 
-    Route::get('/user-review', [UserReviewController::class, 'index'])->name('user-review.index');
+    Route::get('/user_review', [UserReviewController::class, 'index'])->name('user-review.index');
 });
 
 require __DIR__ . '/auth.php';
