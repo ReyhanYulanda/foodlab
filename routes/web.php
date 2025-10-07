@@ -29,6 +29,7 @@ use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\MonitorVoucherController;
 use App\Http\Controllers\Web\SaldoKoin\TransferCoinController;
 use App\Http\Controllers\Web\Transaksi\MonitorTransaksiController;
+use App\Http\Controllers\Web\UserReviewController;
 
 Route::get('/verify-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])
     ->middleware(['signed'])
@@ -108,6 +109,8 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
     Route::post('/transfer_coin', [TransferCoinController::class, 'transferCoin'])->name('transfer.coin.store');
 
     Route::get('/status_pesanan_transaksi', [StatusPesananTransaksiTenantController::class, 'statuspesanantransaksi'])->name('status.pesanan.transaksi.tenant');
+
+    Route::get('/user-review', [UserReviewController::class, 'index'])->name('user-review.index');
 });
 
 require __DIR__ . '/auth.php';
