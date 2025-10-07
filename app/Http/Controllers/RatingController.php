@@ -45,7 +45,7 @@ class RatingController extends Controller
             'message' => 'Rating berhasil disimpan.',
             'data' => [
                 'rating' => $rating,
-                'moods' => $rating->moods()->get(['id', 'name'])
+                'moods' => $rating->moods()->get(['rating_moods.id', 'rating_moods.name'])
             ]
         ]);
     }
