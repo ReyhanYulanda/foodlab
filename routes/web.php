@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\ListAktifDriverController;
 use App\Http\Controllers\NotifikasiController;
+use App\Http\Controllers\RatingMoodController;
 use App\Http\Controllers\Web\CashbackController;
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\MonitorVoucherController;
@@ -61,6 +62,7 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
     Route::resource('menu-kategori', MenuKategori::class);
     Route::resource('ruangan', WebRuanganController::class);
     Route::resource('gedung', GedungController::class);
+    Route::resource('rating_mood', RatingMoodController::class);
     Route::resource('cashback', CashbackController::class);
     Route::resource('pembayaran', PembayaranController::class);
     Route::resource('pengaturan', PengaturanController::class);

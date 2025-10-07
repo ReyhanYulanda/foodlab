@@ -19,6 +19,7 @@ use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Models\Transaksi;
 use App\Http\Controllers\Kelola\Tenant\ProfileTenantController;
+use App\Http\Controllers\RatingController;
 use App\Http\Controllers\SendNotificationController;
 use App\Http\Controllers\User\TransaksiUserController;
 use Illuminate\Support\Facades\Route;
@@ -59,6 +60,8 @@ Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function 
     Route::get('/order/masbro', [TransaksiController::class, 'orderMasbro']);
     Route::post('/order/detail', [TransaksiController::class, 'store'])->name('');
     Route::get('/ruangan', [RuanganController::class, 'index']);
+    Route::get('/rating-moods', [RatingController::class, 'getMoods']);
+    Route::post('/ratings', [RatingController::class, 'store']);
 
     // SALDO KOIN USER
     Route::get('/saldo', [SaldoKoinController::class, 'cekSaldo']);
