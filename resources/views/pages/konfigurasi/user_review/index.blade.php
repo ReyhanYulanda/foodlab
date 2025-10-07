@@ -31,22 +31,15 @@
                         <tbody>
                             @forelse($ratings as $index => $rating)
                                 @php
-                                    if ($rating->rating <= 3) {
-                                        $ratingColor = 'bg-danger text-white'; // Merah untuk rating 1–3
-                                    } elseif ($rating->rating <= 6) {
-                                        $ratingColor = 'bg-warning text-dark'; // Kuning untuk rating 4–6
-                                    } elseif ($rating->rating <= 8) {
-                                        $ratingColor = 'bg-info text-dark'; // Biru muda untuk rating 7–8
-                                    } else {
-                                        $ratingColor = 'bg-success text-white'; // Hijau untuk rating 9–10
-                                    }
+                                    $hue = ($rating->rating / 10) * 120; // 0=merah, 120=hijau
+                                    $color = "hsl({$hue}, 80%, 45%)";
                                 @endphp
 
                                 <tr>
                                     <td>{{ $ratings->firstItem() + $index }}</td>
                                     <td>{{ $rating->user->name ?? 'Tidak diketahui' }}</td>
                                     <td>
-                                        <span class="badge {{ $ratingColor }}">
+                                        <span class="badge text-white" style="background-color: {{ $color }}">
                                             {{ $rating->rating }}
                                         </span>
                                     </td>
