@@ -6,7 +6,7 @@
     <div class="container">
         <h1 class="mb-4">📊 Monitoring User Review</h1>
 
-        <form method="GET" action="{{ route('user-review.index') }}" class="mb-3">
+        <form method="GET" action="{{ route('user_review.index') }}" class="mb-3">
             <div class="input-group">
                 <input type="text" name="search" value="{{ request('search') }}" class="form-control"
                     placeholder="Cari user atau deskripsi...">
