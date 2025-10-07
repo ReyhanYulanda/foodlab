@@ -103,10 +103,16 @@ class TransaksiController extends Controller
             'checkout'
         ])->where('id', $id);
 
+        // Jika tenant → lihat order masuk ke tokonya
         if ($user->hasRole('tenant')) {
             $query->forTenant($user->id);
-        } else {
-            $query->where('user_id', $user->id);
+        }
+        // Jika user biasa → lihat order yang dia buat
+        else {
+            $query->whereHas('listTransaksiDetail.menus.tenants', function ($tenant) use ($user) {
+                $tenant->where('user_id', '!=', $user->id);
+            })
+                ->where('user_id', $user->id);
         }
 
         $transaksi = $query->first();
@@ -132,10 +138,7 @@ class TransaksiController extends Controller
             'status' => 'success',
             'message' => 'data berhasil didapatkan',
             'data' => [
-                'transaksi' => array_merge(
-                    $transaksi->toArray(),
-                    $extra
-                )
+                'transaksi' => array_merge($transaksi->toArray(), $extra),
             ],
         ]);
     }
