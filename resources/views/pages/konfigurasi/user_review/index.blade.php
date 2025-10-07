@@ -31,14 +31,14 @@
                         <tbody>
                             @forelse($ratings as $index => $rating)
                                 @php
-                                    // Tentukan warna berdasarkan nilai rating
                                     $ratingColor = match (true) {
-                                        $rating->rating <= 3 => 'bg-danger',
-                                        $rating->rating <= 6 => 'bg-warning text-dark',
-                                        $rating->rating <= 8 => 'bg-success-subtle text-dark',
-                                        default => 'bg-success',
+                                        $rating->rating <= 3 => 'bg-danger text-white', // Merah untuk rating 1–3
+                                        $rating->rating <= 6 => 'bg-warning text-dark', // Kuning untuk rating 4–6
+                                        $rating->rating <= 8 => 'bg-info text-dark', // Biru muda untuk rating 7–8
+                                        default => 'bg-success text-white', // Hijau untuk rating 9–10
                                     };
                                 @endphp
+
                                 <tr>
                                     <td>{{ $ratings->firstItem() + $index }}</td>
                                     <td>{{ $rating->user->name ?? 'Tidak diketahui' }}</td>
