@@ -46,7 +46,7 @@
                                     <td>{{ $rating->description }}</td>
                                     <td>
                                         @foreach ($rating->moods as $mood)
-                                            <span class="badge bg-info text-dark">{{ $mood->name }}</span>
+                                            <span class="badge bg-info text-white">{{ $mood->name }}</span>
                                         @endforeach
                                     </td>
                                     <td>{{ $rating->created_at->format('d-m-Y H:i') }}</td>
