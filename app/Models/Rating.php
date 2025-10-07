@@ -22,7 +22,11 @@ class Rating extends Model
 
     public function moods()
     {
-        return $this->belongsToMany(RatingMood::class, 'detail_mood_rating')
-            ->withTimestamps();
+        return $this->belongsToMany(
+            RatingMood::class,
+            'detail_mood_rating',
+            'rating_id',
+            'rating_mood_id'
+        );
     }
 }
