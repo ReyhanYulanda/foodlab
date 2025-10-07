@@ -10,7 +10,7 @@ class UserReviewController extends Controller
 {
     public function index(Request $request)
     {
-        $this->authorize('read rating'); // opsional jika pakai policy/permission
+        $this->authorize('read user_review');
 
         $search = $request->query('search');
 
