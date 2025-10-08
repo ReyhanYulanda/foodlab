@@ -4,7 +4,7 @@
     @endpush
 
     <div class="main-content">
-        <div class="title">Dashboard</div>
+        <div class="title">Dashboard Test cicd wakkk</div>
         <div class="content-wrapper">
 
             <div class="row mt-4">
