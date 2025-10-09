@@ -1,25 +1,33 @@
-FROM php:7.4-fpm
 
-COPY . /var/www/html
-WORKDIR /var/www/html
+FROM php:7.4-fpm-buster
 
-RUN apt-get update -y
-RUN apt-get install -y zip unzip git libonig-dev zlib1g-dev libpng-dev libzip-dev libpq-dev
+# Gunakan repositori archive Debian (karena Buster EOL)
+RUN printf "deb [trusted=yes] http://archive.debian.org/debian buster main contrib non-free\n" > /etc/apt/sources.list \
+ && printf "deb [trusted=yes] http://archive.debian.org/debian-security buster/updates main contrib non-free\n" >> /etc/apt/sources.list \
+ && apt-get -o Acquire::Check-Valid-Until=false update -y \
+ && apt-get install -y --no-install-recommends \
+      zip unzip git curl libonig-dev zlib1g-dev libpng-dev libzip-dev libpq-dev default-mysql-client \
+ && docker-php-ext-install zip mbstring gd pdo pdo_mysql pgsql pdo_pgsql mysqli \
+ && rm -rf /var/lib/apt/lists/*
+
+# Install Composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin --filename=composer
-RUN docker-php-ext-install zip pdo mbstring gd pgsql pdo_pgsql pdo_mysql mysqli
 
-RUN groupadd -g 1000 www
-RUN useradd -u 1000 -ms /bin/bash -G www,www-data,root masbro
+# Tambah DNS fallback di container
+#RUN echo "nameserver 1.1.1.1" > /etc/resolv.conf
 
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+# Set working directory
+WORKDIR /var/www/html
+COPY . /var/www/html
 
-RUN composer install
-COPY --chown=www:www . .
+# Buat user non-root dengan grup bawaan PHP
+RUN useradd -u 1000 -ms /bin/bash -g www-data masbro \
+ && chown -R www-data:www-data /var/www/html
 
 USER masbro
 
-EXPOSE 9001
+# Install Laravel dependencies (tanpa interaktif)
+RUN composer install --no-interaction --no-ansi --no-scripts --no-progress || true
 
-CMD [ "php-fpm" ]
-
-# CMD ["php", "artisan", "serve"]
+EXPOSE 9000
+CMD ["php-fpm"]

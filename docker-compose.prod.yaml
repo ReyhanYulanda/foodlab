@@ -1,61 +1,87 @@
-version: '2.2'
 services:
-    app:
-        build: .
-        image: backend_masbrocanteen
-        container_name: backend_masbrocanteen
-        restart: unless-stopped
-        tty: true
-        environment:
-            SERVICE_NAME: backend_masbrocanteen
-            TZ: "Asia/Jakarta"
-        working_dir: /var/www/html
-        volumes:
-            - .:/var/www/html
-            - ./storage/php.ini:/usr/local/etc/php/conf.d/local.ini
-        networks:
-            - network_backend_masbrocanteen
+  app:
+    build: .
+    image: foodlab/backend_masbrocanteen:staging
+    container_name: backend_masbrocanteen
+    restart: unless-stopped
+    tty: true
+    environment:
+      SERVICE_NAME: backend_masbrocanteen
+      APP_ENV: staging
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+      - ./storage/php.ini:/usr/local/etc/php/conf.d/local.ini
+    dns:
+      - 202.9.85.4
+      - 8.8.8.8
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - ubisma_network
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
 
-    webserver:
-        image: nginx:alpine
-        container_name: nginx_backend_masbrocanteen
-        restart: unless-stopped
-        tty: true
-        ports:
-            - "80:80"
-            - "443:443"
-        volumes:
-            - .:/var/www/html
-            - ./storage/:/etc/nginx/conf.d/
-        networks:
-            - network_backend_masbrocanteen
-        environment:
-            TZ: "Asia/Jakarta"
+  webserver:
+    image: nginx:alpine
+    container_name: nginx_backend_masbrocanteen
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "443:443"
+    volumes:
+      - .:/var/www/html
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - /var/www/cert:/etc/nginx/ssl
+    networks:
+      - ubisma_network
+    depends_on:
+      - app
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
 
-    db:
-        image: mysql:5.7.29
-        container_name: db_mysql_backend_masbrocanteen
-        restart: unless-stopped
-        tty: true
-        ports:
-          - "3306:3306"
-        networks:
-              - network_backend_masbrocanteen
-        volumes:
-            - db_backend_masbrocanteen_mysql:/var/lib/mysql
-        environment:
-          MYSQL_DATABASE: 'masbrocanteen1'
-          MYSQL_USER: 'masbrocanteen'
-          MYSQL_PASSWORD: 'masbrocanteen1'
-          MYSQL_ROOT_PASSWORD: '@Masbrocanteen1'
-          SERVICE_NAME: mysql
-          SERVICE_TAGS: dev
-          TZ: "Asia/Jakarta"
+  # db:
+  # image: mysql:8.0
+  # container_name: db_mysql_backend_masbrocanteen
+  # restart: always
+  # tty: true
+  # ports:
+  #  - "3306:3306"
+  # networks:
+  # - network_backend_masbrocanteen
+  #volumes:
+  # - db_backend_masbrocanteen:/var/lib/mysql
+  #environment:
+  #MYSQL_ROOT_PASSWORD: Db!2025#Secure
+  #MYSQL_DATABASE: foodlab
+  #MYSQL_USER: root
+  # MYSQL_PASSWORD: Db!2025#Secure
+  # labels:
+  # - "com.centurylinklabs.watchtower.enable=false"
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower_backend_masbrocanteen
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /root/.docker/config.json:/config.json:ro
+    environment:
+      DOCKER_CONFIG: /root/.docker
+      WATCHTOWER_POLL_INTERVAL: 1800
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_DEBUG: "true"
+      TZ: Asia/Jakarta
+    networks:
+      - ubisma_network
 
 networks:
-    network_backend_masbrocanteen:
-        driver: bridge
+  ubisma_network:
+    driver: bridge
 
 volumes:
-    db_backend_masbrocanteen_mysql:
-        driver: local
+  db_backend_masbrocanteen:
+    driver: local
