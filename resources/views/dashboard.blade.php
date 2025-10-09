@@ -4,7 +4,7 @@
     @endpush
 
     <div class="main-content">
-        <div class="title">Dashboard FIX NO REVISI CICD TERAKHIR</div>
+        <div class="title">Dashboard FIX BANGET INI MAH EUY ENV NYA GA RESET APA IYH</div>
         <div class="content-wrapper">
 
             <div class="row mt-4">
