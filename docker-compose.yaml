@@ -11,6 +11,7 @@ services:
     working_dir: /var/www/html
     volumes:
       - ./storage/php.ini:/usr/local/etc/php/conf.d/local.ini
+      - /root/.env:/var/www/html/.env
     dns:
       - 202.9.85.4
       - 8.8.8.8
