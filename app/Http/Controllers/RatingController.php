@@ -26,7 +26,7 @@ class RatingController extends Controller
     {
         $validated = $request->validate([
             'rating' => 'required|integer|min:1|max:10',
-            'description' => 'required|string|max:255',
+            'description' => 'nullable|string|max:255',
             'rating_moods' => 'required|array',
             'rating_moods.*' => 'integer|exists:rating_moods,id',
         ]);
@@ -34,7 +34,7 @@ class RatingController extends Controller
         $rating = Rating::create([
             'user_id' => $request->user()->id,
             'rating' => $validated['rating'],
-            'description' => $validated['description'],
+            'description' => $validated['description'] ?? null,
         ]);
 
         // Simpan hubungan many-to-many
