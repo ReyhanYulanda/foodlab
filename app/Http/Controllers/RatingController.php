@@ -42,7 +42,7 @@ class RatingController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Rating berhasil disimpan.',
+            'message' => 'Terimakasih telah memberikan penilaian!',
             'data' => [
                 'rating' => $rating,
                 'moods' => $rating->moods()->get(['rating_moods.id', 'rating_moods.name'])

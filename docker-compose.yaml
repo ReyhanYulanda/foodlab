@@ -1,19 +1,25 @@
-version: "1"
 services:
   app:
     build: .
-    image: backend_masbrocanteen
+    image: foodlab/backend_masbrocanteen:staging
     container_name: backend_masbrocanteen
     restart: unless-stopped
     tty: true
     environment:
       SERVICE_NAME: backend_masbrocanteen
+      APP_ENV: staging
     working_dir: /var/www/html
     volumes:
-      - .:/var/www/html
       - ./storage/php.ini:/usr/local/etc/php/conf.d/local.ini
+    dns:
+      - 202.9.85.4
+      - 8.8.8.8
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
-      - network_backend_masbrocanteen
+      - ubisma_network
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
 
   webserver:
     image: nginx:alpine
@@ -21,31 +27,60 @@ services:
     restart: unless-stopped
     tty: true
     ports:
-      - "8990:80"
       - "443:443"
     volumes:
       - .:/var/www/html
-      - ./storage/:/etc/nginx/conf.d/
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - /var/www/cert:/etc/nginx/ssl
     networks:
-      - network_backend_masbrocanteen
+      - ubisma_network
+    depends_on:
+      - app
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
 
-  db:
-    image: postgres:15-alpine
-    container_name: db_postgres_backend_masbrocanteen
-    restart: always
-    tty: true
-    ports:
-      - "9999:5432"
-    networks:
-      - network_backend_masbrocanteen
+  # db:
+  # image: mysql:8.0
+  # container_name: db_mysql_backend_masbrocanteen
+  # restart: always
+  # tty: true
+  # ports:
+  #  - "3306:3306"
+  # networks:
+  # - network_backend_masbrocanteen
+  #volumes:
+  # - db_backend_masbrocanteen:/var/lib/mysql
+  #environment:
+  #MYSQL_ROOT_PASSWORD: Db!2025#Secure
+  #MYSQL_DATABASE: foodlab
+  #MYSQL_USER: root
+  # MYSQL_PASSWORD: Db!2025#Secure
+  # labels:
+  # - "com.centurylinklabs.watchtower.enable=false"
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower_backend_masbrocanteen
+    restart: unless-stopped
+    network_mode: host
+    dns:
+      - 202.9.85.4
+      - 8.8.8.8
     volumes:
-      - db_backend_masbrocanteen:/var/lib/postgresql/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /root/.docker:/config:ro
     environment:
-      POSTGRES_PASSWORD: masbrocanteen1
-      POSTGRES_DB: masbrocanteen1
+      DOCKER_CONFIG: /config
+      WATCHTOWER_POLL_INTERVAL: 300
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_DEBUG: "true"
+      TZ: Asia/Jakarta
 
 networks:
-  network_backend_masbrocanteen:
+  ubisma_network:
     driver: bridge
 
 volumes:
