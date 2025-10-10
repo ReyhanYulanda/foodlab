@@ -4,7 +4,7 @@
     @endpush
 
     <div class="main-content">
-        <div class="title">Dashboard FIX BANGET INI MAH EUY ENV NYA GA RESET APA IYH</div>
+        <div class="title">Dashboard 10/10=14:32</div>
         <div class="content-wrapper">
 
             <div class="row mt-4">

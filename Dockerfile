@@ -1,3 +1,4 @@
+# Gunakan PHP 7.4 FPM base
 FROM php:7.4-fpm-buster
 
 # Gunakan repositori archive Debian (karena Buster EOL)
@@ -9,24 +10,30 @@ RUN printf "deb [trusted=yes] http://archive.debian.org/debian buster main contr
  && docker-php-ext-install zip mbstring gd pdo pdo_mysql pgsql pdo_pgsql mysqli \
  && rm -rf /var/lib/apt/lists/*
 
-# Install Composer
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin --filename=composer
-
-# Tambah DNS fallback di container
-#RUN echo "nameserver 1.1.1.1" > /etc/resolv.conf
+# Install Composer secara global
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 # Set working directory
 WORKDIR /var/www/html
-COPY . /var/www/html
 
-# Buat user non-root dengan grup bawaan PHP
-RUN useradd -u 1000 -ms /bin/bash -g www-data masbro \
- && chown -R www-data:www-data /var/www/html
+# Copy hanya file composer dulu untuk caching dependency layer
+COPY composer.json composer.lock ./
 
-USER masbro
+# Install dependency Laravel
+RUN composer install --no-interaction --no-ansi --no-scripts --no-progress --prefer-dist || true
 
-# Install Laravel dependencies (tanpa interaktif)
-RUN composer install --no-interaction --no-ansi --no-scripts --no-progress || true
+# Sekarang baru copy semua source code project
+COPY . .
 
+# Ubah ownership ke user www-data (default PHP-FPM)
+RUN chown -R www-data:www-data /var/www/html
+
+# Copy entrypoint ke container
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Expose port php-fpm
 EXPOSE 9000
-CMD ["php-fpm"]
+
+# Gunakan entrypoint custom
+ENTRYPOINT ["entrypoint.sh"]
