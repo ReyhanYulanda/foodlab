@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Pengaturan;
 use App\Models\Rating;
 use App\Models\RatingMood;
 use Illuminate\Http\Request;
@@ -30,12 +31,22 @@ class RatingController extends Controller
             'rating_moods' => 'required|array',
             'rating_moods.*' => 'integer|exists:rating_moods,id',
         ]);
+        $version = Pengaturan::where('nama', 'version')->first();
+
+        if ($version == null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Version not found'
+            ]);
+        }
 
         $rating = Rating::create([
             'user_id' => $request->user()->id,
             'rating' => $validated['rating'],
             'description' => $validated['description'] ?? null,
+            'version' => $version->nilai
         ]);
+
 
         // Simpan hubungan many-to-many
         $rating->moods()->attach($validated['rating_moods']);
@@ -47,6 +58,20 @@ class RatingController extends Controller
                 'rating' => $rating,
                 'moods' => $rating->moods()->get(['rating_moods.id', 'rating_moods.name'])
             ]
+        ]);
+    }
+
+    public function checkVersion(Request $request)
+    {
+        $userId = $request->user()->id;
+        $version = Pengaturan::where('nama', 'version')->first();
+
+        $exists = Rating::where('user_id', $userId)
+            ->where('version', $version->nilai)
+            ->exists();
+
+        return response()->json([
+            'data' => !$exists
         ]);
     }
 }

@@ -62,6 +62,7 @@ Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function 
     Route::get('/ruangan', [RuanganController::class, 'index']);
     Route::get('/rating-moods', [RatingController::class, 'getMoods']);
     Route::post('/ratings', [RatingController::class, 'store']);
+    Route::get('/ratings/check-version', [RatingController::class, 'checkVersion']);
 
     // SALDO KOIN USER
     Route::get('/saldo', [SaldoKoinController::class, 'cekSaldo']);
