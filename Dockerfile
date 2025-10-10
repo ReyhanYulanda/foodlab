@@ -1,25 +1,39 @@
-FROM php:7.4-fpm
+# Gunakan PHP 7.4 FPM base
+FROM php:7.4-fpm-buster
 
-COPY . /var/www/html
+# Gunakan repositori archive Debian (karena Buster EOL)
+RUN printf "deb [trusted=yes] http://archive.debian.org/debian buster main contrib non-free\n" > /etc/apt/sources.list \
+ && printf "deb [trusted=yes] http://archive.debian.org/debian-security buster/updates main contrib non-free\n" >> /etc/apt/sources.list \
+ && apt-get -o Acquire::Check-Valid-Until=false update -y \
+ && apt-get install -y --no-install-recommends \
+      zip unzip git curl libonig-dev zlib1g-dev libpng-dev libzip-dev libpq-dev default-mysql-client \
+ && docker-php-ext-install zip mbstring gd pdo pdo_mysql pgsql pdo_pgsql mysqli \
+ && rm -rf /var/lib/apt/lists/*
+
+# Install Composer secara global
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+# Set working directory
 WORKDIR /var/www/html
 
-RUN apt-get update -y
-RUN apt-get install -y zip unzip git libonig-dev zlib1g-dev libpng-dev libzip-dev libpq-dev
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin --filename=composer
-RUN docker-php-ext-install zip pdo mbstring gd pgsql pdo_pgsql pdo_mysql mysqli
+# Copy hanya file composer dulu untuk caching dependency layer
+COPY composer.json composer.lock ./
 
-RUN groupadd -g 1000 www
-RUN useradd -u 1000 -ms /bin/bash -G www,www-data,root masbro
+# Install dependency Laravel
+RUN composer install --no-interaction --no-ansi --no-scripts --no-progress --prefer-dist || true
 
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+# Sekarang baru copy semua source code project
+COPY . .
 
-RUN composer install
-COPY --chown=www:www . .
+# Ubah ownership ke user www-data (default PHP-FPM)
+RUN chown -R www-data:www-data /var/www/html
 
-USER masbro
+# Copy entrypoint ke container
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
-EXPOSE 9001
+# Expose port php-fpm
+EXPOSE 9000
 
-CMD [ "php-fpm" ]
-
-# CMD ["php", "artisan", "serve"]
+# Gunakan entrypoint custom
+ENTRYPOINT ["entrypoint.sh"]
