@@ -13,7 +13,7 @@
             <div class="close-sidebar action-toggle">
                 <i class="ti-close"></i>
             </div>
-        </div>
+        </div>        
 
         <div class="sidebar-content">
             <ul class="flex h-full w-full flex-col">
