@@ -99,6 +99,22 @@ class TenantOrderService
         }
 
         if (
+            $transaksi->status === 'pesanan_diproses' &&
+            $request->status === 'siap_diantar' &&
+            $transaksi->isPriority == 1
+        ) {
+            // Cek apakah sudah ada driver
+            if ($transaksi->driver_id !== null) {
+                // Sudah ada driver → langsung skip ke "diantar"
+                $request->merge(['status' => 'diantar']);
+                Log::info("Pesanan prioritas #{$transaksi->id} otomatis diubah menjadi 'diantar' karena sudah memiliki driver.");
+            } else {
+                // Belum ada driver → tetap flow normal
+                Log::info("Pesanan prioritas #{$transaksi->id} masih menunggu driver, tetap di 'siap_diantar'.");
+            }
+        }
+
+        if (
             $request->status === 'selesai' &&
             $transaksi->cashback_amount > 0 &&
             $transaksi->status !== 'selesai'

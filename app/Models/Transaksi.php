@@ -23,6 +23,7 @@ class Transaksi extends Model
         'ongkos_kirim',
         'biaya_layanan',
         'isAntar',
+        'isPriority',
         'metode_pembayaran',
         'tenant_id',
         'catatan',

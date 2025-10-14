@@ -44,13 +44,37 @@ class PesananController extends Controller
         try {
             $transaksi = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user']);
 
+            // ✅ Handle conditional status
             if ($request->has('status')) {
-                if (in_array($request->status, ['diantar', 'selesai'])) {
-                    $transaksi = $transaksi->where('driver_id', $user->id);
+
+                // === CASE: status = siap_diantar ===
+                if ($request->status === 'siap_diantar') {
+                    $transaksi = $transaksi->where(function ($q) use ($user) {
+                        $q->where('status', 'siap_diantar')
+                            ->orWhere(function ($sub) use ($user) {
+                                $sub->where('isPriority', 1)
+                                    ->whereIn('status', ['pesanan_masuk', 'pesanan_diproses'])
+                                    ->where(function ($sub2) use ($user) {
+                                        $sub2->whereNull('driver_id')
+                                            ->orWhere('driver_id', $user->id);
+                                    });
+                            });
+                    });
                 }
-                $transaksi = $transaksi->where('status', $request->status);
+
+                // === CASE: status = diantar / selesai ===
+                elseif (in_array($request->status, ['diantar', 'selesai'])) {
+                    $transaksi = $transaksi->where('driver_id', $user->id)
+                        ->where('status', $request->status);
+                }
+
+                // === CASE: status lainnya ===
+                else {
+                    $transaksi = $transaksi->where('status', $request->status);
+                }
             }
 
+            // Optional filter gedung
             if ($request->has('gedung')) {
                 $transaksi = $transaksi->where('gedung', $request->gedung);
             }
@@ -122,7 +146,7 @@ class PesananController extends Controller
         // }
 
         try {
-            $transaksi = Transaksi::find($transaksiId);
+            $transaksi = Transaksi::lockForUpdate()->find($transaksiId);
 
             if (!$transaksi) {
                 return response()->json([
@@ -184,6 +208,44 @@ class PesananController extends Controller
                         ], 400);
                     }
                     $transaksi->driver_id = $user->id;
+                }
+
+                $statusRequest = $request->query('status');
+                if ($statusRequest === 'diantar') {
+                    // Jika pesanan prioritas
+                    if ($transaksi->isPriority == 1) {
+                        if (in_array($transaksi->status, ['refund_selesai', 'selesai'])) {
+                            return response()->json([
+                                "status" => "forbidden",
+                                "message" => "Pesanan sudah selesai atau direfund, tidak bisa diambil lagi",
+                            ], 403);
+                        }
+
+                        // Jika belum punya driver, assign sekarang
+                        if ($transaksi->driver_id === null) {
+                            $transaksi->driver_id = $user->id;
+                            $transaksi->save();
+
+                            return response()->json([
+                                "status" => "success",
+                                "message" => "Driver berhasil ditetapkan ke pesanan prioritas tanpa mengubah status",
+                            ]);
+                        }
+
+                        // Jika sudah diambil driver lain
+                        if ($transaksi->driver_id !== $user->id) {
+                            return response()->json([
+                                "status" => "forbidden",
+                                "message" => "Pesanan prioritas ini sudah diambil oleh driver lain",
+                            ], 403);
+                        }
+
+                        // Jika driver yang sama menekan ulang
+                        return response()->json([
+                            "status" => "success",
+                            "message" => "Pesanan prioritas sudah Anda ambil sebelumnya",
+                        ]);
+                    }
                 }
 
                 $transaksi->status = $request->status;

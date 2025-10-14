@@ -385,6 +385,10 @@ class TransaksiController extends Controller
                 if ($totalJumlahMenu > 10) {
                     $ongkosKirim += ($totalJumlahMenu - 10) * $biayaExtra;
                 }
+                if ($request->boolean('isPriority')) {
+                    $ongkirPrioritas = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
+                    $ongkosKirim += $ongkirPrioritas;
+                }
             }
 
             $biayaLayanan = Pengaturan::where('nama', 'biaya_layanan')->value('nilai');
@@ -489,6 +493,7 @@ class TransaksiController extends Controller
                 'user_id' => $user->id,
                 'total' => $totalFinal,
                 'isAntar' => $request->isAntar,
+                'isPriority' => $request->boolean('isPriority') ?? false,
                 'metode_pembayaran' => $request->metode_pembayaran,
                 'tenant_id' => $tenant->user_id,
                 'ruangan_id' => $ruanganId,
