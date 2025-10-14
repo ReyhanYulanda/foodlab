@@ -24,9 +24,9 @@ class Kernel extends ConsoleKernel
         $schedule->command('notifikasi:pesanan-masuk')->everyMinute();
         $schedule->command('notifikasi:pesanan-diproses')->everyMinute();
         $schedule->command('transaksi:auto-complete-siap-diambil')->dailyAt($jam_siap_diambil_done_otomatis->nilai ?? '02:00');
-        // $schedule->command('tenants:reset-busy')->everyMinute();
+        $schedule->command('tenants:reset-busy')->everyMinute();
         $schedule->command('tenants:check-refund')->everyMinute();
-        // $schedule->command('transactions:update-failed')->everyMinute();
+        $schedule->command('transactions:update-failed')->everyMinute();
     }
 
     protected function commands()
