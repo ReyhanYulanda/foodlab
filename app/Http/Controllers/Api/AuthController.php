@@ -39,6 +39,17 @@ class AuthController extends Controller
             return ResponseApi::error($validate->errors()->all(), 422);
         }
 
+        // ✅ Daftar domain yang diperbolehkan
+        $allowedDomains = ['gmail.com', 'yahoo.com', 'pens.ac.id'];
+
+        // Ambil domain dari email user
+        $emailDomain = substr(strrchr($request->email, "@"), 1);
+
+        // Cek apakah domain ada di daftar
+        if (!in_array(strtolower($emailDomain), $allowedDomains)) {
+            return ResponseApi::error(['Email domain tidak diizinkan. Gunakan email @gmail.com, @yahoo.com, atau @pens.ac.id'], 422);
+        }
+
         DB::beginTransaction();
         try {
             $newUser = User::create([
@@ -48,10 +59,11 @@ class AuthController extends Controller
                 // 'phone' => $request->phone,
             ]);
             $newUser->sendEmailVerificationNotification();
+
             // Token Management
             $token = $newUser->createToken('secret')->plainTextToken;
 
-            // Hardcode assign role 'user' tanpa cek payload
+            // Hardcode assign role 'user'
             $newUser->assignRole('user');
 
             DB::commit();
@@ -70,7 +82,6 @@ class AuthController extends Controller
 
         return ResponseApi::success($data, 'Berhasil Mendaftar, silahkan verifikasi email Anda');
     }
-
     public function login(Request $request, Firebases $firebases)
     {
         $validate = Validator::make($request->all(), [
