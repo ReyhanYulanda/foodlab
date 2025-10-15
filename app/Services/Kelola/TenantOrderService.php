@@ -161,7 +161,7 @@ class TenantOrderService
                 // Belum ada driver → tetap flow normal
                 Log::info("Pesanan prioritas #{$transaksi->id} masih menunggu driver, tetap di 'siap_diantar'.");
                 // kirim notif ke driver
-                
+
             }
         }
 
@@ -368,11 +368,11 @@ class TenantOrderService
                 'diantar'
             );
 
-            $sendToDrivers(
-                'Ada Pesanan Baru',
-                "Pesanan {$transaksi->id} sedang diantar. Yuk, bantu antar!",
-                'diantar_driver'
-            );
+            // $sendToDrivers(
+            //     'Ada Pesanan Baru',
+            //     "Pesanan {$transaksi->id} sedang diantar. Yuk, bantu antar!",
+            //     'diantar_driver'
+            // );
         }
 
         if ($transaksi->status === 'selesai') {
