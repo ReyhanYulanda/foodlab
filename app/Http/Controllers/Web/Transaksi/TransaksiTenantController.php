@@ -117,6 +117,9 @@ class TransaksiTenantController extends Controller
             'pesanan' => $pesanan,
             'catatan_lokasi_pengantaran' => $transaksi->catatan_lokasi_pengantaran ?? '',
             'catatan_penolakan' => $transaksi->catatan_penolakan ?? '',
+            'bukti_pengantaran' => $transaksi->bukti_pengantaran
+                ? asset('storage/' . $transaksi->bukti_pengantaran)
+                : null,
         ]);
     }
 

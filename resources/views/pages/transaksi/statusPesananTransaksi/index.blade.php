@@ -152,6 +152,12 @@
                                     <p id="catatanLokasi"></p>
                                     <strong>Catatan Penolakan:</strong>
                                     <p id="catatanPenolakan"></p>
+                                    <strong>Bukti Pengantaran:</strong>
+                                    <div id="buktiPengantaranContainer" class="mt-2">
+                                        <img id="buktiPengantaranImg" src="" alt="Bukti Pengantaran"
+                                            class="img-fluid rounded shadow-sm"
+                                            style="max-width: 300px; display: none;">
+                                    </div>
                                 </div>
                             </div>
                             <div class="modal-footer">
@@ -183,7 +189,15 @@
 
                                 lokasiEl.textContent = data.catatan_lokasi_pengantaran || '-';
                                 penolakanEl.textContent = data.catatan_penolakan || '-';
+
+                                if (data.bukti_pengantaran) {
+                                    buktiImg.src = data.bukti_pengantaran;
+                                    buktiImg.style.display = 'block';
+                                } else {
+                                    buktiImg.style.display = 'none';
+                                }
                             })
+
                             .catch(error => {
                                 alert("Gagal memuat data pesanan.");
                                 console.error(error);
