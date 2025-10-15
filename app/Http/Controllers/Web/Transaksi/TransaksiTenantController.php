@@ -102,7 +102,7 @@ class TransaksiTenantController extends Controller
     public function getPesananByTransaksi($id)
     {
         $transaksi = Transaksi::with('listTransaksiDetail.menus')
-            ->select('id', 'catatan_lokasi_pengantaran', 'catatan_penolakan')
+            ->select('id', 'catatan_lokasi_pengantaran', 'catatan_penolakan', 'bukti_pengantaran')
             ->findOrFail($id);
 
         $pesanan = $transaksi->listTransaksiDetail->map(function ($detail) {

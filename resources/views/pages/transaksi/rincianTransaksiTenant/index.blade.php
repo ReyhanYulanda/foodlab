@@ -135,6 +135,8 @@
                         <div id="buktiPengantaranContainer" class="mt-2">
                             <img id="buktiPengantaranImg" src="" alt="Bukti Pengantaran"
                                 class="img-fluid rounded shadow-sm" style="max-width: 300px; display: none;">
+                            <p id="buktiPengantaranText" class="text-muted fst-italic" style="display: none;">Belum ada
+                                bukti pengantaran</p>
                         </div>
                     </div>
                 </div>
@@ -173,8 +175,10 @@
                     if (data.bukti_pengantaran) {
                         buktiImg.src = data.bukti_pengantaran;
                         buktiImg.style.display = 'block';
+                        buktiText.style.display = 'none';
                     } else {
                         buktiImg.style.display = 'none';
+                        buktiText.style.display = 'block';
                     }
                 })
                 .catch(error => {

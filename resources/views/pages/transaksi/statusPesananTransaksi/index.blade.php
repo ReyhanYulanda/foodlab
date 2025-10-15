@@ -157,11 +157,14 @@
                                         <img id="buktiPengantaranImg" src="" alt="Bukti Pengantaran"
                                             class="img-fluid rounded shadow-sm"
                                             style="max-width: 300px; display: none;">
+                                        <p id="buktiPengantaranText" class="text-muted fst-italic"
+                                            style="display: none;">Belum ada bukti pengantaran</p>
                                     </div>
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                                <button type="button" class="btn btn-secondary"
+                                    data-bs-dismiss="modal">Tutup</button>
                             </div>
                         </div>
                     </div>
