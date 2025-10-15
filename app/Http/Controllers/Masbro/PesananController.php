@@ -222,12 +222,6 @@ class PesananController extends Controller
                     // Update status ke diantar
                     $transaksi->status = 'diantar';
                     $transaksi->save();
-
-                    return response()->json([
-                        "status" => "success",
-                        "message" => "Pesanan berhasil diambil oleh driver",
-                        "data" => $transaksi
-                    ]);
                 }
             } else {
                 if ($transaksi->status === 'selesai' && $request->status === 'diantar') {
