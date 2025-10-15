@@ -164,7 +164,6 @@ class PesananController extends Controller
                         ], 403);
                     }
 
-                    // Jika belum punya driver, assign sekarang
                     if ($transaksi->driver_id === null) {
                         $transaksi->driver_id = $user->id;
                         $transaksi->save();
@@ -176,7 +175,6 @@ class PesananController extends Controller
                         ]);
                     }
 
-                    // Jika sudah diambil driver lain
                     if ($transaksi->driver_id !== $user->id) {
                         return response()->json([
                             "status" => "forbidden",
@@ -184,10 +182,51 @@ class PesananController extends Controller
                         ], 403);
                     }
 
-                    // Jika driver yang sama menekan ulang
                     return response()->json([
                         "status" => "success",
                         "message" => "Pesanan prioritas sudah Anda ambil sebelumnya",
+                    ]);
+                }
+
+                // Jika pesanan biasa (non-prioritas)
+                if ($transaksi->isPriority == 0) {
+                    if (in_array($transaksi->status, ['refund_selesai', 'selesai'])) {
+                        return response()->json([
+                            "status" => "forbidden",
+                            "message" => "Pesanan sudah selesai atau direfund, tidak bisa diambil lagi",
+                        ], 403);
+                    }
+
+                    // Jika sudah ada driver lain
+                    if ($transaksi->driver_id !== null && $transaksi->driver_id !== $user->id) {
+                        return response()->json([
+                            "status" => "forbidden",
+                            "message" => "Pesanan ini sudah diambil oleh driver lain",
+                        ], 403);
+                    }
+
+                    // Kalau driver_id masih kosong, assign ke driver ini
+                    if ($transaksi->driver_id === null) {
+                        $transaksi->driver_id = $user->id;
+                    }
+
+                    // Kalau sudah diantar sebelumnya
+                    if ($transaksi->status === 'diantar') {
+                        return response()->json([
+                            "status" => "success",
+                            "message" => "Pesanan sudah diambil oleh driver",
+                            "data" => $transaksi
+                        ]);
+                    }
+
+                    // Update status ke diantar
+                    $transaksi->status = 'diantar';
+                    $transaksi->save();
+
+                    return response()->json([
+                        "status" => "success",
+                        "message" => "Pesanan berhasil diambil oleh driver",
+                        "data" => $transaksi
                     ]);
                 }
             } else {
