@@ -99,7 +99,7 @@ class TenantOrderService
         }
 
         if ($transaksi->status === 'pesanan_masuk' && $request->status === 'pesanan_diproses' && $transaksi->isPriority == 1) {
-            if ($transaksi->driver_id == null) {
+            if ($transaksi->driver_id === null) {
                 //kirim notif ke driver
                 $masbroOfflineTokens = User::role('masbro')
                     ->where('isOnline', 0)
