@@ -98,6 +98,43 @@ class TenantOrderService
             return $validation;
         }
 
+        if ($transaksi->status === 'pesanan_masuk' && $request->status === 'pesanan_diproses' && $transaksi->isPriority == 1) {
+            if ($transaksi->driver_id == null) {
+                //kirim notif ke driver
+                $masbroOfflineTokens = User::role('masbro')
+                    ->where('isOnline', 0)
+                    ->with('fcmTokens')
+                    ->get()
+                    ->flatMap(fn($user) => $user->fcmTokens->pluck('fcm_token'))
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->toArray();
+                if (!empty($masbroOfflineTokens)) {
+                    $firebases
+                        ->withNotification('Ada Pesanan Prioritas', 'Gasin yuk ada ongkir tambahannya loh')
+                        ->withData([
+                            'title' => 'Ada Pesanan Prioritas',
+                            'body' => 'Gasin yuk ada ongkir tambahannya loh',
+                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                        ])->sendToDriver($masbroOfflineTokens);
+                }
+            } else {
+                //kirim notif ke driver sesuai transaksi->driver_id
+                $driver = User::with('fcmTokens')->find($transaksi->driver_id);
+                $fcmDriverToken = $driver ? $driver->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                if (!empty($fcmDriverToken)) {
+                    $firebases
+                        ->withNotification('Perubahan status pesanan prioritas', 'Cek status pesanan prioritas')
+                        ->withData([
+                            'title' => 'Perubahan status pesanan prioritas',
+                            'body' => 'Cek status pesanan prioritas',
+                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                        ])->sendToDriver($fcmDriverToken);
+                }
+            }
+        }
+
         if (
             $transaksi->status === 'pesanan_diproses' &&
             $request->status === 'siap_diantar' &&
@@ -107,10 +144,24 @@ class TenantOrderService
             if ($transaksi->driver_id !== null) {
                 // Sudah ada driver → langsung skip ke "diantar"
                 $request->merge(['status' => 'diantar']);
+                // kirim notif ke driver
+                $driver = User::with('fcmTokens')->find($transaksi->driver_id);
+                $fcmDriverToken = $driver ? $driver->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                if (!empty($fcmDriverToken)) {
+                    $firebases
+                        ->withNotification('Perubahan status pesanan prioritas', 'Cek status pesanan prioritas')
+                        ->withData([
+                            'title' => 'Perubahan status pesanan prioritas',
+                            'body' => 'Cek status pesanan prioritas',
+                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                        ])->sendToDriver($fcmDriverToken);
+                }
                 Log::info("Pesanan prioritas #{$transaksi->id} otomatis diubah menjadi 'diantar' karena sudah memiliki driver.");
             } else {
                 // Belum ada driver → tetap flow normal
                 Log::info("Pesanan prioritas #{$transaksi->id} masih menunggu driver, tetap di 'siap_diantar'.");
+                // kirim notif ke driver
+                
             }
         }
 
