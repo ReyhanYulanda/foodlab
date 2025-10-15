@@ -157,35 +157,48 @@ class PesananController extends Controller
             if ($status === 'diantar') {
                 // Jika pesanan prioritas
                 if ($transaksi->isPriority == 1) {
-                    if (in_array($transaksi->status, ['refund_selesai', 'selesai'])) {
-                        return response()->json([
-                            "status" => "forbidden",
-                            "message" => "Pesanan sudah selesai atau direfund, tidak bisa diambil lagi",
-                        ], 403);
-                    }
+                    if ($transaksi->status === 'pesanan_masuk' || $transaksi->status === 'pesanan_diproses') {
+                        if (in_array($transaksi->status, ['refund_selesai', 'selesai'])) {
+                            return response()->json([
+                                "status" => "forbidden",
+                                "message" => "Pesanan sudah selesai atau direfund, tidak bisa diambil lagi",
+                            ], 403);
+                        }
 
-                    if ($transaksi->driver_id === null) {
+                        if ($transaksi->driver_id === null) {
+                            $transaksi->driver_id = $user->id;
+                            $transaksi->save();
+
+                            return response()->json([
+                                "status" => "success",
+                                "message" => "Driver berhasil ditetapkan ke pesanan prioritas tanpa mengubah status",
+                                "data" => $transaksi
+                            ]);
+                        }
+
+                        if ($transaksi->driver_id !== $user->id) {
+                            return response()->json([
+                                "status" => "forbidden",
+                                "message" => "Pesanan prioritas ini sudah diambil oleh driver lain",
+                            ], 403);
+                        }
+
+                        return response()->json([
+                            "status" => "success",
+                            "message" => "Pesanan prioritas sudah Anda ambil sebelumnya",
+                        ]);
+                    }
+                    if ($transaksi->status === 'siap_diantar') {
                         $transaksi->driver_id = $user->id;
+                        $transaksi->status = 'diantar';
                         $transaksi->save();
 
                         return response()->json([
                             "status" => "success",
-                            "message" => "Driver berhasil ditetapkan ke pesanan prioritas tanpa mengubah status",
+                            "message" => "Driver berhasil ditetapkan ke pesanan prioritas",
                             "data" => $transaksi
                         ]);
                     }
-
-                    if ($transaksi->driver_id !== $user->id) {
-                        return response()->json([
-                            "status" => "forbidden",
-                            "message" => "Pesanan prioritas ini sudah diambil oleh driver lain",
-                        ], 403);
-                    }
-
-                    return response()->json([
-                        "status" => "success",
-                        "message" => "Pesanan prioritas sudah Anda ambil sebelumnya",
-                    ]);
                 }
 
                 // Jika pesanan biasa (non-prioritas)
@@ -221,7 +234,26 @@ class PesananController extends Controller
 
                     // Update status ke diantar
                     $transaksi->status = 'diantar';
+                    $transaksi->driver_id = $user->id;
                     $transaksi->save();
+
+                    $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+                    $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                    if ($transaksi->status == 'diantar') {
+                        $firebases
+                            ->withNotification('Pesanan Sedang Diantar', "Pesanan {$transaksi->id} sedang diantar oleh driver. Mohon tunggu sebentar!")
+                            ->withData([
+                                'title' => 'Pesanan Sedang Diantar',
+                                'body' => "Pesanan {$transaksi->id} sedang diantar oleh driver. Mohon tunggu sebentar!",
+                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                            ])->sendToFallback($fcmUserToken);
+                    }
+
+                    return response()->json([
+                        "status" => "success",
+                        "message" => "Pesanan berhasil diambil oleh driver",
+                        "data" => $transaksi,
+                    ]);
                 }
             } else {
                 if ($transaksi->status === 'selesai' && $request->status === 'diantar') {
