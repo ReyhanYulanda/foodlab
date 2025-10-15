@@ -353,6 +353,7 @@ class PesananController extends Controller
                 return response()->json([
                     "status" => "success",
                     "message" => "Pesanan {$request->status}",
+                    "data" => $transaksi
                 ]);
             }
         } catch (Throwable $th) {
