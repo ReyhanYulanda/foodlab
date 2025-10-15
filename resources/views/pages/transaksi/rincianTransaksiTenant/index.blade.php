@@ -131,6 +131,13 @@
                         <p id="catatanLokasi"></p>
                         <strong>Catatan Penolakan:</strong>
                         <p id="catatanPenolakan"></p>
+                        <strong>Bukti Pengantaran:</strong>
+                        <div id="buktiPengantaranContainer" class="mt-2">
+                            <img id="buktiPengantaranImg" src="" alt="Bukti Pengantaran"
+                                class="img-fluid rounded shadow-sm" style="max-width: 300px; display: none;">
+                            <p id="buktiPengantaranText" class="text-muted fst-italic" style="display: none;">Belum ada
+                                bukti pengantaran</p>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -143,43 +150,55 @@
     <script>
         function getPesanan(transaksiId) {
             fetch(`/pesanan-transaksi/${transaksiId}`)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('HTTP error! Status: ' + response.status);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     const tbody = document.getElementById('tablePesananBody');
                     const lokasiEl = document.getElementById('catatanLokasi');
                     const penolakanEl = document.getElementById('catatanPenolakan');
+                    const buktiImg = document.getElementById('buktiPengantaranImg');
+                    const buktiText = document.getElementById('buktiPengantaranText');
 
                     tbody.innerHTML = '';
                     data.pesanan.forEach(pesanan => {
                         const row = `
-        <tr>
-            <td>${pesanan.nama_menu}</td>
-            <td>${pesanan.jumlah}</td>
-            <td>Rp ${new Intl.NumberFormat('id-ID').format(pesanan.harga)}</td>
-        </tr>
-    `;
+                            <tr>
+                                <td>${pesanan.nama_menu}</td>
+                                <td>${pesanan.jumlah}</td>
+                                <td>Rp ${new Intl.NumberFormat('id-ID').format(pesanan.harga)}</td>
+                            </tr>`;
                         tbody.innerHTML += row;
                     });
 
                     lokasiEl.textContent = data.catatan_lokasi_pengantaran || '-';
                     penolakanEl.textContent = data.catatan_penolakan || '-';
+
+                    if (data.bukti_pengantaran) {
+                        buktiImg.src = data.bukti_pengantaran;
+                        buktiImg.style.display = 'block';
+                        buktiText.style.display = 'none';
+                    } else {
+                        buktiImg.style.display = 'none';
+                        buktiText.style.display = 'block';
+                    }
                 })
                 .catch(error => {
-                    alert("Gagal memuat data pesanan.");
+                    alert("Gagal memuat data pesanan. Lihat console untuk detail.");
                     console.error(error);
                 });
         }
+
         document.addEventListener('DOMContentLoaded', () => {
             const filterDate = document.getElementById('filter_date');
             const startDate = document.getElementById('start_date');
             const endDate = document.getElementById('end_date');
 
             function toggleFilterDate() {
-                if (startDate.value || endDate.value) {
-                    filterDate.disabled = true;
-                } else {
-                    filterDate.disabled = false;
-                }
+                filterDate.disabled = startDate.value || endDate.value;
             }
 
             startDate.addEventListener('input', toggleFilterDate);
