@@ -146,7 +146,7 @@ class PesananController extends Controller
         // }
 
         try {
-            $transaksi = Transaksi::lockForUpdate()->find($transaksiId);
+            $transaksi = Transaksi::find($transaksiId);
 
             if (!$transaksi) {
                 return response()->json([
