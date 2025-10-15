@@ -172,7 +172,7 @@ class PesananController extends Controller
                         return response()->json([
                             "status" => "success",
                             "message" => "Driver berhasil ditetapkan ke pesanan prioritas tanpa mengubah status",
-                            "Data" => $transaksi
+                            "data" => $transaksi
                         ]);
                     }
 
