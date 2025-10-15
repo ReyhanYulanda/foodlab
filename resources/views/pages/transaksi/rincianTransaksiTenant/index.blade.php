@@ -150,22 +150,27 @@
     <script>
         function getPesanan(transaksiId) {
             fetch(`/pesanan-transaksi/${transaksiId}`)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('HTTP error! Status: ' + response.status);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     const tbody = document.getElementById('tablePesananBody');
                     const lokasiEl = document.getElementById('catatanLokasi');
                     const penolakanEl = document.getElementById('catatanPenolakan');
                     const buktiImg = document.getElementById('buktiPengantaranImg');
+                    const buktiText = document.getElementById('buktiPengantaranText');
 
                     tbody.innerHTML = '';
                     data.pesanan.forEach(pesanan => {
                         const row = `
-        <tr>
-            <td>${pesanan.nama_menu}</td>
-            <td>${pesanan.jumlah}</td>
-            <td>Rp ${new Intl.NumberFormat('id-ID').format(pesanan.harga)}</td>
-        </tr>
-    `;
+                            <tr>
+                                <td>${pesanan.nama_menu}</td>
+                                <td>${pesanan.jumlah}</td>
+                                <td>Rp ${new Intl.NumberFormat('id-ID').format(pesanan.harga)}</td>
+                            </tr>`;
                         tbody.innerHTML += row;
                     });
 
@@ -182,21 +187,18 @@
                     }
                 })
                 .catch(error => {
-                    alert("Gagal memuat data pesanan.");
+                    alert("Gagal memuat data pesanan. Lihat console untuk detail.");
                     console.error(error);
                 });
         }
+
         document.addEventListener('DOMContentLoaded', () => {
             const filterDate = document.getElementById('filter_date');
             const startDate = document.getElementById('start_date');
             const endDate = document.getElementById('end_date');
 
             function toggleFilterDate() {
-                if (startDate.value || endDate.value) {
-                    filterDate.disabled = true;
-                } else {
-                    filterDate.disabled = false;
-                }
+                filterDate.disabled = startDate.value || endDate.value;
             }
 
             startDate.addEventListener('input', toggleFilterDate);
