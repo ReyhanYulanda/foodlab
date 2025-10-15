@@ -169,6 +169,17 @@ class PesananController extends Controller
                             $transaksi->driver_id = $user->id;
                             $transaksi->save();
 
+                            $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+                            $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                            $firebases
+                                ->withNotification('Pesanan Telah mendapatkan driver', "Pesanan {$transaksi->id} telah mendapatkan driver. Mohon tunggu tenant menyiapkan pesanan!")
+                                ->withData([
+                                    'title' => 'Pesanan Telah mendapatkan driver',
+                                    'body' => "Pesanan {$transaksi->id} telah mendapatkan driver. Mohon tunggu tenant menyiapkan pesanan!",
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                ])->sendToFallback($fcmUserToken);
+
+
                             return response()->json([
                                 "status" => "success",
                                 "message" => "Driver berhasil ditetapkan ke pesanan prioritas tanpa mengubah status",
@@ -192,6 +203,16 @@ class PesananController extends Controller
                         $transaksi->driver_id = $user->id;
                         $transaksi->status = 'diantar';
                         $transaksi->save();
+
+                        $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+                        $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                        $firebases
+                            ->withNotification('Pesanan Telah mendapatkan driver', "Pesanan {$transaksi->id} telah mendapatkan driver. Driver akan menuju tempat pengantaran!")
+                            ->withData([
+                                'title' => 'Pesanan Telah mendapatkan driver',
+                                'body' => "Pesanan {$transaksi->id} telah mendapatkan driver. Driver akan menuju tempat pengantaran!",
+                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                            ])->sendToFallback($fcmUserToken);
 
                         return response()->json([
                             "status" => "success",
