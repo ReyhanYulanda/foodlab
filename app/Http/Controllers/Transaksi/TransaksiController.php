@@ -348,8 +348,18 @@ class TransaksiController extends Controller
                     $kelola->where('id', $menu_id);
                 });
             })->first();
+            $masbroTokens = User::role('masbro')
+                // ->where('isOnline', 1)
+                ->with('fcmTokens')
+                ->get()
+                ->flatMap(fn($user) => $user->fcmTokens->pluck('fcm_token'))
+                ->filter()
+                ->unique()
+                ->values()
+                ->toArray();
 
             $fcmTenantToken = $tenantUser ? $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+            $fcmMasbroToken = $masbroTokens;
 
             if (!$tenantUser) {
                 Log::warning('User tenant tidak ditemukan berdasarkan menu_id', ['menu_id' => $menu_id]);
@@ -620,6 +630,18 @@ class TransaksiController extends Controller
                                 'body' => 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!',
                                 'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                             ])->sendToTenant($fcmTenantToken);
+                    }
+
+                    if ($request->boolean('isPriority')) {
+                        if (!empty($fcmMasbroToken)) {
+                            $firebases
+                                ->withNotification('Ada Pesanan Prioritas', 'Gasin yuk ada ongkir tambahannya loh')
+                                ->withData([
+                                    'title' => 'Ada Pesanan Prioritas',
+                                    'body' => 'Gasin yuk ada ongkir tambahannya loh',
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                ])->sendToDriver($fcmMasbroToken);
+                        }
                     }
                     Log::info('Sending FCM to tenant', ['tokens' => $fcmTenantToken]);
                 }
