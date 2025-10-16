@@ -231,7 +231,7 @@ class TransaksiController extends Controller
 
             $transaksi = Transaksi::where('isAntar', 1)
                 ->where('driver_id', $user->id)
-                ->whereIn('status', ['siap_diantar', 'diantar', 'selesai'])
+                ->whereIn('status', ['siap_diantar', 'diantar', 'selesai', 'refund_selesai', 'pesanan_masuk', 'pesanan_diproses'])
                 ->with(['listTransaksiDetail.menus.tenants', 'user'])
                 ->orderByDesc('created_at')
                 ->paginate($perPage, ['*'], 'page', $page);
