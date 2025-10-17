@@ -321,12 +321,7 @@ class PesananController extends Controller
                         }
                     }
                     if ($transaksi->status === 'siap_diantar' & $request->status === 'diantar') {
-                        if ($transaksi->driver_id !== $user->id) {
-                            return response()->json([
-                                "status" => "forbidden",
-                                "message" => "Pesanan prioritas ini sudah diambil oleh driver lain",
-                            ], 403);
-                        } else {
+                        if ($transaksi->driver_id === null) {
                             $transaksi->driver_id = $user->id;
                             $transaksi->status = 'diantar';
                             $transaksi->save();
@@ -343,9 +338,37 @@ class PesananController extends Controller
 
                             return response()->json([
                                 "status" => "success",
-                                "message" => "Driver berhasil mengubah status siap diantar ke diantar",
+                                "message" => "Driver berhasil mendapatkan driver dan mengubah status siap diantar ke diantar",
                                 "data" => $transaksi
                             ]);
+                        }
+                        if ($transaksi->driver_id !== null) {
+                            if ($transaksi->driver_id !== $user->id) {
+                                return response()->json([
+                                    "status" => "forbidden",
+                                    "message" => "Pesanan prioritas ini sudah diambil oleh driver lain",
+                                ], 403);
+                            } else {
+                                $transaksi->driver_id = $user->id;
+                                $transaksi->status = 'diantar';
+                                $transaksi->save();
+
+                                $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+                                $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                                $firebases
+                                    ->withNotification('Pesanan Telah mendapatkan driver', "Pesanan {$transaksi->id} telah mendapatkan driver. Driver akan menuju tempat pengantaran!")
+                                    ->withData([
+                                        'title' => 'Pesanan Telah mendapatkan driver',
+                                        'body' => "Pesanan {$transaksi->id} telah mendapatkan driver. Driver akan menuju tempat pengantaran!",
+                                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                    ])->sendToFallback($fcmUserToken);
+
+                                return response()->json([
+                                    "status" => "success",
+                                    "message" => "Driver berhasil mengubah status siap diantar ke diantar",
+                                    "data" => $transaksi
+                                ]);
+                            }
                         }
                     }
                 }
