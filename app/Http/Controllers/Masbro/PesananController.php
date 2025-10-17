@@ -207,6 +207,12 @@ class PesananController extends Controller
                                     'body' => "Pesanan {$transaksi->id} sedang diproses oleh tenant. Mohon tunggu tenant menyiapkan pesanan!",
                                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                                 ])->sendToFallback($fcmUserToken);
+
+                            return response()->json([
+                                "status" => "success",
+                                "message" => "Driver berhasil mengubah status tenant ke pesanan diproses",
+                                "data" => $transaksi,
+                            ]);
                         }
 
                         if ($transaksi->driver_id !== $user->id) {
