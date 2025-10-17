@@ -116,7 +116,7 @@ class PesananController extends Controller
 
         // validasi semua field
         $validator = Validator::make($request->all(), [
-            'status' => 'required|in:diantar,selesai,siap_diantar',
+            'status' => 'required|in:pesanan_diproses,diantar,selesai,siap_diantar',
         ]);
 
         if ($validator->fails()) {
