@@ -210,7 +210,7 @@ class PesananController extends Controller
 
                             return response()->json([
                                 "status" => "success",
-                                "message" => "Driver berhasil mengubah status tenant ke pesanan diproses",
+                                "message" => "Driver berhasil mengubah status pesanan masuk ke pesanan diproses",
                                 "data" => $transaksi,
                             ]);
                         }
@@ -275,7 +275,7 @@ class PesananController extends Controller
 
                             return response()->json([
                                 "status" => "success",
-                                "message" => "Driver berhasil ditetapkan ke pesanan prioritas",
+                                "message" => "Driver berhasil mengubah status diproses ke diantar",
                                 "data" => $transaksi
                             ]);
                         }
@@ -303,7 +303,7 @@ class PesananController extends Controller
 
                             return response()->json([
                                 "status" => "success",
-                                "message" => "Driver berhasil ditetapkan ke pesanan prioritas",
+                                "message" => "Driver berhasil mengubah status siap diantar ke diantar",
                                 "data" => $transaksi
                             ]);
                         }
