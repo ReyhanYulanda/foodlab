@@ -154,8 +154,7 @@ class PesananController extends Controller
                     "message" => "Transaksi tidak ditemukan"
                 ], 404);
             }
-            if ($status === 'diantar') {
-                // Jika pesanan prioritas
+            if ($status === 'pesanan_diproses') {
                 if ($transaksi->isPriority == 1) {
                     if ($transaksi->status === 'pesanan_masuk' || $transaksi->status === 'pesanan_diproses') {
                         if (in_array($transaksi->status, ['refund_selesai', 'selesai'])) {
@@ -165,26 +164,49 @@ class PesananController extends Controller
                             ], 403);
                         }
 
-                        if ($transaksi->driver_id === null) {
-                            $transaksi->driver_id = $user->id;
-                            $transaksi->save();
+                        if ($transaksi->status === 'pesanan_masuk') {
+                            // assign driver id
+                            if ($transaksi->driver_id === null) {
+                                $transaksi->driver_id = $user->id;
+                                $transaksi->save();
 
+                                // send notification
+                                $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+                                $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                                $firebases
+                                    ->withNotification('Pesanan Telah mendapatkan driver', "Pesanan {$transaksi->id} telah mendapatkan driver. Mohon tunggu tenant menyiapkan pesanan!")
+                                    ->withData([
+                                        'title' => 'Pesanan Telah mendapatkan driver',
+                                        'body' => "Pesanan {$transaksi->id} telah mendapatkan driver. Mohon tunggu tenant menyiapkan pesanan!",
+                                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                    ])->sendToFallback($fcmUserToken);
+
+
+                                return response()->json([
+                                    "status" => "success",
+                                    "message" => "Driver berhasil ditetapkan ke pesanan prioritas tanpa mengubah status",
+                                    "data" => $transaksi
+                                ]);
+                            }
+                            if ($transaksi->driver_id !== null) {
+                                if ($transaksi->driver_id !== $user->id) {
+                                    return response()->json([
+                                        "status" => "forbidden",
+                                        "message" => "Pesanan prioritas ini sudah diambil oleh driver lain",
+                                    ], 403);
+                                }
+                                $transaksi->status = 'pesanan_diproses';
+                                $transaksi->save();
+                            }
                             $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
                             $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
                             $firebases
-                                ->withNotification('Pesanan Telah mendapatkan driver', "Pesanan {$transaksi->id} telah mendapatkan driver. Mohon tunggu tenant menyiapkan pesanan!")
+                                ->withNotification('Pesanan sedang diproses oleh tenant', "Pesanan {$transaksi->id} sedang diproses oleh tenant. Mohon tunggu tenant menyiapkan pesanan!")
                                 ->withData([
-                                    'title' => 'Pesanan Telah mendapatkan driver',
-                                    'body' => "Pesanan {$transaksi->id} telah mendapatkan driver. Mohon tunggu tenant menyiapkan pesanan!",
+                                    'title' => 'Pesanan sedang diproses oleh tenant',
+                                    'body' => "Pesanan {$transaksi->id} sedang diproses oleh tenant. Mohon tunggu tenant menyiapkan pesanan!",
                                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                                 ])->sendToFallback($fcmUserToken);
-
-
-                            return response()->json([
-                                "status" => "success",
-                                "message" => "Driver berhasil ditetapkan ke pesanan prioritas tanpa mengubah status",
-                                "data" => $transaksi
-                            ]);
                         }
 
                         if ($transaksi->driver_id !== $user->id) {
@@ -199,26 +221,86 @@ class PesananController extends Controller
                             "message" => "Pesanan prioritas sudah Anda ambil sebelumnya",
                         ]);
                     }
-                    if ($transaksi->status === 'siap_diantar') {
-                        $transaksi->driver_id = $user->id;
-                        $transaksi->status = 'diantar';
-                        $transaksi->save();
+                    // if ($transaksi->status === 'siap_diantar') {
+                    //     $transaksi->driver_id = $user->id;
+                    //     $transaksi->status = 'diantar';
+                    //     $transaksi->save();
 
-                        $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
-                        $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
-                        $firebases
-                            ->withNotification('Pesanan Telah mendapatkan driver', "Pesanan {$transaksi->id} telah mendapatkan driver. Driver akan menuju tempat pengantaran!")
-                            ->withData([
-                                'title' => 'Pesanan Telah mendapatkan driver',
-                                'body' => "Pesanan {$transaksi->id} telah mendapatkan driver. Driver akan menuju tempat pengantaran!",
-                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                            ])->sendToFallback($fcmUserToken);
+                    //     $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+                    //     $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                    //     $firebases
+                    //         ->withNotification('Pesanan Telah mendapatkan driver', "Pesanan {$transaksi->id} telah mendapatkan driver. Driver akan menuju tempat pengantaran!")
+                    //         ->withData([
+                    //             'title' => 'Pesanan Telah mendapatkan driver',
+                    //             'body' => "Pesanan {$transaksi->id} telah mendapatkan driver. Driver akan menuju tempat pengantaran!",
+                    //             'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                    //         ])->sendToFallback($fcmUserToken);
 
-                        return response()->json([
-                            "status" => "success",
-                            "message" => "Driver berhasil ditetapkan ke pesanan prioritas",
-                            "data" => $transaksi
-                        ]);
+                    //     return response()->json([
+                    //         "status" => "success",
+                    //         "message" => "Driver berhasil ditetapkan ke pesanan prioritas",
+                    //         "data" => $transaksi
+                    //     ]);
+                    // }
+                }
+            }
+            if ($status === 'diantar') {
+                // Jika pesanan prioritas
+                if ($transaksi->isPriority == 1) {
+                    if ($transaksi->status === 'pesanan_diproses' & $request->status === 'diantar' & $transaksi->driver_id !== null) {
+                        if ($transaksi->driver_id !== $user->id) {
+                            return response()->json([
+                                "status" => "forbidden",
+                                "message" => "Pesanan prioritas ini sudah diambil oleh driver lain",
+                            ], 403);
+                        } else {
+                            $transaksi->status = 'diantar';
+                            $transaksi->save();
+
+                            $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+                            $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                            $firebases
+                                ->withNotification('Pesanan telah selesai diproses', "Pesanan {$transaksi->id} telah selesai diproses. Driver akan menuju tempat pengantaran!")
+                                ->withData([
+                                    'title' => 'Pesanan telah selesai diproses',
+                                    'body' => "Pesanan {$transaksi->id} telah selesai diproses. Driver akan menuju tempat pengantaran!",
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                ])->sendToFallback($fcmUserToken);
+
+                            return response()->json([
+                                "status" => "success",
+                                "message" => "Driver berhasil ditetapkan ke pesanan prioritas",
+                                "data" => $transaksi
+                            ]);
+                        }
+                    }
+                    if ($transaksi->status === 'siap_diantar' & $request->status === 'diantar') {
+                        if ($transaksi->driver_id !== $user->id) {
+                            return response()->json([
+                                "status" => "forbidden",
+                                "message" => "Pesanan prioritas ini sudah diambil oleh driver lain",
+                            ], 403);
+                        } else {
+                            $transaksi->driver_id = $user->id;
+                            $transaksi->status = 'diantar';
+                            $transaksi->save();
+
+                            $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+                            $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                            $firebases
+                                ->withNotification('Pesanan Telah mendapatkan driver', "Pesanan {$transaksi->id} telah mendapatkan driver. Driver akan menuju tempat pengantaran!")
+                                ->withData([
+                                    'title' => 'Pesanan Telah mendapatkan driver',
+                                    'body' => "Pesanan {$transaksi->id} telah mendapatkan driver. Driver akan menuju tempat pengantaran!",
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                ])->sendToFallback($fcmUserToken);
+
+                            return response()->json([
+                                "status" => "success",
+                                "message" => "Driver berhasil ditetapkan ke pesanan prioritas",
+                                "data" => $transaksi
+                            ]);
+                        }
                     }
                 }
 
