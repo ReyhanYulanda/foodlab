@@ -273,6 +273,26 @@ class PesananController extends Controller
                             "data" => $transaksi
                         ]);
                     }
+                    if ($transaksi->status === 'pesanan_masuk' & $request->status === 'diantar' & $transaksi->driver_id === null) {
+                        $transaksi->driver_id = $user->id;
+                        $transaksi->save();
+
+                        $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+                        $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                        $firebases
+                            ->withNotification('Pesanan berhasil mendapatkan driver', "Pesanan {$transaksi->id} berhasil mendapatkan driver.")
+                            ->withData([
+                                'title' => 'Pesanan berhasil mendapatkan driver',
+                                'body' => "Pesanan {$transaksi->id} berhasil mendapatkan driver.",
+                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                            ])->sendToFallback($fcmUserToken);
+
+                        return response()->json([
+                            "status" => "success",
+                            "message" => "Driver berhasil terassign ke pesanan prioritas",
+                            "data" => $transaksi
+                        ]);
+                    }
                     if ($transaksi->status === 'pesanan_diproses' & $request->status === 'diantar' & $transaksi->driver_id !== null) {
                         if ($transaksi->driver_id !== $user->id) {
                             return response()->json([
