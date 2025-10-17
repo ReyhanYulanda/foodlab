@@ -164,7 +164,7 @@ class PesananController extends Controller
                             ], 403);
                         }
 
-                        if ($transaksi->status === 'pesanan_masuk') {
+                        if ($transaksi->status === 'pesanan_masuk' && $request->status === 'pesanan_diproses') {
                             // assign driver id
                             if ($transaksi->driver_id === null) {
                                 $transaksi->driver_id = $user->id;
