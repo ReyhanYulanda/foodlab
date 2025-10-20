@@ -150,4 +150,183 @@ class CashierController extends Controller
             'data' => $cashiers,
         ], 200);
     }
+
+    public function getHistoryById(Request $request, $id)
+    {
+        $user = $request->user();
+
+        // Ambil data kasir berdasarkan ID
+        $cashier = Cashier::where('id', $id)
+            ->whereHas('details.menu.tenant', function ($query) use ($user) {
+                $query->where('user_id', $user->id);
+            })
+            ->with([
+                'details.menu' => function ($q) {
+                    $q->select('id', 'nama', 'harga', 'tenant_id');
+                },
+                'details.menu.tenant' => function ($q) {
+                    $q->select('id', 'nama_tenant', 'user_id');
+                },
+                'user:id,name'
+            ])
+            ->first();
+
+        if (!$cashier) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Transaksi kasir tidak ditemukan atau tidak memiliki akses',
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Berhasil mengambil detail transaksi kasir',
+            'data' => $cashier,
+        ], 200);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $user = $request->user();
+
+        $validator = Validator::make($request->all(), [
+            'menus' => 'required|array',
+            'menus.*.id' => 'required|integer|exists:menus,id',
+            'menus.*.jumlah' => 'required|integer|min:1',
+            'menus.*.catatan' => 'nullable|string|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => $validator->errors()->all()
+            ], 400);
+        }
+
+        $cashier = Cashier::with('details.menu.tenant')->find($id);
+
+        if (!$cashier) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Transaksi kasir tidak ditemukan',
+            ], 404);
+        }
+
+        // Pastikan user pemilik tenant
+        $tenant = optional(optional($cashier->details->first())->menu)->tenant;
+        if (!$tenant || $tenant->user_id !== $user->id) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Kamu bukan pemilik tenant ini, tidak bisa mengubah transaksi kasir',
+            ], 403);
+        }
+
+        DB::beginTransaction();
+        try {
+            $menuIds = collect($request->menus)->pluck('id')->toArray();
+
+            // Pastikan semua menu dari tenant yang sama
+            $tenantIds = Menus::whereIn('id', $menuIds)->pluck('tenant_id')->unique();
+            if ($tenantIds->count() > 1) {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => 'Semua menu harus berasal dari tenant yang sama',
+                ], 400);
+            }
+
+            // Hapus detail lama
+            CashierDetail::where('cashier_id', $cashier->id)->delete();
+
+            $totalHarga = 0;
+            $details = [];
+
+            foreach ($request->menus as $menuItem) {
+                $menu = Menus::find($menuItem['id']);
+                if ($menu) {
+                    $subtotal = $menu->harga * $menuItem['jumlah'];
+                    $totalHarga += $subtotal;
+
+                    $details[] = [
+                        'cashier_id' => $cashier->id,
+                        'menu_id' => $menu->id,
+                        'jumlah' => $menuItem['jumlah'],
+                        'harga' => $subtotal,
+                        'catatan' => $menuItem['catatan'] ?? null,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+            }
+
+            // Insert detail baru
+            if (!empty($details)) {
+                CashierDetail::insert($details);
+            }
+
+            // Update total
+            $cashier->update([
+                'total' => $totalHarga,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Transaksi kasir berhasil diperbarui',
+                'data' => $cashier->load('details.menu'),
+            ], 200);
+        } catch (Throwable $th) {
+            DB::rollBack();
+            Log::error('Gagal update transaksi kasir: ' . $th->getMessage());
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Terjadi kesalahan: ' . $th->getMessage(),
+            ], 500);
+        }
+    }
+
+
+    public function destroy(Request $request, $id)
+    {
+        $user = $request->user();
+
+        $cashier = Cashier::with('details.menu.tenant')->find($id);
+
+        if (!$cashier) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Transaksi kasir tidak ditemukan',
+            ], 404);
+        }
+
+        // Pastikan user pemilik tenant
+        $tenant = optional(optional($cashier->details->first())->menu)->tenant;
+        if (!$tenant || $tenant->user_id !== $user->id) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Kamu bukan pemilik tenant ini, tidak bisa menghapus transaksi kasir',
+            ], 403);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Hapus semua detail
+            CashierDetail::where('cashier_id', $cashier->id)->delete();
+            $cashier->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Transaksi kasir berhasil dihapus',
+            ], 200);
+        } catch (Throwable $th) {
+            DB::rollBack();
+            Log::error('Gagal menghapus transaksi kasir: ' . $th->getMessage());
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Terjadi kesalahan: ' . $th->getMessage(),
+            ], 500);
+        }
+    }
 }

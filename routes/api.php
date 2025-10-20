@@ -83,8 +83,11 @@ Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function 
         Route::delete('/menu/{id}', [KelolaTenantController::class, 'destroyMenu']);
 
         // KASIR
-        Route::post('/kasir', [CashierController::class, 'store'])->name('cashier.store');
-        Route::get('/kasir/riwayat', [CashierController::class, 'getHistory'])->name('cashier.history');
+        Route::post('/kasir', [CashierController::class, 'store']);
+        Route::get('/kasir/riwayat', [CashierController::class, 'getHistory']);
+        Route::get('/kasir/riwayat/{id}', [CashierController::class, 'getHistoryById']);
+        Route::put('/kasir/{id}', [CashierController::class, 'update']);
+        Route::delete('/kasir/{id}', [CashierController::class, 'destroy']);
 
         // TENANT ORDER
         Route::get('/order', [TenantOrderController::class, 'index']);
