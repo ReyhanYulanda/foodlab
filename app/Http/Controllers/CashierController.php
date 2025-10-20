@@ -126,7 +126,7 @@ class CashierController extends Controller
         })
             ->with([
                 'details.menu' => function ($q) {
-                    $q->select('id', 'nama_menu', 'harga', 'tenant_id');
+                    $q->select('id', 'nama as nama_menu', 'harga', 'tenant_id');
                 },
                 'details.menu.tenant' => function ($q) {
                     $q->select('id', 'nama_tenant', 'user_id');
