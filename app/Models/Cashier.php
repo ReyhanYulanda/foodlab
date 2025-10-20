@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 class Cashier extends Model
 {
     use HasFactory;
+    
+    protected $table = 'cashiers';
+
     protected $fillable = [
         'user_id',
         'total',
