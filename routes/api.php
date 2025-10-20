@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\Voucher\VoucherController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\CashierController;
 use App\Models\Transaksi;
 use App\Http\Controllers\Kelola\Tenant\ProfileTenantController;
 use App\Http\Controllers\RatingController;
@@ -80,6 +81,10 @@ Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function 
         Route::post('/menu', [KelolaTenantController::class, 'storeMenu']);
         Route::post('/menu/{id}', [KelolaTenantController::class, 'updateMenu']);
         Route::delete('/menu/{id}', [KelolaTenantController::class, 'destroyMenu']);
+
+        // KASIR
+        Route::post('/kasir', [CashierController::class, 'store'])->name('cashier.store');
+        Route::get('/kasir/riwayat', [CashierController::class, 'getHistory'])->name('cashier.history');
 
         // TENANT ORDER
         Route::get('/order', [TenantOrderController::class, 'index']);

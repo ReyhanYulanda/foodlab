@@ -1,0 +1,153 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Cashier;
+use App\Models\CashierDetail;
+use App\Models\Menus;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+use Throwable;
+
+class CashierController extends Controller
+{
+    public function store(Request $request)
+    {
+        $user = $request->user();
+
+        $validator = Validator::make($request->all(), [
+            'menus' => 'required|array',
+            'menus.*.id' => 'required|integer|exists:menus,id',
+            'menus.*.jumlah' => 'required|integer|min:1',
+            'menus.*.catatan' => 'nullable|string|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => $validator->errors()->all()
+            ], 400);
+        }
+
+        $menuIds = collect($request->menus)->pluck('id')->toArray();
+
+        // Ambil semua tenant dari menu yang dipilih
+        $tenants = Menus::whereIn('id', $menuIds)
+            ->pluck('tenant_id')
+            ->unique();
+
+        // Pastikan semua menu dari 1 tenant
+        if ($tenants->count() > 1) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Semua menu harus berasal dari tenant yang sama',
+            ], 400);
+        }
+
+        $menuFirst = Menus::with('tenant.pemilik')->find($menuIds[0]);
+        if (!$menuFirst || !$menuFirst->tenant) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Tenant tidak ditemukan',
+            ], 404);
+        }
+
+        $tenant = $menuFirst->tenant;
+
+        // ✅ Cek apakah user yang login adalah pemilik tenant
+        if ($tenant->user_id !== $user->id) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Kamu bukan pemilik tenant ini, tidak bisa menambahkan transaksi kasir',
+            ], 403);
+        }
+
+        DB::beginTransaction();
+        try {
+            $totalHarga = 0;
+            foreach ($request->menus as $menuItem) {
+                $menu = Menus::find($menuItem['id']);
+                if ($menu) {
+                    $totalHarga += $menu->harga * $menuItem['jumlah'];
+                }
+            }
+
+            $cashier = Cashier::create([
+                'user_id' => $user->id,
+                'total' => $totalHarga,
+            ]);
+
+            $details = [];
+            foreach ($request->menus as $menuItem) {
+                $menu = Menus::find($menuItem['id']);
+                if ($menu) {
+                    $details[] = [
+                        'cashier_id' => $cashier->id,
+                        'menu_id' => $menu->id,
+                        'jumlah' => $menuItem['jumlah'],
+                        'harga' => $menu->harga * $menuItem['jumlah'],
+                        'catatan' => $menuItem['catatan'] ?? null,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+            }
+
+            if (!empty($details)) {
+                CashierDetail::insert($details);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Transaksi kasir berhasil dibuat',
+                'data' => $cashier->load('details.menu'),
+            ], 201);
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            Log::error('Gagal membuat transaksi kasir: ' . $th->getMessage());
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Terjadi kesalahan: ' . $th->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getHistory(Request $request)
+    {
+        $user = $request->user();
+
+        // Ambil semua transaksi kasir yang menunya dimiliki oleh tenant user saat ini
+        $cashiers = Cashier::whereHas('details.menu.tenant', function ($query) use ($user) {
+            $query->where('user_id', $user->id);
+        })
+            ->with([
+                'details.menu' => function ($q) {
+                    $q->select('id', 'nama_menu', 'harga', 'tenant_id');
+                },
+                'details.menu.tenant' => function ($q) {
+                    $q->select('id', 'nama_tenant', 'user_id');
+                },
+                'user:id,name'
+            ])
+            ->latest()
+            ->get();
+
+        if ($cashiers->isEmpty()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Belum ada transaksi kasir untuk tenant ini',
+                'data' => [],
+            ], 200);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Berhasil mengambil riwayat kasir',
+            'data' => $cashiers,
+        ], 200);
+    }
+}
