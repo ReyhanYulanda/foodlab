@@ -398,6 +398,13 @@ class TransaksiController extends Controller
                 $isAntar = filter_var($request->input('isAntar'), FILTER_VALIDATE_BOOLEAN);
                 $isPriority = filter_var($request->input('isPriority'), FILTER_VALIDATE_BOOLEAN);
 
+                Log::info('DEBUG', [
+                    'isAntar_raw' => $request->input('isAntar'),
+                    'isAntar_bool' => $request->boolean('isAntar'),
+                    'isPriority_raw' => $request->input('isPriority'),
+                    'isPriority_bool' => $request->boolean('isPriority'),
+                ]);
+
                 if ($isPriority) {
                     if (!$isAntar) {
                         return response()->json([
