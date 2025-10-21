@@ -384,6 +384,15 @@ class TransaksiController extends Controller
 
             $ruanganId = $request->isAntar ? $request->ruangan_id : null;
             $ongkosKirim = 0;
+            
+            $isAntar = filter_var($request->input('isAntar'), FILTER_VALIDATE_BOOLEAN);
+            $isPriority = filter_var($request->input('isPriority'), FILTER_VALIDATE_BOOLEAN);
+            if ($isPriority && !$isAntar) {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => ['Pengiriman prioritas hanya bisa dilakukan dengan pengiriman']
+                ], 400);
+            }
 
             if ($request->isAntar && $ruanganId) {
                 $ruangan = Ruangan::with('gedung')->find($ruanganId);
@@ -395,24 +404,8 @@ class TransaksiController extends Controller
                 if ($totalJumlahMenu > 10) {
                     $ongkosKirim += ($totalJumlahMenu - 10) * $biayaExtra;
                 }
-                $isAntar = filter_var($request->input('isAntar'), FILTER_VALIDATE_BOOLEAN);
-                $isPriority = filter_var($request->input('isPriority'), FILTER_VALIDATE_BOOLEAN);
-
-                Log::info('DEBUG', [
-                    'isAntar_raw' => $request->input('isAntar'),
-                    'isAntar_bool' => $request->boolean('isAntar'),
-                    'isPriority_raw' => $request->input('isPriority'),
-                    'isPriority_bool' => $request->boolean('isPriority'),
-                ]);
 
                 if ($isPriority) {
-                    if (!$isAntar) {
-                        return response()->json([
-                            'status' => 'failed',
-                            'message' => ['Pengiriman prioritas hanya bisa dilakukan dengan pengiriman']
-                        ], 400);
-                    }
-
                     $ongkirPrioritas = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
                     $ongkosKirim += $ongkirPrioritas;
                 }
