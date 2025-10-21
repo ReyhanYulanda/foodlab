@@ -396,6 +396,12 @@ class TransaksiController extends Controller
                     $ongkosKirim += ($totalJumlahMenu - 10) * $biayaExtra;
                 }
                 if ($request->boolean('isPriority')) {
+                    if ($request->isAntar == 0) {
+                        return response()->json([
+                            'status' => 'failed',
+                            'message' => ['Pengiriman prioritas hanya bisa dilakukan dengan pengiriman']
+                        ], 400);
+                    }
                     $ongkirPrioritas = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
                     $ongkosKirim += $ongkirPrioritas;
                 }
