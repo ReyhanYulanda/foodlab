@@ -13,6 +13,7 @@ class Cashier extends Model
 
     protected $fillable = [
         'user_id',
+        'kode_pemesanan',
         'total',
     ];
 

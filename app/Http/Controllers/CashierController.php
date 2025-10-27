@@ -13,6 +13,19 @@ use Throwable;
 
 class CashierController extends Controller
 {
+
+    public static function generateKodePemesanan($cashierId)
+    {
+        // Generate 3 huruf kapital acak
+        $huruf = strtoupper(substr(str_shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 3));
+
+        // Generate 2 angka acak (00–99)
+        $angka = str_pad(random_int(0, 99), 2, '0', STR_PAD_LEFT);
+
+        // Gabungkan
+        return $huruf . $angka;
+    }
+
     public function store(Request $request)
     {
         $user = $request->user();
@@ -77,6 +90,7 @@ class CashierController extends Controller
             $cashier = Cashier::create([
                 'user_id' => $user->id,
                 'total' => $totalHarga,
+                'kode_pemesanan' => self::generateKodePemesanan(null),
             ]);
 
             $details = [];
