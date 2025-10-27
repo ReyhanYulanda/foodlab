@@ -18,6 +18,7 @@ class MonitorTransaksiController extends Controller
     public function monitorPesanan(Request $request)
     {
         $transaksi = Transaksi::whereIn('status', [
+            'pesanan_masuk',
             'pesanan_diproses',
             'siap_diantar',
             'siap_diambil',

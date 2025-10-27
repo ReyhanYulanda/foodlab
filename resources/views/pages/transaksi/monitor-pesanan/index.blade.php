@@ -20,6 +20,7 @@
                             <tr>
                                 <th>No</th>
                                 <th>ID Transaksi</th>
+                                <th>Kode Pemesanan</th>
                                 <th>Pembeli</th>
                                 <th>Tenant</th>
                                 <th>Status</th>
@@ -34,6 +35,7 @@
                                 <tr>
                                     <td>{{ $transaksi->firstItem() + $index }}</td>
                                     <td>#{{ $trx->id }}</td>
+                                    <td>{{ $trx->kode_pemesanan ?? '-' }}</td>
                                     <td>{{ $trx->nama_pembeli ?? '-' }}</td>
                                     <td>{{ $trx->nama_tenant ?? '-' }}</td>
                                     <td>
