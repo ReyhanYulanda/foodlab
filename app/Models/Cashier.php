@@ -13,8 +13,11 @@ class Cashier extends Model
 
     protected $fillable = [
         'user_id',
+        'tenant_id',
+        'order_tenant',
         'kode_pemesanan',
         'total',
+        'status',
     ];
 
     /**
@@ -31,5 +34,10 @@ class Cashier extends Model
     public function details()
     {
         return $this->hasMany(CashierDetail::class, 'cashier_id');
+    }
+
+    public function tenant()
+    {
+        return $this->belongsTo(Tenants::class, 'tenant_id', 'id');
     }
 }

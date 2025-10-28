@@ -88,6 +88,7 @@ Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function 
         Route::get('/kasir/riwayat/{id}', [CashierController::class, 'getHistoryById']);
         Route::put('/kasir/{id}', [CashierController::class, 'update']);
         Route::delete('/kasir/{id}', [CashierController::class, 'destroy']);
+        Route::put('/kasir/order/{id}', [TenantOrderController::class, 'updateCashier']);
 
         // TENANT ORDER
         Route::get('/order', [TenantOrderController::class, 'index']);

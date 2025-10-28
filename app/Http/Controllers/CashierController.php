@@ -87,10 +87,19 @@ class CashierController extends Controller
                 }
             }
 
+            // ✅ Cari order_tenant terakhir milik tenant ini
+            $lastOrderTenant = Cashier::where('tenant_id', $tenant->id)
+                ->max('order_tenant');
+
+            $nextOrderTenant = $lastOrderTenant ? $lastOrderTenant + 1 : 1;
+
             $cashier = Cashier::create([
                 'user_id' => $user->id,
+                'tenant_id' => $tenant->id,
+                'order_tenant' => $nextOrderTenant,
                 'total' => $totalHarga,
                 'kode_pemesanan' => self::generateKodePemesanan(null),
+                'status' => 'pesanan_diproses', // ✅ default status
             ]);
 
             $details = [];

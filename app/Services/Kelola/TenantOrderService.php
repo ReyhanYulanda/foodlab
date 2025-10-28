@@ -6,6 +6,7 @@ use App\Models\Tenants;
 use App\Models\Transaksi;
 use App\Response\ResponseApi;
 use App\Helper\ValidationHelper;
+use App\Models\Cashier;
 use App\Models\SaldoKoin;
 use App\Models\TransaksiSaldoKoin;
 use App\Services\Firebases;
@@ -230,6 +231,53 @@ class TenantOrderService
         }
     }
 
+    public function updateStatusPesananCashier($request, $firebases, $id)
+    {
+        $validation = ValidationHelper::validate($request->all(), [
+            'status' => 'required|in:pesanan_diproses,selesai',
+        ]);
+
+        if ($validation) {
+            return $validation;
+        }
+
+        $cashier = Cashier::with('tenant.pemilik')->find($id);
+
+        if (!$cashier) {
+            return ResponseApi::error('Transaksi kasir tidak ditemukan', 404);
+        }
+
+        // Cek apakah user login adalah pemilik tenant
+        $user = $request->user();
+        $tenant = $cashier->tenant;
+
+        if (!$tenant || $tenant->user_id !== $user->id) {
+            return ResponseApi::forbidden('Kamu bukan pemilik tenant ini');
+        }
+
+        // Validasi status agar tidak double update
+        if ($cashier->status === 'selesai' && $request->status === 'selesai') {
+            return ResponseApi::error('Pesanan kasir sudah selesai sebelumnya.', 403);
+        }
+
+        if ($cashier->status === 'pesanan_diproses' && $request->status === 'pesanan_diproses') {
+            return ResponseApi::error('Pesanan kasir sudah dalam proses sebelumnya.', 403);
+        }
+
+        // Update status
+        $cashier->status = $request->status;
+        $cashier->save();
+
+        // (Opsional) kirim notifikasi ke tenant atau user lain
+        // $firebases->withNotification("Status kasir diperbarui", "Pesanan kasir #{$cashier->order_tenant} kini {$cashier->status}")
+        //     ->withData([
+        //         'title' => 'Status kasir diperbarui',
+        //         'body' => "Pesanan kasir #{$cashier->order_tenant} kini {$cashier->status}",
+        //     ])->sendToFallback([...]);
+
+        return ResponseApi::success(null, "Status pesanan kasir berhasil diperbarui menjadi {$cashier->status}");
+    }
+    
     private function sendNotifications($transaksi, $firebases)
     {
         $masbroTokens = User::role('masbro')
