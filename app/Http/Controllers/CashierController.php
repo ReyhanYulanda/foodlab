@@ -143,10 +143,10 @@ class CashierController extends Controller
     {
         $user = $request->user();
 
-        // Ambil semua transaksi kasir yang menunya dimiliki oleh tenant user saat ini
         $cashiers = Cashier::whereHas('details.menu.tenant', function ($query) use ($user) {
             $query->where('user_id', $user->id);
         })
+            ->whereNotNull('order_tenant')
             ->with([
                 'details.menu' => function ($q) {
                     $q->select('id', 'nama as nama_menu', 'harga', 'tenant_id');
@@ -156,7 +156,7 @@ class CashierController extends Controller
                 },
                 'user:id,name'
             ])
-            ->latest()
+            ->orderBy('order_tenant', 'asc')
             ->get();
 
         if ($cashiers->isEmpty()) {
