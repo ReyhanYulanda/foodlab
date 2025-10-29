@@ -152,7 +152,7 @@ class CashierController extends Controller
                     $q->select('id', 'nama as nama_menu', 'harga', 'tenant_id', 'gambar');
                 },
                 'details.menu.tenant' => function ($q) {
-                    $q->select('id', 'nama_tenant', 'user_id', 'nama_gambar', 'range', 'transaksi_berhasil');
+                    $q->select('id', 'nama_tenant', 'user_id', 'nama_gambar', 'transaksi_berhasil');
                 },
                 'user:id,name'
             ])
