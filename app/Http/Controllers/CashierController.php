@@ -149,10 +149,10 @@ class CashierController extends Controller
             ->whereNotNull('order_tenant')
             ->with([
                 'details.menu' => function ($q) {
-                    $q->select('id', 'nama as nama_menu', 'harga', 'tenant_id');
+                    $q->select('id', 'nama as nama_menu', 'harga', 'tenant_id', 'gambar');
                 },
                 'details.menu.tenant' => function ($q) {
-                    $q->select('id', 'nama_tenant', 'user_id');
+                    $q->select('id', 'nama_tenant', 'user_id', 'nama_gambar', 'range', 'transaksi_berhasil');
                 },
                 'user:id,name'
             ])
