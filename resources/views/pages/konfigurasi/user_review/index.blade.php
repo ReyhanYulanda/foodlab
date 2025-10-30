@@ -9,13 +9,20 @@
                     <h4>Daftar User Review</h4>
                 </div>
                 <div class="card-body">
-                    <form method="GET" action="{{ route('user_review.index') }}" class="mb-4">
-                        <div class="input-group">
-                            <input type="text" name="search" value="{{ request('search') }}" class="form-control"
-                                placeholder="Cari user atau deskripsi...">
-                            <button class="btn btn-primary">Cari</button>
-                        </div>
-                    </form>
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <form method="GET" action="{{ route('user_review.index') }}" class="d-flex flex-grow-1 me-2">
+                            <div class="input-group">
+                                <input type="text" name="search" value="{{ request('search') }}"
+                                    class="form-control" placeholder="Cari user atau deskripsi...">
+                                <button class="btn btn-primary">Cari</button>
+                            </div>
+                        </form>
+
+                        <a href="{{ route('user_review.export', ['search' => request('search')]) }}"
+                            class="btn btn-success">
+                            Export CSV
+                        </a>
+                    </div>
 
                     <table class="table table-responsive w-full table-striped">
                         <thead>
