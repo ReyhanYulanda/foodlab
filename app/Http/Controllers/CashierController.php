@@ -157,7 +157,14 @@ class CashierController extends Controller
                 'user:id,name'
             ])
             ->orderBy('order_tenant', 'asc')
-            ->get();
+            ->get()
+            ->transform(function ($item) {
+                // Ubah format created_at ke ISO8601 dengan offset zona waktu Asia/Jakarta (+07:00)
+                $item->created_at = $item->created_at
+                    ? $item->created_at->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
+                    : null;
+                return $item;
+            });
 
         if ($cashiers->isEmpty()) {
             return response()->json([
