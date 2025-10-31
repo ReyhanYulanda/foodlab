@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
+use Carbon\Carbon;
 
 class CashierController extends Controller
 {
@@ -159,22 +160,22 @@ class CashierController extends Controller
             ->orderBy('order_tenant', 'asc')
             ->get()
             ->transform(function ($item) {
-                // Format waktu utama (cashier)
+                // Konversi manual string ke Carbon sebelum format ulang
                 $item->created_at = $item->created_at
-                    ? $item->created_at->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
+                    ? Carbon::parse($item->created_at)->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
                     : null;
                 $item->updated_at = $item->updated_at
-                    ? $item->updated_at->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
+                    ? Carbon::parse($item->updated_at)->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
                     : null;
 
-                // Format waktu pada setiap detail
+                // Ubah juga di setiap detail
                 if ($item->details) {
                     $item->details->transform(function ($detail) {
                         $detail->created_at = $detail->created_at
-                            ? $detail->created_at->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
+                            ? Carbon::parse($detail->created_at)->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
                             : null;
                         $detail->updated_at = $detail->updated_at
-                            ? $detail->updated_at->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
+                            ? Carbon::parse($detail->updated_at)->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
                             : null;
                         return $detail;
                     });
