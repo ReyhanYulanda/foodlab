@@ -159,10 +159,27 @@ class CashierController extends Controller
             ->orderBy('order_tenant', 'asc')
             ->get()
             ->transform(function ($item) {
-                // Ubah format created_at ke ISO8601 dengan offset zona waktu Asia/Jakarta (+07:00)
+                // Format waktu utama (cashier)
                 $item->created_at = $item->created_at
                     ? $item->created_at->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
                     : null;
+                $item->updated_at = $item->updated_at
+                    ? $item->updated_at->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
+                    : null;
+
+                // Format waktu pada setiap detail
+                if ($item->details) {
+                    $item->details->transform(function ($detail) {
+                        $detail->created_at = $detail->created_at
+                            ? $detail->created_at->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
+                            : null;
+                        $detail->updated_at = $detail->updated_at
+                            ? $detail->updated_at->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
+                            : null;
+                        return $detail;
+                    });
+                }
+
                 return $item;
             });
 
