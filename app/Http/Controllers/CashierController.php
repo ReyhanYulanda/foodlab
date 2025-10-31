@@ -158,31 +158,7 @@ class CashierController extends Controller
                 'user:id,name'
             ])
             ->orderBy('order_tenant', 'asc')
-            ->get()
-            ->map(function ($item) {
-                // ubah ke string manual supaya tidak diubah lagi oleh Eloquent
-                $item->created_at = $item->created_at
-                    ? Carbon::parse($item->created_at)->setTimezone('Asia/Jakarta')->toIso8601String()
-                    : null;
-                $item->updated_at = $item->updated_at
-                    ? Carbon::parse($item->updated_at)->setTimezone('Asia/Jakarta')->toIso8601String()
-                    : null;
-
-                if ($item->details) {
-                    $item->details->map(function ($detail) {
-                        $detail->created_at = $detail->created_at
-                            ? Carbon::parse($detail->created_at)->setTimezone('Asia/Jakarta')->toIso8601String()
-                            : null;
-                        $detail->updated_at = $detail->updated_at
-                            ? Carbon::parse($detail->updated_at)->setTimezone('Asia/Jakarta')->toIso8601String()
-                            : null;
-                        return $detail;
-                    });
-                }
-
-                return $item;
-            })
-            ->values(); // optional: reset index array
+            ->get();
 
         if ($cashiers->isEmpty()) {
             return response()->json([
@@ -191,6 +167,9 @@ class CashierController extends Controller
                 'data' => [],
             ], 200);
         }
+
+        // paksa gunakan timezone Asia/Jakarta saat serialisasi JSON
+        date_default_timezone_set('Asia/Jakarta');
 
         return response()->json([
             'status' => 'success',
