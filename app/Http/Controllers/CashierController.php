@@ -160,27 +160,29 @@ class CashierController extends Controller
             ->orderBy('order_tenant', 'asc')
             ->get()
             ->map(function ($item) {
+                // ubah ke string manual supaya tidak diubah lagi oleh Eloquent
                 $item->created_at = $item->created_at
-                    ? $item->created_at->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
+                    ? Carbon::parse($item->created_at)->setTimezone('Asia/Jakarta')->toIso8601String()
                     : null;
                 $item->updated_at = $item->updated_at
-                    ? $item->updated_at->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
+                    ? Carbon::parse($item->updated_at)->setTimezone('Asia/Jakarta')->toIso8601String()
                     : null;
 
                 if ($item->details) {
                     $item->details->map(function ($detail) {
                         $detail->created_at = $detail->created_at
-                            ? $detail->created_at->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
+                            ? Carbon::parse($detail->created_at)->setTimezone('Asia/Jakarta')->toIso8601String()
                             : null;
                         $detail->updated_at = $detail->updated_at
-                            ? $detail->updated_at->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
+                            ? Carbon::parse($detail->updated_at)->setTimezone('Asia/Jakarta')->toIso8601String()
                             : null;
                         return $detail;
                     });
                 }
 
                 return $item;
-            });
+            })
+            ->values(); // optional: reset index array
 
         if ($cashiers->isEmpty()) {
             return response()->json([
