@@ -159,23 +159,21 @@ class CashierController extends Controller
             ])
             ->orderBy('order_tenant', 'asc')
             ->get()
-            ->transform(function ($item) {
-                // Konversi manual string ke Carbon sebelum format ulang
+            ->map(function ($item) {
                 $item->created_at = $item->created_at
-                    ? Carbon::parse($item->created_at)->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
+                    ? $item->created_at->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
                     : null;
                 $item->updated_at = $item->updated_at
-                    ? Carbon::parse($item->updated_at)->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
+                    ? $item->updated_at->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
                     : null;
 
-                // Ubah juga di setiap detail
                 if ($item->details) {
-                    $item->details->transform(function ($detail) {
+                    $item->details->map(function ($detail) {
                         $detail->created_at = $detail->created_at
-                            ? Carbon::parse($detail->created_at)->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
+                            ? $detail->created_at->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
                             : null;
                         $detail->updated_at = $detail->updated_at
-                            ? Carbon::parse($detail->updated_at)->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
+                            ? $detail->updated_at->timezone('Asia/Jakarta')->format('Y-m-d\TH:i:sP')
                             : null;
                         return $detail;
                     });
