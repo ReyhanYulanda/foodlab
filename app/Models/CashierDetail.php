@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -33,5 +34,12 @@ class CashierDetail extends Model
     public function menu()
     {
         return $this->belongsTo(Menus::class, 'menu_id');
+    }
+
+    protected function serializeDate(\DateTimeInterface $date)
+    {
+        return Carbon::instance($date)
+            ->timezone('Asia/Jakarta')
+            ->format('Y-m-d\TH:i:sP');
     }
 }

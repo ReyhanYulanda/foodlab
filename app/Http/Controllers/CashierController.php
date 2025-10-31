@@ -168,9 +168,6 @@ class CashierController extends Controller
             ], 200);
         }
 
-        // paksa gunakan timezone Asia/Jakarta saat serialisasi JSON
-        date_default_timezone_set('Asia/Jakarta');
-
         return response()->json([
             'status' => 'success',
             'message' => 'Berhasil mengambil riwayat kasir',

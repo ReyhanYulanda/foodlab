@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Cashier extends Model
 {
     use HasFactory;
-    
+
     protected $table = 'cashiers';
 
     protected $fillable = [
@@ -23,6 +24,12 @@ class Cashier extends Model
     /**
      * Relasi ke user (kasir/pembuat transaksi)
      */
+    protected function serializeDate(\DateTimeInterface $date)
+    {
+        return Carbon::instance($date)
+            ->timezone('Asia/Jakarta')
+            ->format('Y-m-d\TH:i:sP');
+    }
     public function user()
     {
         return $this->belongsTo(User::class);
