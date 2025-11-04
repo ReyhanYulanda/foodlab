@@ -1066,21 +1066,28 @@ class TransaksiController extends Controller
 
                 if ($transaksi->multitenant_id) {
                     $relatedOrders = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
-
                     $ongkirMulti = optional($transaksi->ruangan->gedung)->ongkir_multitenant ?? 0;
 
-                    // Cek apakah semua transaksi dalam satu multitenant sudah dibatalkan atau refund
-                    $isAllCancelled = $relatedOrders->every(
-                        fn($t) =>
-                        in_array($t->status, ['pesanan_ditolak', 'refund_selesai'])
-                    );
+                    $isAllCancelled = $relatedOrders->every(fn($t) => in_array($t->status, ['pesanan_ditolak', 'refund_selesai']));
+                    $isAnyCompleted = $relatedOrders->contains(fn($t) => $t->status === 'selesai');
+                    $isAnyActive = $relatedOrders->contains(fn($t) => in_array($t->status, [
+                        'pesanan_masuk',
+                        'pesanan_diproses',
+                        'siap_diantar',
+                        'diantar'
+                    ]));
 
-                    if ($isAllCancelled) {
-                        // Semua sudah batal => refund penuh (termasuk ongkir)
+                    if ($isAnyCompleted) {
+                        // ✅ Ada yang selesai: refund penuh
                         $refundAmount = $transaksi->total;
-                    } else {
-                        // Masih ada tenant lain aktif => refund dikurangi ongkir_multitenant
+                    } elseif ($isAllCancelled) {
+                        // ✅ Semua batal: refund penuh
+                        $refundAmount = $transaksi->total;
+                    } elseif ($isAnyActive) {
+                        // ⚠️ Masih ada transaksi aktif: refund dikurangi ongkir
                         $refundAmount = max(0, $transaksi->total - $ongkirMulti);
+                    } else {
+                        $refundAmount = $transaksi->total;
                     }
                 }
 
