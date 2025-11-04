@@ -403,6 +403,14 @@ class TransaksiController extends Controller
                         'multitenant_id' => $multitenantId,
                     ]);
 
+                    do {
+                        $kodePemesanan = TransaksiCek::generateKodePemesanan($transaksi->id);
+                    } while (Transaksi::where('kode_pemesanan', $kodePemesanan)->exists());
+        
+                    // SIMPAN ke database
+                    $transaksi->kode_pemesanan = $kodePemesanan;
+                    $transaksi->save();
+
                     // Kirim menus lengkap (dengan catatan jika ada)
                     $menusWithNotes = $menus->map(function ($menu) {
                         return [
