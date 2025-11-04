@@ -13,7 +13,8 @@ class Gedung extends Model
 
     protected $fillable = [
         'nama',
-        'ongkir'
+        'ongkir',
+        'ongkir_multitenant'
     ];
 
     public function listRuangan()

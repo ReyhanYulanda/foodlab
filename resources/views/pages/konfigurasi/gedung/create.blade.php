@@ -38,6 +38,18 @@
                                     @enderror
                                 </div>
                             </div>
+
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="ongkir_multitenant" class="form-label">Ongkir Multitenant</label>
+                                    <input type="number" min="0" placeholder="0"
+                                        class="form-control @error('ongkir_multitenant') is-invalid @enderror" id="ongkir_multitenant"
+                                        name="ongkir_multitenant" value="{{ old('ongkir_multitenant') }}">
+                                    @error('ongkir_multitenant')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
                         </div>
                         <div class="col-4 float-right">
                             <div class="mb-3">
