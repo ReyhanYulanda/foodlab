@@ -409,6 +409,43 @@ class TransaksiController extends Controller
                     $createdTransaksi[] = $transaksi;
                 }
 
+                // === Kirim notifikasi ke tenant ===
+                foreach ($createdTransaksi as $transaksiTenant) {
+                    $tenantUser = User::with('fcmTokens')
+                        ->whereHas('tenant', function ($tenant) use ($transaksiTenant) {
+                            $tenant->where('user_id', $transaksiTenant->tenant_id);
+                        })
+                        ->first();
+
+                    if ($tenantUser && $tenantUser->fcmTokens->isNotEmpty()) {
+                        $fcmTokens = $tenantUser->fcmTokens->pluck('fcm_token')
+                            ->filter()
+                            ->unique()
+                            ->values()
+                            ->toArray();
+
+                        if (!empty($fcmTokens)) {
+                            $firebases
+                                ->withNotification('Pesanan Masuk', 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!')
+                                ->withData([
+                                    'title' => 'Pesanan Masuk',
+                                    'body' => 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!',
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                ])
+                                ->sendToTenant($fcmTokens);
+
+                            Log::info('FCM dikirim ke tenant', [
+                                'tenant_id' => $transaksiTenant->tenant_id,
+                                'tokens' => $fcmTokens
+                            ]);
+                        }
+                    } else {
+                        Log::warning('Tenant tidak punya FCM token atau user tidak ditemukan', [
+                            'tenant_id' => $transaksiTenant->tenant_id
+                        ]);
+                    }
+                }
+
                 DB::commit();
 
                 return response()->json([
