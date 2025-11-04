@@ -384,7 +384,7 @@ class TransaksiController extends Controller
 
             $ruanganId = $request->isAntar ? $request->ruangan_id : null;
             $ongkosKirim = 0;
-            
+
             $isAntar = filter_var($request->input('isAntar'), FILTER_VALIDATE_BOOLEAN);
             $isPriority = filter_var($request->input('isPriority'), FILTER_VALIDATE_BOOLEAN);
             if ($isPriority && !$isAntar) {
@@ -812,6 +812,13 @@ class TransaksiController extends Controller
             if (
                 $transaksi->status === 'pesanan_diproses' &&
                 !($isAdmin || $isTenant)
+            ) {
+                return ResponseApi::error("Pesanan sedang diproses. Tidak bisa dibatalkan", 400);
+            }
+
+            if (
+                $transaksi->status === 'siap_diantar'|| $transaksi->status === 'siap_diambil'|| $transaksi->status === 'diantar' &&
+                !($isAdmin)
             ) {
                 return ResponseApi::error("Pesanan sedang diproses. Tidak bisa dibatalkan", 400);
             }
