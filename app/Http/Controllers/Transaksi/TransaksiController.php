@@ -395,9 +395,11 @@ class TransaksiController extends Controller
                         'metode_pembayaran' => $request->metode_pembayaran,
                         'tenant_id' => $tenant->user_id,
                         'ruangan_id' => $ruanganId,
+                        'catatan' => $request->catatan,
                         'status' => 'pesanan_masuk',
                         'ongkos_kirim' => $ongkosKirim,
                         'biaya_layanan' => $biayaLayanan,
+                        'catatan_lokasi_pengantaran' => $request->catatan_lokasi_pengantaran ?? null, 
                         'multitenant_id' => $multitenantId,
                     ]);
 
