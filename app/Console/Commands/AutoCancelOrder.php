@@ -36,84 +36,99 @@ class AutoCancelOrder extends Command
                 $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
                 $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
 
+                // === Update status pesanan yang timeout ===
                 $transaksi->status = 'pesanan_ditolak';
                 $transaksi->catatan_penolakan = 'Pesanan dibatalkan otomatis karena tidak direspons tenant dalam waktu ' . $timeout . ' menit.';
                 $transaksi->save();
 
-                // === LOGIKA MULTITENANT ===
+                /**
+                 * ========== LOGIKA MULTITENANT ==========
+                 * Jika multitenant, tenant ini hanya ubah status ke refund_selesai.
+                 * Refund baru dilakukan ketika SEMUA tenant dalam grup tsb sudah refund_selesai / ditolak.
+                 */
                 if ($transaksi->multitenant_id) {
-                    $relatedOrders = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
-                    $ongkirMulti = optional($transaksi->ruangan->gedung)->ongkir_multitenant ?? 0;
-
-                    $isAllCancelled = $relatedOrders->every(fn($t) => in_array($t->status, ['pesanan_ditolak', 'refund_selesai']));
-                    $isAnyCompleted = $relatedOrders->contains(fn($t) => $t->status === 'selesai');
-                    $isAnyActive = $relatedOrders->contains(fn($t) => in_array($t->status, [
-                        'pesanan_masuk',
-                        'pesanan_diproses',
-                        'siap_diantar',
-                        'diantar'
-                    ]));
-
-                    if ($isAnyCompleted) {
-                        $refundAmount = $transaksi->total;
-                    } elseif ($isAllCancelled) {
-                        $refundAmount = $transaksi->total;
-                    } elseif ($isAnyActive) {
-                        $refundAmount = max(0, $transaksi->total - $ongkirMulti);
-                    } else {
-                        $refundAmount = $transaksi->total;
-                    }
-
-                    $this->refundKoinMultitenant($transaksi, $refundAmount);
-
                     $transaksi->status = 'refund_selesai';
                     $transaksi->save();
 
-                    // === Kirim notifikasi refund ke user ===
+                    // === Notifikasi ke user bahwa salah satu tenant dibatalkan ===
                     if (!empty($fcmUserToken)) {
                         $firebases
-                            ->withNotification('Refund Berhasil', 'Koin dari pesanan #' . $transaksi->id . ' telah dikembalikan.')
+                            ->withNotification(
+                                'Pesanan Dibatalkan Otomatis',
+                                'Salah satu pesanan multitenant (#' . $transaksi->id . ') dibatalkan otomatis karena tenant tidak merespons.'
+                            )
                             ->withData([
-                                'title' => 'Refund Berhasil',
-                                'body' => 'Koin dari pesanan #' . $transaksi->id . ' telah dikembalikan.',
+                                'title' => 'Pesanan Dibatalkan Otomatis',
+                                'body' => 'Salah satu pesanan dalam grup multitenant dibatalkan otomatis karena tenant tidak merespons.',
                                 'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
                             ])
                             ->sendToFallback($fcmUserToken);
                     }
 
-                    // === Kirim notifikasi ke semua tenant dalam grup multitenant ===
-                    $tenants = $relatedOrders
-                        ->flatMap(fn($t) => $t->listTransaksiDetail()->with('menus.tenants.pemilik')->get())
-                        ->pluck('menus.tenants')
-                        ->flatten()
-                        ->unique('id');
+                    // === Kirim notifikasi ke tenant yang bersangkutan saja ===
+                    $tenant = optional($transaksi->listTransaksiDetail()->with('menus.tenants.pemilik')->first())->menus->tenants ?? null;
+                    if ($tenant && $tenant->pemilik) {
+                        $pemilikUser = User::with('fcmTokens')->find($tenant->pemilik->id);
+                        $tokens = $pemilikUser ? $pemilikUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
 
-                    foreach ($tenants as $tenant) {
-                        if ($tenant && $tenant->pemilik) {
-                            $pemilikUser = User::with('fcmTokens')->find($tenant->pemilik->id);
-                            $tokens = $pemilikUser ? $pemilikUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
-
-                            if (!empty($tokens)) {
-                                $firebases
-                                    ->withNotification(
-                                        'Pesanan Dibatalkan Otomatis',
-                                        'Pesanan multitenant #' . $transaksi->multitenant_id . ' dibatalkan karena tidak direspons tepat waktu.'
-                                    )
-                                    ->withData([
-                                        'title' => 'Pesanan Dibatalkan Otomatis',
-                                        'body' => 'Pesanan multitenant #' . $transaksi->multitenant_id . ' dibatalkan otomatis oleh sistem.',
-                                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
-                                    ])
-                                    ->sendToFallback($tokens);
-                            }
+                        if (!empty($tokens)) {
+                            $firebases
+                                ->withNotification(
+                                    'Pesanan Dibatalkan Otomatis',
+                                    'Pesanan multitenant #' . $transaksi->multitenant_id . ' dibatalkan karena tenant tidak merespons.'
+                                )
+                                ->withData([
+                                    'title' => 'Pesanan Dibatalkan Otomatis',
+                                    'body' => 'Pesanan multitenant #' . $transaksi->multitenant_id . ' dibatalkan otomatis oleh sistem.',
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                                ])
+                                ->sendToFallback($tokens);
                         }
+                    }
+
+                    // === Cek apakah SEMUA transaksi multitenant sudah refund_selesai / ditolak ===
+                    $allDone = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                        ->whereNotIn('status', ['refund_selesai', 'pesanan_ditolak'])
+                        ->doesntExist();
+
+                    if ($allDone) {
+                        // Semua tenant sudah refund_selesai → refund penuh ke user
+                        $totalRefund = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->sum('total');
+
+                        $saldo = \App\Models\SaldoKoin::firstOrCreate(['user_id' => $transaksi->user_id]);
+                        $saldo->jumlah += $totalRefund;
+                        $saldo->save();
+
+                        \App\Models\TransaksiSaldoKoin::create([
+                            'user_id' => $transaksi->user_id,
+                            'jumlah' => $totalRefund,
+                            'tipe' => 'masuk',
+                            'deskripsi' => 'Refund pesanan multitenant #' . $transaksi->multitenant_id,
+                        ]);
+
+                        // Notifikasi refund penuh ke user
+                        if (!empty($fcmUserToken)) {
+                            $firebases
+                                ->withNotification(
+                                    'Refund Multitenant Berhasil',
+                                    'Koin dari pesanan multitenant #' . $transaksi->multitenant_id . ' telah dikembalikan penuh ke akun kamu.'
+                                )
+                                ->withData([
+                                    'title' => 'Refund Multitenant Berhasil',
+                                    'body' => 'Koin dari pesanan multitenant #' . $transaksi->multitenant_id . ' telah dikembalikan penuh ke akun kamu.',
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                                ])
+                                ->sendToFallback($fcmUserToken);
+                        }
+
+                        Log::info("Refund penuh multitenant #{$transaksi->multitenant_id} sebesar {$totalRefund} berhasil dilakukan.");
                     }
 
                     DB::commit();
                     continue;
                 }
 
-                // === Non-multitenant (default) ===
+                // === NON-MULTITENANT (default) ===
                 $this->refundKoin($transaksi);
                 $transaksi->status = 'refund_selesai';
                 $transaksi->save();
