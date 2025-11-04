@@ -79,12 +79,25 @@ class TenantOrderService
             return ResponseApi::error('Pesanan sudah siap diantar sebelumnya.', 403);
         }
 
+
         if ($transaksi->status === 'siap_diambil' && $request->status === 'siap_diambil') {
             return ResponseApi::error('Pesanan sudah siap diambil sebelumnya.', 403);
         }
 
         if ($transaksi->status === 'diantar' && $request->status === 'diantar') {
             return ResponseApi::error('Pesanan sudah dalam proses pengantaran sebelumnya.', 403);
+        }
+
+        if ($transaksi->status === 'selesai' && $request->status === 'siap_diambil') {
+            return ResponseApi::error('Pesanan sudah siap diambil sebelumnya.', 403);
+        }
+
+        if ($transaksi->status === 'diantar' && $request->status === 'siap_diantar') {
+            return ResponseApi::error('Pesanan sudah dalam proses pengantaran sebelumnya.', 403);
+        }
+
+        if ($transaksi->status === 'selesai' && $request->status === 'siap_diantar') {
+            return ResponseApi::error('Pesanan sudah selesai sebelumnya.', 403);
         }
 
         if ($transaksi->status === 'selesai' && $request->status === 'selesai') {
@@ -277,7 +290,7 @@ class TenantOrderService
 
         return ResponseApi::success(null, "Status pesanan kasir berhasil diperbarui menjadi {$cashier->status}");
     }
-    
+
     private function sendNotifications($transaksi, $firebases)
     {
         $masbroTokens = User::role('masbro')
