@@ -406,7 +406,7 @@ class TransaksiController extends Controller
                     do {
                         $kodePemesanan = TransaksiCek::generateKodePemesanan($transaksi->id);
                     } while (Transaksi::where('kode_pemesanan', $kodePemesanan)->exists());
-        
+
                     // SIMPAN ke database
                     $transaksi->kode_pemesanan = $kodePemesanan;
                     $transaksi->save();
@@ -1008,11 +1008,21 @@ class TransaksiController extends Controller
             }
 
             try {
-                $transaksi->refundKoin();
+                $refundAmount = $transaksi->total;
 
-                TransaksiSaldoKoin::create([
+                if ($transaksi->multitenant_id) {
+                    // Jika multitenant, refund dikurangi ongkir_multitenant
+                    $ongkirMulti = optional($transaksi->ruangan->gedung)->ongkir_multitenant ?? 0;
+                    $refundAmount = max(0, $transaksi->total - $ongkirMulti);
+                }
+
+                $saldo = \App\Models\SaldoKoin::firstOrCreate(['user_id' => $transaksi->user_id]);
+                $saldo->jumlah += $refundAmount;
+                $saldo->save();
+
+                \App\Models\TransaksiSaldoKoin::create([
                     'user_id' => $transaksi->user_id,
-                    'jumlah' => $transaksi->total,
+                    'jumlah' => $refundAmount,
                     'tipe' => 'masuk',
                     'deskripsi' => 'Refund pesanan #' . $transaksi->id,
                 ]);

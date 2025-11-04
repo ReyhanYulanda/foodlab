@@ -41,6 +41,35 @@ class AutoCancelOrder extends Command
                 $transaksi->catatan_penolakan = 'Pesanan dibatalkan otomatis karena tidak direspons tenant dalam waktu ' . $timeout . ' menit.';
                 $transaksi->save();
 
+                if ($transaksi->multitenant_id) {
+                    $relatedOrders = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
+
+                    $isAllCancelled = $relatedOrders->every(fn($t) => in_array($t->status, ['pesanan_ditolak', 'refund_selesai']));
+                    $isAnyCompleted = $relatedOrders->contains(fn($t) => $t->status === 'selesai');
+
+                    if ($isAnyCompleted) {
+                        // Salah satu selesai → refund hanya ongkir_multitenant
+                        $refundAmount = $transaksi->total - optional($transaksi->ruangan->gedung)->ongkir_multitenant;
+                    } elseif ($isAllCancelled) {
+                        // Semua batal → refund ongkir penuh
+                        $refundAmount = $transaksi->total;
+                    } else {
+                        // Masih ada yang pending → jangan refund dulu
+                        Log::info("Transaksi #{$transaksi->id} (multitenant) menunggu pesanan lain sebelum refund.");
+                        DB::commit();
+                        continue;
+                    }
+
+                    $this->refundKoinMultitenant($transaksi, $refundAmount);
+
+                    $transaksi->status = 'refund_selesai';
+                    $transaksi->save();
+
+                    Log::info("Refund multitenant transaksi #{$transaksi->id} sebesar {$refundAmount}");
+                    DB::commit();
+                    continue;
+                }
+
                 if ($user && $user->fcm_token) {
                     $firebases
                         ->withNotification(
@@ -147,5 +176,19 @@ class AutoCancelOrder extends Command
                 Log::info("Voucher #{$voucher->id} dikembalikan karena refund transaksi #{$transaksi->id}");
             }
         }
+    }
+
+    private function refundKoinMultitenant(Transaksi $transaksi, $jumlah)
+    {
+        $saldo = \App\Models\SaldoKoin::firstOrCreate(['user_id' => $transaksi->user_id]);
+        $saldo->jumlah += $jumlah;
+        $saldo->save();
+
+        \App\Models\TransaksiSaldoKoin::create([
+            'user_id' => $transaksi->user_id,
+            'jumlah' => $jumlah,
+            'tipe' => 'masuk',
+            'deskripsi' => 'Refund multitenant pesanan #' . $transaksi->id,
+        ]);
     }
 }
