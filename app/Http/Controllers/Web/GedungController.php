@@ -35,13 +35,13 @@ class GedungController extends Controller
         $request->validate([
             'nama' => 'required',
             'ongkir' => 'required',
-            'ongkir_multitenat' => 'required',
+            'ongkir_multitenant' => 'required',
         ]);
 
         Gedung::create([
             'nama' => $request->nama,
             'ongkir' => $request->ongkir,
-            'ongkir_multitenat' => $request->ongkir_multitenat
+            'ongkir_multitenant' => $request->ongkir_multitenant
         ]);
 
         return redirect()->route('gedung.index')->with(["status" => "success", 'message' => "Gedung berhasil ditambahkan"]);
@@ -58,13 +58,13 @@ class GedungController extends Controller
         $request->validate([
             'nama' => 'required',
             'ongkir' => 'required',
-            'ongkir_multitenat' => 'required',
+            'ongkir_multitenant' => 'required',
         ]);
 
         Gedung::find($id)->update([
             'nama' => $request->nama,
             'ongkir' => $request->ongkir,
-            'ongkir_multitenat' => $request->ongkir_multitenat
+            'ongkir_multitenant' => $request->ongkir_multitenant
         ]);
 
         return redirect()->route('gedung.index')->with(["status" => "success", 'message' => "Gedung berhasil diupdate"]);

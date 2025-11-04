@@ -26,7 +26,7 @@ class GedungController extends Controller
 
     public function store(Request $request)
     {
-        $error = ValidationHelper::validate($request->all(), ['nama' => 'required', 'ongkir' => 'required', 'ongkir_multitenat' => 'required']);
+        $error = ValidationHelper::validate($request->all(), ['nama' => 'required', 'ongkir' => 'required', 'ongkir_multitenant' => 'required']);
         if ($error) return $error;
 
         $gedung = $this->gedungService->create($request->all());
@@ -48,7 +48,7 @@ class GedungController extends Controller
 
     public function update(Request $request, $id)
     {
-        $error = ValidationHelper::validate($request->all(), ['nama' => 'required', 'ongkir' => 'required', 'ongkir_multitenat' => 'required']);
+        $error = ValidationHelper::validate($request->all(), ['nama' => 'required', 'ongkir' => 'required', 'ongkir_multitenant' => 'required']);
         if ($error) return $error;
 
         $gedung = $this->gedungService->update($id, $request->all());
