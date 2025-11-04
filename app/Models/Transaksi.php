@@ -33,7 +33,8 @@ class Transaksi extends Model
         'catatan_penolakan',
         'bukti_pengantaran',
         'cashback_amount',
-        'voucher_id'
+        'voucher_id',
+        'multitenant_id'
     ];
 
     protected $appends = ['sub_total', 'gedung', 'nama_ruangan', 'nama_pembeli', 'nama_tenant', 'order_id', 'nama_driver', 'foto_driver'];

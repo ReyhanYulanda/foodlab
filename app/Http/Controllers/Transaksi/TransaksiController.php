@@ -250,6 +250,9 @@ class TransaksiController extends Controller
         }
     }
 
+
+
+
     public function store(Request $request, Firebases $firebases)
     {
         $user = $request->user();
@@ -287,10 +290,10 @@ class TransaksiController extends Controller
             ->pluck('tenant_id')
             ->unique();
 
-        if ($tenants->count() > 1) {
+        if ($tenants->count() > 2) {
             return response()->json([
                 'status' => 'failed',
-                'message' => 'Semua menu harus berasal dari 1 tenant saja',
+                'message' => 'Maksimal pesan dari 2 toko',
             ], 400);
         }
 
@@ -342,6 +345,79 @@ class TransaksiController extends Controller
 
         DB::beginTransaction();
         try {
+            $isMultiTenant = $tenants->count() > 1;
+            $multitenantId = null;
+
+            if ($isMultiTenant) {
+                // Dapatkan id terakhir + 1 (auto increment manual)
+                $multitenantId = (Transaksi::max('multitenant_id') ?? 0) + 1;
+
+                // Pisahkan menu berdasarkan tenant
+                $menusByTenant = collect($request->menus)->groupBy(function ($menu) {
+                    return Menus::find($menu['id'])->tenant_id;
+                });
+
+                $createdTransaksi = [];
+
+                foreach ($menusByTenant as $tenantId => $menus) {
+                    $tenant = Tenants::find($tenantId);
+                    if (!$tenant) continue;
+
+                    // Hitung total harga
+                    $totalHargaMenu = 0;
+                    $totalJumlahMenu = 0;
+                    foreach ($menus as $menu) {
+                        $menuModel = Menus::withTrashed()->find($menu['id']);
+                        $totalHargaMenu += $menuModel->harga * $menu['jumlah'];
+                        $totalJumlahMenu += $menu['jumlah'];
+                    }
+
+                    $ruanganId = $request->isAntar ? $request->ruangan_id : null;
+                    $ongkosKirim = 0;
+
+                    if ($request->isAntar && $ruanganId) {
+                        $isMultiOngkir = count($createdTransaksi) > 0; // transaksi kedua dst
+                        $ongkosKirim = $this->getOngkirGedung($ruanganId, $isMultiOngkir);
+
+                        $biayaExtra = Pengaturan::where('nama', 'biaya_extra')->value('nilai') ?? 500;
+                        if ($totalJumlahMenu > 10) {
+                            $ongkosKirim += ($totalJumlahMenu - 10) * $biayaExtra;
+                        }
+                    }
+
+                    $biayaLayanan = Pengaturan::where('nama', 'biaya_layanan')->value('nilai') ?? 0;
+                    $totalFinal = $totalHargaMenu + ($request->isAntar ? $ongkosKirim : 0) + $biayaLayanan;
+
+                    $transaksi = Transaksi::create([
+                        'user_id' => $user->id,
+                        'total' => $totalFinal,
+                        'isAntar' => $request->isAntar,
+                        'metode_pembayaran' => $request->metode_pembayaran,
+                        'tenant_id' => $tenant->user_id,
+                        'ruangan_id' => $ruanganId,
+                        'status' => 'pesanan_masuk',
+                        'ongkos_kirim' => $ongkosKirim,
+                        'biaya_layanan' => $biayaLayanan,
+                        'multitenant_id' => $multitenantId,
+                    ]);
+
+                    $this->storeTransakasiDetail(
+                        new Request(['menus' => $menus]),
+                        $transaksi
+                    );
+
+                    $createdTransaksi[] = $transaksi;
+                }
+
+                DB::commit();
+
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Transaksi multitenant berhasil dibuat',
+                    'multitenant_id' => $multitenantId,
+                    'data' => $createdTransaksi
+                ], 201);
+            }
             $menu_id = $request->menus[0]['id'];
             $tenantUser = User::with('fcmTokens')->whereHas('tenant', function ($tenant) use ($menu_id) {
                 $tenant->whereHas('listMenu', function ($kelola) use ($menu_id) {
@@ -691,6 +767,16 @@ class TransaksiController extends Controller
         }
     }
 
+    private function getOngkirGedung($ruanganId, $isMultitenant = false)
+    {
+        $ruangan = Ruangan::with('gedung')->find($ruanganId);
+        if (!$ruangan || !$ruangan->gedung) return 0;
+
+        return $isMultitenant
+            ? ($ruangan->gedung->ongkir_multitenant ?? 0)
+            : ($ruangan->gedung->ongkir ?? 0);
+    }
+
     public function storeTransakasiDetail($request, $transaksi)
     {
         $validator = Validator::make($request->only(['menus']), [
@@ -817,7 +903,7 @@ class TransaksiController extends Controller
             }
 
             if (
-                $transaksi->status === 'siap_diantar'|| $transaksi->status === 'siap_diambil'|| $transaksi->status === 'diantar' &&
+                $transaksi->status === 'siap_diantar' || $transaksi->status === 'siap_diambil' || $transaksi->status === 'diantar' &&
                 !($isAdmin)
             ) {
                 return ResponseApi::error("Pesanan sedang diproses. Tidak bisa dibatalkan", 400);
