@@ -1065,9 +1065,23 @@ class TransaksiController extends Controller
                 $refundAmount = $transaksi->total;
 
                 if ($transaksi->multitenant_id) {
-                    // Jika multitenant, refund dikurangi ongkir_multitenant
+                    $relatedOrders = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
+
                     $ongkirMulti = optional($transaksi->ruangan->gedung)->ongkir_multitenant ?? 0;
-                    $refundAmount = max(0, $transaksi->total - $ongkirMulti);
+
+                    // Cek apakah semua transaksi dalam satu multitenant sudah dibatalkan atau refund
+                    $isAllCancelled = $relatedOrders->every(
+                        fn($t) =>
+                        in_array($t->status, ['pesanan_ditolak', 'refund_selesai'])
+                    );
+
+                    if ($isAllCancelled) {
+                        // Semua sudah batal => refund penuh (termasuk ongkir)
+                        $refundAmount = $transaksi->total;
+                    } else {
+                        // Masih ada tenant lain aktif => refund dikurangi ongkir_multitenant
+                        $refundAmount = max(0, $transaksi->total - $ongkirMulti);
+                    }
                 }
 
                 $saldo = \App\Models\SaldoKoin::firstOrCreate(['user_id' => $transaksi->user_id]);

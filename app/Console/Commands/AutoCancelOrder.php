@@ -47,17 +47,27 @@ class AutoCancelOrder extends Command
                     $isAllCancelled = $relatedOrders->every(fn($t) => in_array($t->status, ['pesanan_ditolak', 'refund_selesai']));
                     $isAnyCompleted = $relatedOrders->contains(fn($t) => $t->status === 'selesai');
 
-                    if ($isAnyCompleted) {
-                        // Salah satu selesai → refund hanya ongkir_multitenant
-                        $refundAmount = $transaksi->total - optional($transaksi->ruangan->gedung)->ongkir_multitenant;
-                    } elseif ($isAllCancelled) {
-                        // Semua batal → refund ongkir penuh
+                    $ongkirMulti = optional($transaksi->ruangan->gedung)->ongkir_multitenant ?? 0;
+
+                    // Cek semua transaksi di multitenant
+                    $isAllCancelled = $relatedOrders->every(
+                        fn($t) =>
+                        in_array($t->status, ['pesanan_ditolak', 'refund_selesai'])
+                    );
+                    $isAnyActive = $relatedOrders->contains(
+                        fn($t) =>
+                        in_array($t->status, ['pesanan_masuk', 'pesanan_diproses', 'siap_diantar', 'diantar'])
+                    );
+
+                    if ($isAllCancelled) {
+                        // Semua batal → refund penuh
                         $refundAmount = $transaksi->total;
+                    } elseif ($isAnyActive) {
+                        // Masih ada tenant lain aktif → refund dikurangi ongkir_multitenant
+                        $refundAmount = max(0, $transaksi->total - $ongkirMulti);
                     } else {
-                        // Masih ada yang pending → jangan refund dulu
-                        Log::info("Transaksi #{$transaksi->id} (multitenant) menunggu pesanan lain sebelum refund.");
-                        DB::commit();
-                        continue;
+                        // Sisa satu atau campuran status → refund proporsional
+                        $refundAmount = $transaksi->total;
                     }
 
                     $this->refundKoinMultitenant($transaksi, $refundAmount);
