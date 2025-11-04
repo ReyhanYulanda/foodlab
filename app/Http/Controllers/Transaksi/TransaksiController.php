@@ -347,7 +347,6 @@ class TransaksiController extends Controller
         try {
             $isMultiTenant = $tenants->count() > 1;
             $multitenantId = null;
-
             if ($isMultiTenant) {
                 // Dapatkan id terakhir + 1 (auto increment manual)
                 $multitenantId = (Transaksi::max('multitenant_id') ?? 0) + 1;
@@ -357,13 +356,10 @@ class TransaksiController extends Controller
                     return Menus::find($menu['id'])->tenant_id;
                 });
 
-                $createdTransaksi = [];
-
+                // PRE-CALC: hitung total untuk tiap tenant dulu agar bisa cek saldo koin (grand total)
+                $perTenantCalc = [];
+                $grandTotal = 0;
                 foreach ($menusByTenant as $tenantId => $menus) {
-                    $tenant = Tenants::find($tenantId);
-                    if (!$tenant) continue;
-
-                    // Hitung total harga
                     $totalHargaMenu = 0;
                     $totalJumlahMenu = 0;
                     foreach ($menus as $menu) {
@@ -376,8 +372,11 @@ class TransaksiController extends Controller
                     $ongkosKirim = 0;
 
                     if ($request->isAntar && $ruanganId) {
-                        $isMultiOngkir = count($createdTransaksi) > 0; // transaksi kedua dst
-                        $ongkosKirim = $this->getOngkirGedung($ruanganId, $isMultiOngkir);
+                        // untuk pre-calc anggap jika sudah ada transaksi sebelumnya, nanti saat pembuatan kita gunakan flag yang benar
+                        // namun untuk fairness, kita hitung ongkir pertama = gedung->ongkir, selanjutnya = gedung->ongkir_multitenant
+                        // untuk pra-calc kita anggap ordering iterasi menusByTenant sama dengan pembuatan (deterministik)
+                        $isSecondOrMore = count($perTenantCalc) > 0;
+                        $ongkosKirim = $this->getOngkirGedung($ruanganId, $isSecondOrMore);
 
                         $biayaExtra = Pengaturan::where('nama', 'biaya_extra')->value('nilai') ?? 500;
                         if ($totalJumlahMenu > 10) {
@@ -388,6 +387,44 @@ class TransaksiController extends Controller
                     $biayaLayanan = Pengaturan::where('nama', 'biaya_layanan')->value('nilai') ?? 0;
                     $totalFinal = $totalHargaMenu + ($request->isAntar ? $ongkosKirim : 0) + $biayaLayanan;
 
+                    $perTenantCalc[$tenantId] = [
+                        'menus' => $menus,
+                        'totalHargaMenu' => $totalHargaMenu,
+                        'totalJumlahMenu' => $totalJumlahMenu,
+                        'ongkosKirim' => $ongkosKirim,
+                        'biayaLayanan' => $biayaLayanan,
+                        'totalFinal' => $totalFinal,
+                        'ruanganId' => $ruanganId,
+                    ];
+
+                    $grandTotal += $totalFinal;
+                }
+
+                // Jika metode pembayaran koin -> cek saldo user mencukupi GRAND TOTAL
+                if ($request->metode_pembayaran === 'koin') {
+                    $saldo = SaldoKoin::where('user_id', $user->id)->first();
+                    if (!$saldo || $saldo->jumlah < $grandTotal) {
+                        DB::rollBack();
+                        return response()->json([
+                            'status' => 'failed',
+                            'message' => 'Saldo koin tidak cukup untuk pesanan multitenant',
+                        ], 400);
+                    }
+                }
+
+                $createdTransaksi = [];
+
+                // Sekarang buat transaksi per tenant — gunakan nilai dari pre-calc agar konsisten
+                foreach ($perTenantCalc as $tenantId => $calc) {
+                    $tenant = Tenants::find($tenantId); // pastikan model Tenant (singular)
+                    if (!$tenant) continue;
+
+                    $ruanganId = $calc['ruanganId'];
+                    $ongkosKirim = $calc['ongkosKirim'];
+                    $biayaLayanan = $calc['biayaLayanan'];
+                    $totalFinal = $calc['totalFinal'];
+
+                    // Create transaksi
                     $transaksi = Transaksi::create([
                         'user_id' => $user->id,
                         'total' => $totalFinal,
@@ -403,16 +440,16 @@ class TransaksiController extends Controller
                         'multitenant_id' => $multitenantId,
                     ]);
 
+                    // generate kode pemesanan unik per transaksi
                     do {
                         $kodePemesanan = TransaksiCek::generateKodePemesanan($transaksi->id);
                     } while (Transaksi::where('kode_pemesanan', $kodePemesanan)->exists());
 
-                    // SIMPAN ke database
                     $transaksi->kode_pemesanan = $kodePemesanan;
                     $transaksi->save();
 
-                    // Kirim menus lengkap (dengan catatan jika ada)
-                    $menusWithNotes = $menus->map(function ($menu) {
+                    // Simpan detail transaksi (kirim menus lengkap dgn catatan)
+                    $menusWithNotes = collect($calc['menus'])->map(function ($menu) {
                         return [
                             'id' => $menu['id'],
                             'jumlah' => $menu['jumlah'],
@@ -425,6 +462,22 @@ class TransaksiController extends Controller
                         $transaksi
                     );
 
+                    // Jika metode koin -> kurangi saldo per transaksi dan catat TransaksiSaldoKoin negatif
+                    if ($request->metode_pembayaran === 'koin') {
+                        // Ambil saldo fresh (atau gunakan $saldo yang sudah diambil)
+                        $saldo = $saldo ?? SaldoKoin::where('user_id', $user->id)->first();
+                        $saldo->jumlah -= $totalFinal;
+                        $saldo->save();
+
+                        TransaksiSaldoKoin::create([
+                            'user_id' => $user->id,
+                            'jumlah' => -$totalFinal,
+                            'tipe' => 'keluar',
+                            'deskripsi' => 'Pembayaran pesanan #' . $transaksi->id,
+                        ]);
+                    }
+
+                    // simpan transaksi created
                     $createdTransaksi[] = $transaksi;
                 }
 
@@ -478,6 +531,7 @@ class TransaksiController extends Controller
                     'data' => $transaksiWithDetails
                 ], 201);
             }
+
             $menu_id = $request->menus[0]['id'];
             $tenantUser = User::with('fcmTokens')->whereHas('tenant', function ($tenant) use ($menu_id) {
                 $tenant->whereHas('listMenu', function ($kelola) use ($menu_id) {
