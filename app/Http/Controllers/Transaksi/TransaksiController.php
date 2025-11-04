@@ -399,12 +399,21 @@ class TransaksiController extends Controller
                         'status' => 'pesanan_masuk',
                         'ongkos_kirim' => $ongkosKirim,
                         'biaya_layanan' => $biayaLayanan,
-                        'catatan_lokasi_pengantaran' => $request->catatan_lokasi_pengantaran ?? null, 
+                        'catatan_lokasi_pengantaran' => $request->catatan_lokasi_pengantaran ?? null,
                         'multitenant_id' => $multitenantId,
                     ]);
 
+                    // Kirim menus lengkap (dengan catatan jika ada)
+                    $menusWithNotes = $menus->map(function ($menu) {
+                        return [
+                            'id' => $menu['id'],
+                            'jumlah' => $menu['jumlah'],
+                            'catatan' => $menu['catatan'] ?? null,
+                        ];
+                    })->toArray();
+
                     $this->storeTransakasiDetail(
-                        new Request(['menus' => $menus]),
+                        new Request(['menus' => $menusWithNotes]),
                         $transaksi
                     );
 
@@ -450,11 +459,15 @@ class TransaksiController extends Controller
 
                 DB::commit();
 
+                $transaksiWithDetails = Transaksi::with(['listTransaksiDetail.menus'])
+                    ->whereIn('id', collect($createdTransaksi)->pluck('id'))
+                    ->get();
+
                 return response()->json([
                     'status' => 'success',
                     'message' => 'Transaksi multitenant berhasil dibuat',
                     'multitenant_id' => $multitenantId,
-                    'data' => $createdTransaksi
+                    'data' => $transaksiWithDetails
                 ], 201);
             }
             $menu_id = $request->menus[0]['id'];
