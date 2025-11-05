@@ -1063,8 +1063,6 @@ class TransaksiController extends Controller
 
             // === LOGIKA MULTITENANT ===
             try {
-                DB::beginTransaction();
-
                 // 🔸 Pastikan transaksi masih bisa dibatalkan
                 if (in_array($transaksi->status, ['selesai', 'refund_selesai'])) {
                     return ResponseApi::error("Pesanan tidak dapat dibatalkan karena sudah selesai atau sudah direfund.", 400);
@@ -1138,10 +1136,9 @@ class TransaksiController extends Controller
                 DB::commit();
                 return ResponseApi::success(null, "Pesanan berhasil dibatalkan (refund_selesai)");
             } catch (\Throwable $e) {
+                DB::rollBack();
                 $transaksi->status = 'refund_gagal';
                 $transaksi->save();
-
-                DB::commit(); // kita tetap commit perubahan status refund_gagal
                 Log::warning("Refund gagal: " . $e->getMessage());
                 return ResponseApi::error("Transaksi dibatalkan, tapi refund gagal. Silakan hubungi admin.");
             }
