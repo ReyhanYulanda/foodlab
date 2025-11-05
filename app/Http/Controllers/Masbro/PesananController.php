@@ -42,14 +42,14 @@ class PesananController extends Controller
         }
 
         try {
-            $transaksi = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user']);
+            $transaksiQuery = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user']);
 
             // ✅ Handle conditional status
             if ($request->has('status')) {
 
                 // === CASE: status = siap_diantar ===
                 if ($request->status === 'siap_diantar') {
-                    $transaksi = $transaksi->where(function ($q) use ($user) {
+                    $transaksiQuery = $transaksiQuery->where(function ($q) use ($user) {
                         $q->where('status', 'siap_diantar')
                             ->orWhere(function ($sub) use ($user) {
                                 $sub->where('isPriority', 1)
@@ -64,22 +64,36 @@ class PesananController extends Controller
 
                 // === CASE: status = diantar / selesai ===
                 elseif (in_array($request->status, ['diantar', 'selesai'])) {
-                    $transaksi = $transaksi->where('driver_id', $user->id)
+                    $transaksiQuery = $transaksiQuery->where('driver_id', $user->id)
                         ->where('status', $request->status);
                 }
 
                 // === CASE: status lainnya ===
                 else {
-                    $transaksi = $transaksi->where('status', $request->status);
+                    $transaksiQuery = $transaksiQuery->where('status', $request->status);
                 }
             }
 
             // Optional filter gedung
             if ($request->has('gedung')) {
-                $transaksi = $transaksi->where('gedung', $request->gedung);
+                $transaksiQuery = $transaksiQuery->where('gedung', $request->gedung);
             }
 
-            $transaksi = $transaksi->get();
+            // 🔹 Jalankan query utama
+            $transaksi = $transaksiQuery->get();
+
+            // 🔹 Ambil semua multitenant_id dari hasil filter
+            $multiIds = $transaksi->pluck('multitenant_id')->filter()->unique();
+
+            // 🔹 Jika ada multitenant_id, ambil semua transaksi yang punya multitenant_id tersebut
+            if ($multiIds->isNotEmpty()) {
+                $extraTransaksi = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user'])
+                    ->whereIn('multitenant_id', $multiIds)
+                    ->get();
+
+                // 🔹 Gabungkan hasil dan hilangkan duplikat
+                $transaksi = $transaksi->merge($extraTransaksi)->unique('id')->values();
+            }
 
             return response()->json([
                 "status" => "success",
