@@ -741,31 +741,66 @@ class PesananController extends Controller
                             ->sendToFallback($fcmTenantToken);
                     }
 
-                    $ongkirAsli = $transaksi->ongkos_kirim;
+                    // === FLOW DRIVER: ONGKIR MULTITENANT / NON-MULTITENANT ===
+                    if ($transaksi->driver_id) {
+                        $isMultiTenant = $transaksi->multitenant_id !== null;
 
-                    $pengaturanPotongan = Pengaturan::where('nama', 'biaya_ongkos_kirim')->first();
-                    $persentasePotongan = $pengaturanPotongan ? (float)$pengaturanPotongan->nilai : 0;
+                        if ($isMultiTenant) {
+                            // Cek apakah semua transaksi di grup sudah selesai
+                            $transaksiGroup = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
+                            $semuaSelesai = $transaksiGroup->every(fn($t) => $t->status === 'selesai');
 
-                    $ongkirAsli = $transaksi->ongkos_kirim;
-                    $potongan = ($persentasePotongan / 100) * $ongkirAsli;
-                    $ongkirBersih = $ongkirAsli - $potongan;
+                            if ($semuaSelesai) {
+                                // Hitung total ongkir & potongan
+                                $totalOngkir = $transaksiGroup->sum('ongkos_kirim');
+                                $pengaturanPotongan = Pengaturan::where('nama', 'biaya_ongkos_kirim')->first();
+                                $persentasePotongan = $pengaturanPotongan ? (float)$pengaturanPotongan->nilai : 0;
 
-                    // Simpan ke histori
-                    TransaksiSaldoKoin::create([
-                        'user_id' => $transaksi->driver_id,
-                        'jumlah' => $ongkirBersih,
-                        'tipe' => 'masuk',
-                        'deskripsi' => "Ongkir dari pesanan #{$transaksi->id}, potongan {$persentasePotongan}% dari {$ongkirAsli}, total masuk: {$ongkirBersih}",
-                    ]);
+                                $potongan = ($persentasePotongan / 100) * $totalOngkir;
+                                $ongkirBersih = $totalOngkir - $potongan;
 
-                    // Update saldo user
-                    $saldo = SaldoKoin::firstOrCreate(
-                        ['user_id' => $transaksi->driver_id],
-                        ['jumlah' => 0]
-                    );
+                                // Simpan ke histori
+                                TransaksiSaldoKoin::create([
+                                    'user_id' => $transaksi->driver_id,
+                                    'jumlah' => $ongkirBersih,
+                                    'tipe' => 'masuk',
+                                    'deskripsi' => "Ongkir multitenant #{$transaksi->multitenant_id}, total ongkir {$totalOngkir}, potongan {$persentasePotongan}%, total masuk: {$ongkirBersih}",
+                                ]);
 
-                    $saldo->jumlah += $ongkirBersih;
-                    $saldo->save();
+                                // Update saldo driver
+                                $saldo = SaldoKoin::firstOrCreate(
+                                    ['user_id' => $transaksi->driver_id],
+                                    ['jumlah' => 0]
+                                );
+                                $saldo->jumlah += $ongkirBersih;
+                                $saldo->save();
+                            }
+                        } else {
+                            // === FLOW NON-MULTITENANT ===
+                            $pengaturanPotongan = Pengaturan::where('nama', 'biaya_ongkos_kirim')->first();
+                            $persentasePotongan = $pengaturanPotongan ? (float)$pengaturanPotongan->nilai : 0;
+
+                            $ongkirAsli = $transaksi->ongkos_kirim;
+                            $potongan = ($persentasePotongan / 100) * $ongkirAsli;
+                            $ongkirBersih = $ongkirAsli - $potongan;
+
+                            // Simpan ke histori
+                            TransaksiSaldoKoin::create([
+                                'user_id' => $transaksi->driver_id,
+                                'jumlah' => $ongkirBersih,
+                                'tipe' => 'masuk',
+                                'deskripsi' => "Ongkir dari pesanan #{$transaksi->id}, potongan {$persentasePotongan}% dari {$ongkirAsli}, total masuk: {$ongkirBersih}",
+                            ]);
+
+                            // Update saldo driver
+                            $saldo = SaldoKoin::firstOrCreate(
+                                ['user_id' => $transaksi->driver_id],
+                                ['jumlah' => 0]
+                            );
+                            $saldo->jumlah += $ongkirBersih;
+                            $saldo->save();
+                        }
+                    }
                 }
 
                 return response()->json([
