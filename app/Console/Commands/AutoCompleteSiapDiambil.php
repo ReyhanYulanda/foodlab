@@ -32,8 +32,7 @@ class AutoCompleteSiapDiambil extends Command
             }
             if (
                 $transaksi->status === 'selesai' &&
-                $transaksi->cashback_amount > 0 &&
-                $transaksi->status !== 'selesai'
+                $transaksi->cashback_amount > 0
             ) {
                 $user = $transaksi->user;
 
