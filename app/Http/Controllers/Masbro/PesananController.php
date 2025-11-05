@@ -736,7 +736,7 @@ class PesananController extends Controller
 
                     // Simpan ke histori
                     TransaksiSaldoKoin::create([
-                        'user_id' => $user->id,
+                        'user_id' => $transaksi->driver_id,
                         'jumlah' => $ongkirBersih,
                         'tipe' => 'masuk',
                         'deskripsi' => "Ongkir dari pesanan #{$transaksi->id}, potongan {$persentasePotongan}% dari {$ongkirAsli}, total masuk: {$ongkirBersih}",
@@ -744,7 +744,7 @@ class PesananController extends Controller
 
                     // Update saldo user
                     $saldo = SaldoKoin::firstOrCreate(
-                        ['user_id' => $user->id],
+                        ['user_id' => $transaksi->driver_id],
                         ['jumlah' => 0]
                     );
 
