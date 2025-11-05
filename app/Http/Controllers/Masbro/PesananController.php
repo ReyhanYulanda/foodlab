@@ -600,7 +600,7 @@ class PesananController extends Controller
                     if (
                         $request->status === 'selesai' &&
                         $related &&
-                        $related->status === 'diantar' 
+                        $related->status === 'diantar'
                     ) {
                         $related->status = 'selesai';
                         $related->driver_id = $user->id;
@@ -651,6 +651,53 @@ class PesananController extends Controller
 
 
                 if ($transaksi->status == 'selesai') {
+                    if (
+                        $transaksi->status === 'selesai' &&
+                        $transaksi->cashback_amount > 0 &&
+                        $transaksi->status !== 'selesai'
+                    ) {
+                        $user = $transaksi->user;
+
+                        // Ambil saldo koin user, kalau belum ada buat baru
+                        $saldo = SaldoKoin::firstOrCreate(
+                            ['user_id' => $user->id],
+                            ['jumlah' => 0]
+                        );
+
+                        // Tambahkan cashback ke saldo
+                        $saldo->jumlah += $transaksi->cashback_amount;
+                        $saldo->save();
+
+                        // Catat di TransaksiSaldoKoin
+                        TransaksiSaldoKoin::create([
+                            'user_id'   => $user->id,
+                            'jumlah'    => $transaksi->cashback_amount,
+                            'tipe'      => 'masuk',
+                            'deskripsi' => "Cashback pesanan {$transaksi->kode_pemesanan} telah masuk",
+                        ]);
+
+                        // Logging
+                        Log::info("Cashback: {$transaksi->cashback_amount} telah diterima oleh {$user->name}");
+
+                        // Kirim notifikasi FCM
+                        $fcmUser = User::with('fcmTokens')->find($user->id);
+                        $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+
+                        if (!empty($fcmUserToken)) {
+                            $title = 'Cashback berhasil didapatkan';
+                            $body  = "Cashback sebanyak {$transaksi->cashback_amount} berhasil masuk ke akunmu.";
+
+                            $firebases->withNotification($title, $body)
+                                ->withData([
+                                    'title'        => $title,
+                                    'body'         => $body,
+                                    'type'         => 'cashback',
+                                    'transaksi_id' => $transaksi->id,
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                ])
+                                ->sendToFallback($fcmUserToken);
+                        }
+                    }
                     $firebases
                         ->withNotification('Pesanan Selesai', "Pesanan {$transaksi->id} telah selesai. Ambil dan terima pesananmu. Selamat menikmati! 🍽")
                         ->withData([
