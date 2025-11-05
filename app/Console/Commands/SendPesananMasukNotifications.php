@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Http\Controllers\Transaksi\TransaksiController;
+use App\Models\FcmToken;
 use App\Models\Transaksi;
 use App\Models\User;
 use App\Services\Firebases;
@@ -17,31 +18,35 @@ class SendPesananMasukNotifications extends Command
 
     public function handle(Firebases $firebases)
     {
-        // Cek apakah ada transaksi dengan status pesanan_masuk
-        $transaksi = Transaksi::where('status', 'pesanan_masuk')->exists();
+        // 🔹 Ambil semua transaksi dengan status pesanan_masuk
+        $transaksis = Transaksi::where('status', 'pesanan_masuk')->get();
 
-        if (!$transaksi) {
+        if ($transaksis->isEmpty()) {
             $this->info('Tidak ada pesanan masuk.');
             return Command::SUCCESS;
         }
 
-        $tenantTokens = \App\Models\FcmToken::whereHas('user', function ($query) {
+        // 🔹 Kumpulkan semua tenant_id unik (termasuk dari transaksi multitenant)
+        $tenantIds = $transaksis->pluck('tenant_id')->unique()->values();
+
+        // 🔹 Ambil semua tenant yang online dan punya fcm token
+        $tenantTokens = FcmToken::whereHas('user', function ($query) use ($tenantIds) {
             $query->role('tenant')
                 ->where('isOnline', 1)
-                ->whereHas('transaksis', function ($q) {
-                    $q->where('status', 'pesanan_masuk');
-                });
+                ->whereIn('id', $tenantIds);
         })
             ->pluck('fcm_token')
             ->filter()
             ->unique()
+            ->values()
             ->toArray();
 
         if (empty($tenantTokens)) {
             $this->info('Tidak ada tenant online dengan pesanan masuk.');
             return Command::SUCCESS;
         }
-        // Kirim notifikasi
+
+        // 🔹 Kirim notifikasi ke semua tenant
         $firebases
             ->withNotification(
                 'Pesanan Masuk',
@@ -53,6 +58,7 @@ class SendPesananMasukNotifications extends Command
                 'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
             ])
             ->sendToTenant($tenantTokens);
+
         $this->info('Notifikasi pesanan masuk terkirim ke tenant.');
         Log::info('Notifikasi pesanan masuk terkirim pada ' . Carbon::now('Asia/Jakarta')->toDateTimeString() . ' dengan ' . count($tenantTokens) . ' tenant online.');
     }
