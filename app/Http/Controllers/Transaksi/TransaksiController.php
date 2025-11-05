@@ -526,9 +526,11 @@ class TransaksiController extends Controller
 
                 return response()->json([
                     'status' => 'success',
-                    'message' => 'Transaksi multitenant berhasil dibuat',
+                    'messages' => 'Transaksi multitenant berhasil dibuat',
                     'multitenant_id' => $multitenantId,
-                    'data' => $transaksiWithDetails
+                    'data' => [
+                        'transaksi' => $transaksiWithDetails,
+                    ]
                 ], 201);
             }
 
