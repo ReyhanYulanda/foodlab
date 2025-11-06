@@ -426,26 +426,26 @@ class PesananController extends Controller
                     $transaksi->save();
 
                     if ($transaksi->multitenant_id) {
-                        $relatedTransaksi = \App\Models\Transaksi::where('multitenant_id', $transaksi->multitenant_id)
-                            ->where('id', '!=', $transaksi->id)
-                            ->get();
+                        // Ambil ulang semua transaksi dalam grup multitenant
+                        $allTransaksi = \App\Models\Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
 
-                        $allReadyToDeliver = $relatedTransaksi
-                            ->concat(collect([$transaksi])) // gabungkan transaksi utama
-                            ->every(fn($t) => $t->status === 'siap_diantar' || $t->status === 'diantar');
+                        // Cek apakah semuanya siap diantar atau sudah diantar
+                        $allReadyToDeliver = $allTransaksi->every(fn($t) => in_array($t->status, ['siap_diantar', 'diantar']));
 
-                        foreach ($relatedTransaksi as $t) {
+                        foreach ($allTransaksi as $t) {
                             // Kalau belum ada driver, assign driver yang sama
                             if ($t->driver_id === null) {
                                 $t->driver_id = $user->id;
-                                $t->save();
                             }
 
+                            // Jika semua siap diantar → set semua ke diantar
                             if ($allReadyToDeliver) {
                                 $t->status = 'diantar';
                             }
+                            
+                            $t->save();
 
-                            // Kirim notifikasi FCM ke tenant terkait
+                            // Kirim notifikasi ke tenant
                             $tenantUser = User::with('fcmTokens')->find($t->user_id);
                             $tenantTokens = $tenantUser ? $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
 
@@ -454,7 +454,7 @@ class PesananController extends Controller
                                     ->withNotification('Pesanan Telah mendapatkan driver', "Driver sedang menjemput pesanan {$t->id}. Mohon tunggu sebentar!")
                                     ->withData([
                                         'title' => 'Pesanan Telah mendapatkan driver',
-                                        'body' => "Pesanan {$t->id} sedang menjemput pesanan. Mohon tunggu sebentar!",
+                                        'body' => "Pesanan {$t->id} sedang dijemput. Mohon tunggu sebentar!",
                                         'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                                     ])->sendToFallback($tenantTokens);
                             }
@@ -628,7 +628,7 @@ class PesananController extends Controller
 
                         if ($related) {
                             // 🚫 Jika related masih pesanan_masuk atau pesanan_diproses → tolak
-                            if (in_array($related->status, ['pesanan_masuk', 'pesanan_diproses'])) {
+                            if (in_array($related->status, ['pesanan_masuk', 'pesanan_diproses', 'siap_diantar'])) {
                                 return response()->json([
                                     'status' => 'failed',
                                     'message' => 'Masih ada pesanan multitenant lain yang belum selesai diproses.',
