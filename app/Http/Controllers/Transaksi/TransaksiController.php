@@ -351,7 +351,14 @@ class TransaksiController extends Controller
                 if ($request->metode_pembayaran === 'qris') {
                     return response()->json([
                         'status' => 'failed',
-                        'message' => 'Metode pembayaran Qris tidak bisa digunakan untuk pesanan multitenant'
+                        'message' => ['Metode pembayaran Qris tidak bisa digunakan untuk pesanan multitenant']
+                    ], 400);
+                }
+
+                if ($request->boolean('isPriority')) {
+                    return response()->json([
+                        'status' => 'failed',
+                        'message' => ['Prioritas tidak bisa digunakan untuk pesanan multitenant']
                     ], 400);
                 }
                 // Dapatkan id terakhir + 1 (auto increment manual)
