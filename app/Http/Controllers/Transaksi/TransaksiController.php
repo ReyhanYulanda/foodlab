@@ -1919,7 +1919,7 @@ class TransaksiController extends Controller
 
                         TransaksiSaldoKoin::create([
                             'user_id' => $transaksi->user_id,
-                            'jumlah' => -$transaksi->nominal,
+                            'jumlah' => -$transaksi->total,
                             'tipe' => 'keluar',
                             'deskripsi' => 'Pembayaran pesanan (QRIS) #' . $transaksi->id,
                         ]);
