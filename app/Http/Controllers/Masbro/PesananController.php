@@ -746,6 +746,12 @@ class PesananController extends Controller
                         $isMultiTenant = $transaksi->multitenant_id !== null;
 
                         if ($isMultiTenant) {
+                            if ($transaksi->isPriority) {
+                                return response()->json([
+                                    'status' => 'failed',
+                                    'message' => 'Pesanan multitenant belum support prioritas',
+                                ], 400);
+                            }
                             // Cek apakah semua transaksi di grup sudah selesai
                             $transaksiGroup = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
                             $semuaSelesai = $transaksiGroup->every(fn($t) => $t->status === 'selesai');

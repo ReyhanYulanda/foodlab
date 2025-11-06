@@ -755,50 +755,59 @@ class TransaksiController extends Controller
                     ], 201);
                 }
 
-                if ($transaksi->metode_pembayaran === 'qris') {
-                    $biaya = $this->generateBiayaAdmin((int) $totalFinal);
-                    $uuidParts = explode('-', Str::uuid()->toString());
-                    $shortUuid = implode('-', array_slice($uuidParts, 0, 3));
-                    $qrisTotalFinal = $biaya['total_biaya_admin'] + $totalFinal;
+                if ($isMultiTenant == 0) {
+                    if ($isMultiTenant) {
+                        return response()->json([
+                            "status" => 'failed',
+                            'messages' => "transaksi multitenant tidak support untuk qris",
+                        ], 400);
+                    }
+                    
+                    if ($transaksi->metode_pembayaran === 'qris') {
+                        $biaya = $this->generateBiayaAdmin((int) $totalFinal);
+                        $uuidParts = explode('-', Str::uuid()->toString());
+                        $shortUuid = implode('-', array_slice($uuidParts, 0, 3));
+                        $qrisTotalFinal = $biaya['total_biaya_admin'] + $totalFinal;
 
-                    $orderId = 'foodlabs-' . $shortUuid . '-' . time();
+                        $orderId = 'foodlabs-' . $shortUuid . '-' . time();
 
-                    $params = [
-                        'transaction_details' => [
-                            'order_id' => $orderId,
-                            'gross_amount' => $qrisTotalFinal,
-                        ],
-                        'payment_type' => 'qris',
-                        'qris' => [
-                            'acquirer' => 'gopay'
-                        ],
-                    ];
-                    \Midtrans\Config::$serverKey = config('custom.midtrans_server_key');
-                    \Midtrans\Config::$isProduction = true;
-                    \Midtrans\Config::$isSanitized = true;
-                    \Midtrans\Config::$is3ds = true;
-                    $snap = \Midtrans\CoreApi::charge($params);
+                        $params = [
+                            'transaction_details' => [
+                                'order_id' => $orderId,
+                                'gross_amount' => $qrisTotalFinal,
+                            ],
+                            'payment_type' => 'qris',
+                            'qris' => [
+                                'acquirer' => 'gopay'
+                            ],
+                        ];
+                        \Midtrans\Config::$serverKey = config('custom.midtrans_server_key');
+                        \Midtrans\Config::$isProduction = true;
+                        \Midtrans\Config::$isSanitized = true;
+                        \Midtrans\Config::$is3ds = true;
+                        $snap = \Midtrans\CoreApi::charge($params);
 
-                    Checkout::create([
-                        'user_id' => $user->id,
-                        'transaksi_id' => $transaksi->id,
-                        'nominal' => $totalFinal,
-                        'biaya_midtrans' => $biaya['biaya_midtrans'],
-                        'biaya_ubisma' => $biaya['biaya_ubsima'],
-                        'total_biaya_admin' => $biaya['total_biaya_admin'],
-                        'total_bayar_user' => $biaya['total_bayar_user'],
-                        'status_bayar' => 'pending',
-                        'midtrans_request_id' => $orderId,
-                        'kode_bayar' => $snap->actions[0]->url ?? null,
-                        'tgl_akhir_tagihan' => $snap->expiry_time ?? null,
-                    ]);
+                        Checkout::create([
+                            'user_id' => $user->id,
+                            'transaksi_id' => $transaksi->id,
+                            'nominal' => $totalFinal,
+                            'biaya_midtrans' => $biaya['biaya_midtrans'],
+                            'biaya_ubisma' => $biaya['biaya_ubsima'],
+                            'total_biaya_admin' => $biaya['total_biaya_admin'],
+                            'total_bayar_user' => $biaya['total_bayar_user'],
+                            'status_bayar' => 'pending',
+                            'midtrans_request_id' => $orderId,
+                            'kode_bayar' => $snap->actions[0]->url ?? null,
+                            'tgl_akhir_tagihan' => $snap->expiry_time ?? null,
+                        ]);
 
-                    $extraQris = [
-                        'order_id_midtrans' => $orderId,
-                        'qr_url' => $snap->actions[0]->url ?? null,
-                        'expiry' => $snap->expiry_time ?? null,
-                        'biaya_admin' => $biaya['total_biaya_admin'],
-                    ];
+                        $extraQris = [
+                            'order_id_midtrans' => $orderId,
+                            'qr_url' => $snap->actions[0]->url ?? null,
+                            'expiry' => $snap->expiry_time ?? null,
+                            'biaya_admin' => $biaya['total_biaya_admin'],
+                        ];
+                    }
                 }
 
                 if ($transaksi->metode_pembayaran == 'cod') {
