@@ -1917,6 +1917,13 @@ class TransaksiController extends Controller
                         $transaksi->status = 'pesanan_masuk';
                         $transaksi->save();
 
+                        TransaksiSaldoKoin::create([
+                            'user_id' => $transaksi->user_id,
+                            'jumlah' => -$transaksi->nominal,
+                            'tipe' => 'keluar',
+                            'deskripsi' => 'Pembayaran pesanan (QRIS) #' . $transaksi->id,
+                        ]);
+
                         // 🚀 Notifikasi ke tenant
                         $tenantUser = User::with('fcmTokens')->find($transaksi->tenant_id);
                         $fcmTenantToken = $tenantUser ? $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
