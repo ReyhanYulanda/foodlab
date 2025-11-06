@@ -430,7 +430,7 @@ class PesananController extends Controller
                             ->where('id', '!=', $transaksi->id)
                             ->get();
 
-                        $allReadyToDeliver = $relatedTransaksi
+                        $allReadyToDeliver = $relatedTransaksis
                             ->concat(collect([$transaksi])) // gabungkan transaksi utama
                             ->every(fn($t) => $t->status === 'siap_diantar' || $t->status === 'diantar');
 
@@ -439,10 +439,6 @@ class PesananController extends Controller
                             if ($t->driver_id === null) {
                                 $t->driver_id = $user->id;
                                 $t->save();
-                            }
-
-                            if ($allReadyToDeliver) {
-                                $t->status = 'diantar';
                             }
 
                             // Kirim notifikasi FCM ke tenant terkait
@@ -621,48 +617,34 @@ class PesananController extends Controller
                     // ============================================
                     // 🔹 2. LOGIKA AUTO-SELESAI UNTUK MULTITENANT
                     // ============================================
-                    if ($request->status === 'selesai' && $transaksi->multitenant_id) {
-                        $related = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
-                            ->where('id', '!=', $transaksi->id)
-                            ->first();
+                    if (
+                        $request->status === 'selesai' &&
+                        $related &&
+                        $related->status === 'diantar'
+                    ) {
+                        $related->status = 'selesai';
+                        $related->driver_id = $user->id;
 
-                        if ($related) {
-                            // 🚫 Jika related masih pesanan_masuk atau pesanan_diproses → tolak
-                            if (in_array($related->status, ['pesanan_masuk', 'pesanan_diproses'])) {
-                                return response()->json([
-                                    'status' => 'failed',
-                                    'message' => 'Masih ada pesanan multitenant lain yang belum selesai diproses.',
-                                ], 400);
+                        // gunakan bukti pengantaran yang sama
+                        $related->bukti_pengantaran = $transaksi->bukti_pengantaran;
+                        $related->save();
+
+                        Log::info("Multitenant auto-selesai: Transaksi #{$related->id} otomatis diselesaikan karena pasangan #{$transaksi->id} sudah selesai.");
+
+                        // Kirim notifikasi ke tenant terkait
+                        $tenantUser = User::with('fcmTokens')->find($related->tenant->user_id ?? null);
+                        if ($tenantUser) {
+                            $tenantTokens = $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray();
+                            if (!empty($tenantTokens)) {
+                                $firebases
+                                    ->withNotification('Pesanan Selesai', "Pesanan multitenant #{$related->kode_pemesanan} telah otomatis selesai.")
+                                    ->withData([
+                                        'title' => 'Pesanan Selesai',
+                                        'body' => "Pesanan multitenant #{$related->kode_pemesanan} telah otomatis selesai.",
+                                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                    ])
+                                    ->sendToFallback($tenantTokens);
                             }
-
-                            // ✅ Kalau related diantar → auto-selesai juga
-                            if ($related->status === 'diantar') {
-                                $related->status = 'selesai';
-                                $related->driver_id = $user->id;
-                                $related->bukti_pengantaran = $transaksi->bukti_pengantaran;
-                                $related->save();
-
-                                Log::info("Multitenant auto-selesai: Transaksi #{$related->id} otomatis diselesaikan karena pasangan #{$transaksi->id} sudah selesai.");
-
-                                // Kirim notifikasi ke tenant terkait
-                                $tenantUser = User::with('fcmTokens')->find($related->tenant->user_id ?? null);
-                                if ($tenantUser) {
-                                    $tenantTokens = $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray();
-                                    if (!empty($tenantTokens)) {
-                                        $firebases
-                                            ->withNotification('Pesanan Selesai', "Pesanan multitenant #{$related->kode_pemesanan} telah otomatis selesai.")
-                                            ->withData([
-                                                'title' => 'Pesanan Selesai',
-                                                'body' => "Pesanan multitenant #{$related->kode_pemesanan} telah otomatis selesai.",
-                                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                                            ])
-                                            ->sendToFallback($tenantTokens);
-                                    }
-                                }
-                            }
-
-                            // ✅ Kalau related refund_selesai → lanjut normal (driver boleh selesaikan pesanan)
-                            // Tidak perlu aksi tambahan karena pesanan lain sudah selesai via refund
                         }
                     }
                 }
