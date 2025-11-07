@@ -46,7 +46,9 @@ class AutoCompleteDiproses extends Command
                 $relatedTransaksis = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
 
                 // Jika semua transaksi multitenant sudah punya driver_id
-                $allHaveDriver = $relatedTransaksis->every(fn($t) => !is_null($t->driver_id));
+                $allHaveDriver = $relatedTransaksis->every(function ($t) {
+                    return !is_null($t->driver_id);
+                });
 
                 // Maka ubah status transaksi ini langsung ke "diantar"
                 if ($allHaveDriver) {
@@ -132,11 +134,17 @@ class AutoCompleteDiproses extends Command
 
             // 🔹 Pembeli
             if (!empty($fcmUserToken)) {
-                $userTitle = match ($newStatus) {
-                    'siap_diantar' => 'Pesanan siap diantar!',
-                    'diantar' => 'Pesanan sedang diantar!',
-                    default => 'Pesanan siap diambil!',
-                };
+                switch ($newStatus) {
+                    case 'siap_diantar':
+                        $userTitle = 'Pesanan siap diantar!';
+                        break;
+                    case 'diantar':
+                        $userTitle = 'Pesanan sedang diantar!';
+                        break;
+                    default:
+                        $userTitle = 'Pesanan siap diambil!';
+                        break;
+                }
 
                 $userBody = match ($newStatus) {
                     'siap_diantar' => 'Pesananmu sudah siap dan akan segera diantar.',
