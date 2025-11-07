@@ -146,11 +146,17 @@ class AutoCompleteDiproses extends Command
                         break;
                 }
 
-                $userBody = match ($newStatus) {
-                    'siap_diantar' => 'Pesananmu sudah siap dan akan segera diantar.',
-                    'diantar' => 'Pesananmu sedang dalam perjalanan.',
-                    default => 'Pesananmu sudah siap, silakan diambil di lokasi.',
-                };
+                switch ($newStatus) {
+                    case 'siap_diantar':
+                        $userBody = 'Pesananmu sudah siap dan akan segera diantar.';
+                        break;
+                    case 'diantar':
+                        $userBody = 'Pesananmu sedang dalam perjalanan.';
+                        break;
+                    default:
+                        $userBody = 'Pesananmu sudah siap, silakan diambil di lokasi.';
+                        break;
+                }
 
                 $firebases
                     ->withNotification($userTitle, $userBody)
