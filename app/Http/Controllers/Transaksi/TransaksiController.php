@@ -355,6 +355,13 @@ class TransaksiController extends Controller
                     ], 400);
                 }
 
+                if ($request->isAntar){
+                    return response()->json([
+                        'status' => 'failed',
+                        'message' => ['Metode ambil sendiri tidak bisa digunakan untuk pesanan multitenant']
+                    ], 400); 
+                }
+
                 if ($request->boolean('isPriority')) {
                     return response()->json([
                         'status' => 'failed',
