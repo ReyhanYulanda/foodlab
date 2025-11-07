@@ -67,7 +67,9 @@ class AutoCompleteDiproses extends Command
             $tenantTokens = FcmToken::whereHas('user', function ($q) use ($transaksi) {
                 $q->role('tenant')
                     ->where('isOnline', 1)
-                    ->whereHas('transaksis', fn($t) => $t->where('id', $transaksi->id));
+                    ->whereHas('transaksis', function ($t) use ($transaksi) {
+                        $t->where('id', $transaksi->id);
+                    });
             })->pluck('fcm_token')->filter()->unique()->toArray();
 
             // Masbro (jika pesan antar)
