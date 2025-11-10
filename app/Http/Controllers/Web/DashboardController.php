@@ -86,12 +86,10 @@ class DashboardController extends Controller
             ->where('status', 'refund_selesai')
             ->whereNull('deleted_at')
             ->groupBy('tenant_id')
+            ->orderByDesc('total_refund')
             ->get()
-            ->map(function ($item) {
-                return [
-                    'nama_tenant' => optional($item->tenant)->nama_tenant ?? '-',
-                    'total_refund' => $item->total_refund,
-                ];
+            ->each(function ($item) {
+                $item->nama_tenant = optional($item->tenant)->nama_tenant ?? '-';
             });
 
         return view('dashboard', compact(
