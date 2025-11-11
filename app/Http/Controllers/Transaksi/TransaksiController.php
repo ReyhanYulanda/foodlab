@@ -399,7 +399,7 @@ class TransaksiController extends Controller
                         // untuk pra-calc kita anggap ordering iterasi menusByTenant sama dengan pembuatan (deterministik)
                         $isSecondOrMore = count($perTenantCalc) > 0;
                         $ongkosKirim = $this->getOngkirGedung($ruanganId, $isSecondOrMore);
-                        if ($isPriority) {
+                        if ($isPriority && !$isSecondOrMore) {
                             $ongkirPrioritas = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
                             $ongkosKirim += $ongkirPrioritas;
                         }
