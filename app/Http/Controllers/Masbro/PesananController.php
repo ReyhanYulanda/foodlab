@@ -43,7 +43,7 @@ class PesananController extends Controller
 
         try {
             $transaksiQuery = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user'])
-                ->where('status', '!=', 'refund_selesai'); // Hindari refund_selesai sejak awal
+                ->where('status', '!=', 'refund_selesai');
 
             if ($request->has('status')) {
 
@@ -59,7 +59,14 @@ class PesananController extends Controller
                                             ->orWhere('driver_id', $user->id);
                                     });
                             });
-                    });
+                    })
+                        // 🚫 Tambahan: exclude multitenant group yang ada anggota diantar/selesai
+                        ->whereNotIn('multitenant_id', function ($sub) {
+                            $sub->select('multitenant_id')
+                                ->from('transaksi')
+                                ->whereIn('status', ['diantar', 'selesai'])
+                                ->whereNotNull('multitenant_id');
+                        });
                 }
 
                 // === CASE: diantar / selesai ===
@@ -69,7 +76,6 @@ class PesananController extends Controller
                             $inner->where('driver_id', $user->id)
                                 ->where('status', $request->status);
                         })
-                            // ✅ Tambahan: kalau dia punya multitenant, ikutkan juga semua anggota grup
                             ->orWhere(function ($inner) use ($user, $request) {
                                 $inner->whereIn('multitenant_id', function ($sub) use ($user, $request) {
                                     $sub->select('multitenant_id')
@@ -98,7 +104,7 @@ class PesananController extends Controller
             // Ambil semua multitenant_id dari hasil filter
             $multiIds = $transaksi->pluck('multitenant_id')->filter()->unique();
 
-            // Kalau ada multitenant_id, ambil semua transaksi dari grup itu
+            // Ambil semua transaksi dalam grup multitenant
             if ($multiIds->isNotEmpty()) {
                 $extraTransaksi = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user'])
                     ->whereIn('multitenant_id', $multiIds)
