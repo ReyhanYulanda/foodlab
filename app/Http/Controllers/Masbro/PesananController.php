@@ -165,7 +165,7 @@ class PesananController extends Controller
             $transaksi = Transaksi::find($transaksiId);
             $relatedTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
                 ->where('id', '!=', $transaksi->id)
-                ->first();
+                ->get();
 
             if (!$transaksi) {
                 return response()->json([
@@ -303,8 +303,10 @@ class PesananController extends Controller
                     }
                     if ($transaksi->status === 'pesanan_masuk' & $request->status === 'diantar' & $transaksi->driver_id === null) {
                         if ($transaksi->multitenant_id) {
-                            $relatedTransaksi->driver_id = $user->id;
-                            $relatedTransaksi->save();
+                            foreach ($relatedTransaksi as $t) {
+                                $t->driver_id = $user->id;
+                                $t->save();
+                            }
                         } else {
                             $transaksi->driver_id = $user->id;
                             $transaksi->save();
@@ -823,7 +825,7 @@ class PesananController extends Controller
                                 );
                                 $saldo->jumlah += $ongkirBersih;
                                 $saldo->save();
-                            } 
+                            }
                         } else {
                             // === FLOW NON-MULTITENANT ===
                             $pengaturanPotongan = Pengaturan::where('nama', 'biaya_ongkos_kirim')->first();
