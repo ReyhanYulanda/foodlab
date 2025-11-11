@@ -163,9 +163,6 @@ class PesananController extends Controller
 
         try {
             $transaksi = Transaksi::find($transaksiId);
-            $relatedTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
-                ->where('id', '!=', $transaksi->id)
-                ->get();
 
             if (!$transaksi) {
                 return response()->json([
@@ -186,6 +183,7 @@ class PesananController extends Controller
                         if ($transaksi->status === 'pesanan_masuk' && $request->status === 'pesanan_diproses') {
                             // assign driver id
                             if ($transaksi->driver_id === null) {
+                                $relatedTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
                                 if ($transaksi->multitenant_id) {
                                     foreach ($relatedTransaksi as $t) {
                                         $t->driver_id = $user->id;
@@ -280,6 +278,7 @@ class PesananController extends Controller
                 if ($transaksi->isPriority == 1) {
                     if ($transaksi->status === 'pesanan_diproses' & $request->status === 'diantar' & $transaksi->driver_id === null) {
                         if ($transaksi->multitenant_id) {
+                            $relatedTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
                             foreach ($relatedTransaksi as $t) {
                                 $t->driver_id = $user->id;
                                 $t->save();
@@ -307,6 +306,7 @@ class PesananController extends Controller
                     }
                     if ($transaksi->status === 'pesanan_masuk' & $request->status === 'diantar' & $transaksi->driver_id === null) {
                         if ($transaksi->multitenant_id) {
+                            $relatedTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
                             foreach ($relatedTransaksi as $t) {
                                 $t->driver_id = $user->id;
                                 $t->save();
@@ -362,6 +362,7 @@ class PesananController extends Controller
                     if ($transaksi->status === 'siap_diantar' & $request->status === 'diantar') {
                         if ($transaksi->driver_id === null) {
                             if ($transaksi->multitenant_id) {
+                                $relatedTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
                                 foreach ($relatedTransaksi as $t) {
                                     $t->driver_id = $user->id;
                                 }
