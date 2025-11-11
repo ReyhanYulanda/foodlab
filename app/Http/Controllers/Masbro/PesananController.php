@@ -187,8 +187,10 @@ class PesananController extends Controller
                             // assign driver id
                             if ($transaksi->driver_id === null) {
                                 if ($transaksi->multitenant_id) {
-                                    $relatedTransaksi->driver_id = $user->id;
-                                    $relatedTransaksi->save();
+                                    foreach ($relatedTransaksi as $t) {
+                                        $t->driver_id = $user->id;
+                                        $t->save();
+                                    }
                                 } else {
                                     $transaksi->driver_id = $user->id;
                                     $transaksi->save();
@@ -358,7 +360,9 @@ class PesananController extends Controller
                     if ($transaksi->status === 'siap_diantar' & $request->status === 'diantar') {
                         if ($transaksi->driver_id === null) {
                             if ($transaksi->multitenant_id) {
-                                $relatedTransaksi->driver_id = $user->id;
+                                foreach ($relatedTransaksi as $t) {
+                                    $t->driver_id = $user->id;
+                                }
                             } else {
                                 $transaksi->driver_id = $user->id;
                             }
