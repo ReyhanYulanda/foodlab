@@ -280,8 +280,10 @@ class PesananController extends Controller
                 if ($transaksi->isPriority == 1) {
                     if ($transaksi->status === 'pesanan_diproses' & $request->status === 'diantar' & $transaksi->driver_id === null) {
                         if ($transaksi->multitenant_id) {
-                            $relatedTransaksi->driver_id = $user->id;
-                            $relatedTransaksi->save();
+                            foreach ($relatedTransaksi as $t) {
+                                $t->driver_id = $user->id;
+                                $t->save();
+                            }
                         } else {
                             $transaksi->driver_id = $user->id;
                             $transaksi->save();
