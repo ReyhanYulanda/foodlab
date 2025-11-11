@@ -344,6 +344,7 @@ class TransaksiController extends Controller
         }
 
         DB::beginTransaction();
+        // << START OF MULTITENANT FLOW >>
         try {
             $isMultiTenant = $tenants->count() > 1;
             $multitenantId = null;
@@ -362,12 +363,12 @@ class TransaksiController extends Controller
                     ], 400);
                 }
 
-                if ($request->boolean('isPriority')) {
-                    return response()->json([
-                        'status' => 'failed',
-                        'message' => ['Prioritas tidak bisa digunakan untuk pesanan multitenant']
-                    ], 400);
-                }
+                // if ($request->boolean('isPriority')) {
+                //     return response()->json([
+                //         'status' => 'failed',
+                //         'message' => ['Prioritas tidak bisa digunakan untuk pesanan multitenant']
+                //     ], 400);
+                // }
                 // Dapatkan id terakhir + 1 (auto increment manual)
                 $multitenantId = (Transaksi::max('multitenant_id') ?? 0) + 1;
 
@@ -390,6 +391,7 @@ class TransaksiController extends Controller
 
                     $ruanganId = $request->isAntar ? $request->ruangan_id : null;
                     $ongkosKirim = 0;
+                    $isPriority = filter_var($request->input('isPriority'), FILTER_VALIDATE_BOOLEAN);
 
                     if ($request->isAntar && $ruanganId) {
                         // untuk pre-calc anggap jika sudah ada transaksi sebelumnya, nanti saat pembuatan kita gunakan flag yang benar
@@ -397,6 +399,10 @@ class TransaksiController extends Controller
                         // untuk pra-calc kita anggap ordering iterasi menusByTenant sama dengan pembuatan (deterministik)
                         $isSecondOrMore = count($perTenantCalc) > 0;
                         $ongkosKirim = $this->getOngkirGedung($ruanganId, $isSecondOrMore);
+                        if ($isPriority) {
+                            $ongkirPrioritas = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
+                            $ongkosKirim += $ongkirPrioritas;
+                        }
 
                         $biayaExtra = Pengaturan::where('nama', 'biaya_extra')->value('nilai') ?? 500;
                         if ($totalJumlahMenu > 10) {
@@ -449,6 +455,7 @@ class TransaksiController extends Controller
                         'user_id' => $user->id,
                         'total' => $totalFinal,
                         'isAntar' => $request->isAntar,
+                        'isPriority' => $request->boolean('isPriority') ?? false,
                         'metode_pembayaran' => $request->metode_pembayaran,
                         'tenant_id' => $tenant->user_id,
                         'ruangan_id' => $ruanganId,
@@ -538,6 +545,19 @@ class TransaksiController extends Controller
                     }
                 }
 
+                if ($request->boolean('isPriority')) {
+                    if (!empty($fcmMasbroToken)) {
+                        $firebases
+                            ->withNotification('Ada Pesanan Prioritas multitenant', 'Gasin yuk ada ongkir tambahannya loh')
+                            ->withData([
+                                'title' => 'Ada Pesanan Prioritas',
+                                'body' => 'Gasin yuk ada ongkir tambahannya loh',
+                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                            ])->sendToDriver($fcmMasbroToken);
+                        Log::info('Sending FCM to driver', ['tokens' => $fcmMasbroToken]);
+                    }
+                }
+
                 DB::commit();
 
                 $transaksiWithDetails = Transaksi::with(['listTransaksiDetail.menus'])
@@ -553,6 +573,7 @@ class TransaksiController extends Controller
                     ]
                 ], 201);
             }
+            // << END OF MULTITENANT FLOW >>
 
             $menu_id = $request->menus[0]['id'];
             $tenantUser = User::with('fcmTokens')->whereHas('tenant', function ($tenant) use ($menu_id) {

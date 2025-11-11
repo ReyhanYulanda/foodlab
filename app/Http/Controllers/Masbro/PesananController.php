@@ -163,6 +163,9 @@ class PesananController extends Controller
 
         try {
             $transaksi = Transaksi::find($transaksiId);
+            $relatedTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                ->where('id', '!=', $transaksi->id)
+                ->first();
 
             if (!$transaksi) {
                 return response()->json([
@@ -183,9 +186,13 @@ class PesananController extends Controller
                         if ($transaksi->status === 'pesanan_masuk' && $request->status === 'pesanan_diproses') {
                             // assign driver id
                             if ($transaksi->driver_id === null) {
-                                $transaksi->driver_id = $user->id;
-                                $transaksi->save();
-
+                                if ($transaksi->multitenant_id) {
+                                    $relatedTransaksi->driver_id = $user->id;
+                                    $relatedTransaksi->save();
+                                } else {
+                                    $transaksi->driver_id = $user->id;
+                                    $transaksi->save();
+                                }
                                 // send notification
                                 $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
                                 $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
@@ -270,8 +277,13 @@ class PesananController extends Controller
                 // Jika pesanan prioritas
                 if ($transaksi->isPriority == 1) {
                     if ($transaksi->status === 'pesanan_diproses' & $request->status === 'diantar' & $transaksi->driver_id === null) {
-                        $transaksi->driver_id = $user->id;
-                        $transaksi->save();
+                        if ($transaksi->multitenant_id) {
+                            $relatedTransaksi->driver_id = $user->id;
+                            $relatedTransaksi->save();
+                        } else {
+                            $transaksi->driver_id = $user->id;
+                            $transaksi->save();
+                        }
 
                         $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
                         $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
@@ -290,8 +302,13 @@ class PesananController extends Controller
                         ]);
                     }
                     if ($transaksi->status === 'pesanan_masuk' & $request->status === 'diantar' & $transaksi->driver_id === null) {
-                        $transaksi->driver_id = $user->id;
-                        $transaksi->save();
+                        if ($transaksi->multitenant_id) {
+                            $relatedTransaksi->driver_id = $user->id;
+                            $relatedTransaksi->save();
+                        } else {
+                            $transaksi->driver_id = $user->id;
+                            $transaksi->save();
+                        }
 
                         $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
                         $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
@@ -338,7 +355,11 @@ class PesananController extends Controller
                     }
                     if ($transaksi->status === 'siap_diantar' & $request->status === 'diantar') {
                         if ($transaksi->driver_id === null) {
-                            $transaksi->driver_id = $user->id;
+                            if ($transaksi->multitenant_id) {
+                                $relatedTransaksi->driver_id = $user->id;
+                            } else {
+                                $transaksi->driver_id = $user->id;
+                            }
                             $transaksi->status = 'diantar';
                             $transaksi->save();
 
@@ -442,7 +463,7 @@ class PesananController extends Controller
                             if ($allReadyToDeliver) {
                                 $t->status = 'diantar';
                             }
-                            
+
                             $t->save();
 
                             // Kirim notifikasi ke tenant
@@ -802,7 +823,7 @@ class PesananController extends Controller
                                 );
                                 $saldo->jumlah += $ongkirBersih;
                                 $saldo->save();
-                            }
+                            } 
                         } else {
                             // === FLOW NON-MULTITENANT ===
                             $pengaturanPotongan = Pengaturan::where('nama', 'biaya_ongkos_kirim')->first();
