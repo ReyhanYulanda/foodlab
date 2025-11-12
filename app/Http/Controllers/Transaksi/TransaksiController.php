@@ -2277,14 +2277,11 @@ class TransaksiController extends Controller
             ->get();
 
         foreach ($transaksiQuery as $trx) {
-            $harga = max(0, (int)$trx->total - (int)($trx->ongkos_kirim ?? 0));
-            $bersih = $trx->status === 'selesai' ? $harga - (0.1 * $harga) : 0;
+            $tanggalAsli = $trx->updated_at;
 
-            // default null
-            // default null
+            // Tentukan label berdasarkan dayRanges atau weekRanges (kode sebelumnya)
             $labelTrx = null;
 
-            // 1) Kalau ada weekRanges (mode monthly) -> cek itu dulu
             if (!empty($weekRanges)) {
                 foreach ($weekRanges as $label => [$start, $end]) {
                     if ($trx->updated_at->between($start, $end)) {
@@ -2294,33 +2291,34 @@ class TransaksiController extends Controller
                 }
             }
 
-            // 2) Kalau ada dayRanges (mode daily) -> pakai rentang 06:00-05:59 yang sudah disimpan
             if (empty($labelTrx) && !empty($dayRanges)) {
                 foreach ($dayRanges as $label => [$start, $end]) {
                     if ($trx->updated_at->between($start, $end)) {
                         $labelTrx = $label;
+                        // Nah, ubah tanggal supaya ikut hari label (gunakan start-of-day offset)
+                        $tanggalOffset = $start->copy()->addDay()->format('d-m-Y') . ' ' . $tanggalAsli->format('H:i:s');
                         break;
                     }
                 }
             }
 
-            // 3) Fallback: jika masih null, gunakan nama hari atau bulan seperti sebelumnya
             if (empty($labelTrx)) {
-                if ($year && $month && $date) {
-                    // jika memang daily mode tapi dayRanges tidak tersedia karena bug, fallback ke nama hari
-                    $labelTrx = $trx->updated_at->locale('id')->translatedFormat('l');
-                } else {
-                    $labelTrx = $trx->updated_at->locale('id')->translatedFormat('F');
-                }
+                $labelTrx = $trx->updated_at->locale('id')->translatedFormat('l');
+                $tanggalOffset = $tanggalAsli->format('d-m-Y H:i:s');
+            }
+
+            // fallback kalau tidak ada dayRanges (misal yearly)
+            if (empty($tanggalOffset)) {
+                $tanggalOffset = $tanggalAsli->format('d-m-Y H:i:s');
             }
 
             $transaksiList[] = [
-                'id'                => $trx->id,
-                'status'            => $trx->status,
-                'harga'             => $harga,
-                'pendapatan_bersih' => $bersih,
-                'tanggal'           => $trx->updated_at->format('d-m-Y H:i:s'),
-                'label'             => $labelTrx,
+                'id' => $trx->id,
+                'status' => $trx->status,
+                'harga' => $trx->total,
+                'pendapatan_bersih' => $trx->pendapatan_bersih ?? 0,
+                'tanggal' => $tanggalOffset, // <--- tanggal sudah disesuaikan dengan label
+                'label' => $labelTrx
             ];
         }
 
