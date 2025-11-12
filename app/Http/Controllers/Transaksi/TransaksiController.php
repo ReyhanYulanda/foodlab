@@ -2248,11 +2248,9 @@ class TransaksiController extends Controller
             // Untuk filter transaksi list: gunakan rentang minggu yang sudah di-offset
             // dateStart = pertama dayStart (Senin -> Senin.subDay 06:00)
             // dateEnd   = terakhir dayEnd  (Minggu -> Minggu 05:59)
-            $firstLabel = array_key_first($dayRanges);
-            $lastLabel  = array_key_last($dayRanges);
-
-            $dateStart = $dayRanges[$firstLabel][0];
-            $dateEnd   = $dayRanges[$lastLabel][1];
+            $targetDay = $filterDate->copy();
+            $dateStart = $targetDay->copy()->subDay()->setTime(6, 0, 0);    // 06:00 hari sebelumnya
+            $dateEnd   = $targetDay->copy()->setTime(5, 59, 59);
         } else {
             // mode all time
             $labels[] = 'All Time';
