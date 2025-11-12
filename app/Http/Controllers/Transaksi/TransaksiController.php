@@ -2220,8 +2220,8 @@ class TransaksiController extends Controller
 
             foreach ($period as $day) {
                 // Hari bergeser jam 6 pagi
-                $dayStart = $day->copy()->subDay()->setTime(6, 0, 0);
-                $dayEnd   = $day->copy()->setTime(5, 59, 59);
+                $dayStart = $day->copy()->setTime(6, 0, 0);
+                $dayEnd   = $day->copy()->addDay()->setTime(5, 59, 59);
 
                 $labels[] = $day->locale('id')->translatedFormat('l');
 
