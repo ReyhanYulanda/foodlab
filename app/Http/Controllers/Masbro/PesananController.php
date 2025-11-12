@@ -633,14 +633,27 @@ class PesananController extends Controller
                     // ===============================
                     if ($related && $related->status === 'refund_selesai') {
                         $ongkirMulti = $transaksi->ruangan->gedung->ongkir_multitenant ?? 0;
+                        $baseOngkir = $transaksi->ruangan->gedung->ongkir ?? 0;
+                        $priorityOngkir = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
 
-                        // 🔸Jika ongkir sama → refund full total
-                        if ($transaksi->ongkos_kirim == $ongkirMulti) {
-                            $refundAmount = $transaksi->total;
-                        }
-                        // 🔸Jika ongkir berbeda → refund total - ongkir_multitenant
-                        else {
-                            $refundAmount = max($transaksi->total - $ongkirMulti, 0);
+                        if ($transaksi->isPriority) {
+                            // 🔸Jika ongkir sama → refund full total
+                            if ($transaksi->ongkos_kirim == $ongkirMulti) {
+                                $refundAmount = $transaksi->total;
+                            }
+                            // 🔸Jika ongkir berbeda → refund total dikurangi ongkir dasar + ongkir prioritas, lalu ditambah ongkir multitenant
+                            else {
+                                $refundAmount = max(($transaksi->total - ($baseOngkir + $priorityOngkir)) + $ongkirMulti, 0);
+                            }
+                        } else {
+                            // 🔸Jika ongkir sama → refund full total
+                            if ($transaksi->ongkos_kirim == $ongkirMulti) {
+                                $refundAmount = $transaksi->total;
+                            }
+                            // 🔸Jika ongkir berbeda → refund total - ongkir_multitenant
+                            else {
+                                $refundAmount = max($transaksi->total - $ongkirMulti, 0);
+                            }
                         }
 
                         // Lakukan refund saldo ke user
@@ -823,35 +836,60 @@ class PesananController extends Controller
                     if ($transaksi->driver_id) {
                         $isMultiTenant = $transaksi->multitenant_id !== null;
 
-                        if ($isMultiTenant) {
-                            // Cek apakah semua transaksi di grup sudah selesai
-                            $transaksiGroup = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
-                            $semuaSelesai = $transaksiGroup->every(fn($t) => $t->status === 'selesai');
+                        if ($transaksi->driver_id && $transaksi->multitenant_id) {
+                            $related = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                                ->where('id', '!=', $transaksi->id)
+                                ->first();
 
-                            if ($semuaSelesai) {
-                                // Hitung total ongkir & potongan
-                                $totalOngkir = $transaksiGroup->sum('ongkos_kirim');
-                                $pengaturanPotongan = Pengaturan::where('nama', 'biaya_ongkos_kirim')->first();
-                                $persentasePotongan = $pengaturanPotongan ? (float)$pengaturanPotongan->nilai : 0;
+                            $ongkirMulti = $transaksi->ruangan->gedung->ongkir_multitenant ?? 0;
+                            $baseOngkir = $transaksi->ruangan->gedung->ongkir ?? 0;
+                            $priorityOngkir = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
+                            $pajakPersen = 10;
 
-                                $potongan = ($persentasePotongan / 100) * $totalOngkir;
-                                $ongkirBersih = $totalOngkir - $potongan;
+                            // Tentukan status pasangan
+                            $bothSelesai = $transaksi->status === 'selesai' && $related && $related->status === 'selesai';
+                            $oneRefund   = $related && in_array($related->status, ['refund_selesai', 'refund']);
+                            $bothRefund  = $transaksi->status === 'refund_selesai' && $related && $related->status === 'refund_selesai';
 
+                            $totalOngkir = 0;
+
+                            if ($transaksi->isPriority) {
+                                if ($bothSelesai) {
+                                    $totalOngkir = $baseOngkir + $priorityOngkir + $ongkirMulti;
+                                } elseif ($oneRefund) {
+                                    $totalOngkir = $baseOngkir + $priorityOngkir;
+                                } elseif ($bothRefund) {
+                                    $totalOngkir = 0;
+                                }
+                            } else {
+                                if ($bothSelesai) {
+                                    $totalOngkir = $baseOngkir + $ongkirMulti;
+                                } elseif ($oneRefund) {
+                                    $totalOngkir = $baseOngkir;
+                                } elseif ($bothRefund) {
+                                    $totalOngkir = 0;
+                                }
+                            }
+
+                            // Potong pajak 10%
+                            $pajak = ($pajakPersen / 100) * $totalOngkir;
+                            $ongkirBersih = $totalOngkir - $pajak;
+
+                            if ($ongkirBersih > 0) {
                                 // Simpan ke histori
                                 TransaksiSaldoKoin::create([
                                     'user_id' => $transaksi->driver_id,
                                     'jumlah' => $ongkirBersih,
                                     'tipe' => 'masuk',
-                                    'deskripsi' => "Ongkir multitenant #{$transaksi->multitenant_id}, total ongkir {$totalOngkir}, potongan {$persentasePotongan}%, total masuk: {$ongkirBersih}",
+                                    'deskripsi' => "Ongkir multitenant #{$transaksi->multitenant_id} | base: {$baseOngkir}, priority: {$priorityOngkir}, multi: {$ongkirMulti}, pajak: {$pajakPersen}%",
                                 ]);
 
                                 // Update saldo driver
-                                $saldo = SaldoKoin::firstOrCreate(
-                                    ['user_id' => $transaksi->driver_id],
-                                    ['jumlah' => 0]
-                                );
+                                $saldo = SaldoKoin::firstOrCreate(['user_id' => $transaksi->driver_id], ['jumlah' => 0]);
                                 $saldo->jumlah += $ongkirBersih;
                                 $saldo->save();
+
+                                Log::info("Driver #{$transaksi->driver_id} menerima ongkir bersih {$ongkirBersih} (total: {$totalOngkir}, pajak: {$pajak})");
                             }
                         } else {
                             // === FLOW NON-MULTITENANT ===
