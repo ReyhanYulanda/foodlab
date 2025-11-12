@@ -22,6 +22,7 @@ class PesananController extends Controller
     {
         $user = $request->user();
 
+        // 🧱 Cek hak akses
         if (!$user->can('read pengantaran')) {
             return response()->json([
                 'status' => 'failed',
@@ -29,6 +30,7 @@ class PesananController extends Controller
             ], 403);
         }
 
+        // 🧾 Validasi input
         $validator = Validator::make($request->all(), [
             'status' => 'required|in:diantar,selesai,siap_diantar',
             'gedung' => 'nullable',
@@ -42,9 +44,11 @@ class PesananController extends Controller
         }
 
         try {
+            // 🔍 Base Query
             $transaksiQuery = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user'])
                 ->where('status', '!=', 'refund_selesai');
 
+            // ⚙️ Filter berdasarkan status
             if ($request->has('status')) {
 
                 // === CASE: siap_diantar ===
@@ -60,12 +64,17 @@ class PesananController extends Controller
                                     });
                             });
                     })
-                        // 🚫 Tambahan: exclude multitenant group yang ada anggota diantar/selesai
-                        ->whereNotIn('multitenant_id', function ($sub) {
-                            $sub->select('multitenant_id')
-                                ->from('transaksi')
-                                ->whereIn('status', ['diantar', 'selesai'])
-                                ->whereNotNull('multitenant_id');
+                        // 🧩 Perbaikan utama:
+                        // Ambil juga transaksi yang multitenant_id-nya null (non-multitenant)
+                        // tapi exclude multitenant group yang sudah diantar/selesai
+                        ->where(function ($q) {
+                            $q->whereNull('multitenant_id') // include transaksi tunggal
+                                ->orWhereNotIn('multitenant_id', function ($sub) {
+                                    $sub->select('multitenant_id')
+                                        ->from('transaksi')
+                                        ->whereIn('status', ['diantar', 'selesai'])
+                                        ->whereNotNull('multitenant_id');
+                                });
                         });
                 }
 
@@ -87,24 +96,24 @@ class PesananController extends Controller
                     });
                 }
 
-                // === CASE: status lainnya ===
+                // === CASE: status lainnya (fallback)
                 else {
                     $transaksiQuery = $transaksiQuery->where('status', $request->status);
                 }
             }
 
-            // Optional filter gedung
+            // 🏢 Optional filter gedung
             if ($request->has('gedung')) {
                 $transaksiQuery = $transaksiQuery->where('gedung', $request->gedung);
             }
 
-            // Jalankan query utama
+            // 🚀 Jalankan query utama
             $transaksi = $transaksiQuery->get();
 
-            // Ambil semua multitenant_id dari hasil filter
+            // 🔁 Ambil semua multitenant_id yang muncul
             $multiIds = $transaksi->pluck('multitenant_id')->filter()->unique();
 
-            // Ambil semua transaksi dalam grup multitenant
+            // 🔁 Jika ada grup multitenant, ambil semua anggota grupnya
             if ($multiIds->isNotEmpty()) {
                 $extraTransaksi = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user'])
                     ->whereIn('multitenant_id', $multiIds)
