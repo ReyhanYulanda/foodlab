@@ -2219,27 +2219,30 @@ class TransaksiController extends Controller
             $dayRanges = [];
 
             foreach ($period as $day) {
-                // Mulai pukul 06:00 hari sebelumnya sampai 05:59 pada hari ini
+                // Hari bergeser jam 6 pagi
                 $dayStart = $day->copy()->subDay()->setTime(6, 0, 0);
                 $dayEnd   = $day->copy()->setTime(5, 59, 59);
 
-                $label = $day->locale('id')->translatedFormat('l'); // Senin, Selasa, dst
-                $labels[] = $label;
-                $dayRanges[$label] = [$dayStart, $dayEnd];
+                $labels[] = $day->locale('id')->translatedFormat('l');
 
+                // Transaksi "selesai"
                 $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
                     $q->where('user_id', $tenantId);
                 })
                     ->where('status', 'selesai')
-                    ->whereBetween('updated_at', [$dayStart, $dayEnd])
+                    ->whereBetween('transaksi.updated_at', [$dayStart, $dayEnd])
                     ->count();
 
+                // Transaksi "refund_selesai"
                 $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
                     $q->where('user_id', $tenantId);
                 })
                     ->where('status', 'refund_selesai')
-                    ->whereBetween('updated_at', [$dayStart, $dayEnd])
+                    ->whereBetween('transaksi.updated_at', [$dayStart, $dayEnd])
                     ->count();
+
+                // simpan range-nya buat mapping tanggal nanti
+                $dayRanges[$day->locale('id')->translatedFormat('l')] = [$dayStart, $dayEnd];
             }
 
             // Untuk filter transaksi list: gunakan rentang minggu yang sudah di-offset
@@ -2278,47 +2281,31 @@ class TransaksiController extends Controller
 
         foreach ($transaksiQuery as $trx) {
             $tanggalAsli = $trx->updated_at;
-
-            // Tentukan label berdasarkan dayRanges atau weekRanges (kode sebelumnya)
             $labelTrx = null;
+            $tanggalOffset = $tanggalAsli->format('d-m-Y H:i:s');
 
-            if (!empty($weekRanges)) {
-                foreach ($weekRanges as $label => [$start, $end]) {
-                    if ($trx->updated_at->between($start, $end)) {
-                        $labelTrx = $label;
-                        break;
-                    }
+            foreach ($dayRanges as $label => [$start, $end]) {
+                if ($tanggalAsli->between($start, $end)) {
+                    $labelTrx = $label;
+                    // tanggal offset mengikuti hari label, tapi hanya jika memang masuk range-nya
+                    $tanggalOffset = $tanggalAsli->copy()->format('d-m-Y H:i:s');
+                    break;
                 }
             }
 
-            if (empty($labelTrx) && !empty($dayRanges)) {
-                foreach ($dayRanges as $label => [$start, $end]) {
-                    if ($trx->updated_at->between($start, $end)) {
-                        $labelTrx = $label;
-                        // Nah, ubah tanggal supaya ikut hari label (gunakan start-of-day offset)
-                        $tanggalOffset = $start->copy()->addDay()->format('d-m-Y') . ' ' . $tanggalAsli->format('H:i:s');
-                        break;
-                    }
-                }
-            }
+            // kalau gak masuk range apa pun, skip aja
+            if (!$labelTrx) continue;
 
-            if (empty($labelTrx)) {
-                $labelTrx = $trx->updated_at->locale('id')->translatedFormat('l');
-                $tanggalOffset = $tanggalAsli->format('d-m-Y H:i:s');
-            }
-
-            // fallback kalau tidak ada dayRanges (misal yearly)
-            if (empty($tanggalOffset)) {
-                $tanggalOffset = $tanggalAsli->format('d-m-Y H:i:s');
-            }
+            $harga = intval($trx->total);
+            $pendapatanBersih = intval($harga - (0.1 * $harga));
 
             $transaksiList[] = [
                 'id' => $trx->id,
                 'status' => $trx->status,
-                'harga' => $trx->total,
-                'pendapatan_bersih' => intval($trx->total - (0.1 * $trx->total)),
-                'tanggal' => $tanggalOffset, // <--- tanggal sudah disesuaikan dengan label
-                'label' => $labelTrx
+                'harga' => $harga,
+                'pendapatan_bersih' => $pendapatanBersih,
+                'tanggal' => $tanggalOffset,
+                'label' => $labelTrx,
             ];
         }
 
