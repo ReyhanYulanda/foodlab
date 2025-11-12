@@ -2288,7 +2288,7 @@ class TransaksiController extends Controller
                 'status'            => $trx->status,
                 'harga'             => $harga,
                 'pendapatan_bersih' => $bersih,
-                'tanggal'           => $trx->updated_at->format('d-m-Y H:i:s'),
+                'tanggal'           => $trx->updated_at->copy()->addDay()->format('d-m-Y H:i:s'),
                 'label'             => $labelTrx,
             ];
         }
