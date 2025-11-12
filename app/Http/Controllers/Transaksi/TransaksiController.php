@@ -2215,8 +2215,8 @@ class TransaksiController extends Controller
             $period = CarbonPeriod::create($startOfWeek, $endOfWeek);
 
             foreach ($period as $day) {
-                $dayStart = $day->copy()->startOfDay();
-                $dayEnd   = $day->copy()->endOfDay();
+                $dayStart = $day->copy()->subDay()->setTime(6, 0, 0);
+                $dayEnd   = $day->copy()->setTime(5, 59, 59);
 
                 $labels[] = $day->locale('id')->translatedFormat('l'); // Senin, Selasa, dst (bahasa Indonesia)
 
