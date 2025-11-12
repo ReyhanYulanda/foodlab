@@ -2204,53 +2204,36 @@ class TransaksiController extends Controller
             // mode daily → ambil minggu dari tanggal yang dipilih
             $filterDate = Carbon::create($year, $month, $date);
 
-            // tentukan rentang minggu (Senin - Minggu) berdasarkan tanggal itu (tanggal tanpa offset)
+            // tentukan rentang minggu (Senin - Minggu) berdasarkan tanggal itu
             $startOfWeek = $filterDate->copy()->startOfWeek(Carbon::MONDAY);
             $endOfWeek   = $filterDate->copy()->endOfWeek(Carbon::SUNDAY);
 
-            // Kita akan membuat rentang per-hari dengan offset 06:00 hari sebelumnya -> 05:59 hari ini
+            $dateStart = $startOfWeek;
+            $dateEnd   = $endOfWeek;
+
+            // looping setiap hari dalam minggu itu
             $period = CarbonPeriod::create($startOfWeek, $endOfWeek);
 
-            $labels = [];
-            $selesaiData = [];
-            $refundData = [];
-
-            // Simpan dayRanges supaya nanti bisa dipakai untuk memberi label transaksi individu
-            $dayRanges = [];
-
             foreach ($period as $day) {
-                // Hari bergeser jam 6 pagi
-                $dayStart = $day->copy()->setTime(6, 0, 0);
-                $dayEnd   = $day->copy()->addDay()->setTime(5, 59, 59);
+                $dayStart = $day->copy()->startOfDay();
+                $dayEnd   = $day->copy()->endOfDay();
 
-                $labels[] = $day->locale('id')->translatedFormat('l');
+                $labels[] = $day->locale('id')->translatedFormat('l'); // Senin, Selasa, dst (bahasa Indonesia)
 
-                // Transaksi "selesai"
                 $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
                     $q->where('user_id', $tenantId);
                 })
                     ->where('status', 'selesai')
-                    ->whereBetween('transaksi.updated_at', [$dayStart, $dayEnd])
+                    ->whereBetween('updated_at', [$dayStart, $dayEnd])
                     ->count();
 
-                // Transaksi "refund_selesai"
                 $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
                     $q->where('user_id', $tenantId);
                 })
                     ->where('status', 'refund_selesai')
-                    ->whereBetween('transaksi.updated_at', [$dayStart, $dayEnd])
+                    ->whereBetween('updated_at', [$dayStart, $dayEnd])
                     ->count();
-
-                // simpan range-nya buat mapping tanggal nanti
-                $dayRanges[$day->locale('id')->translatedFormat('l')] = [$dayStart, $dayEnd];
             }
-
-            // Untuk filter transaksi list: gunakan rentang minggu yang sudah di-offset
-            // dateStart = pertama dayStart (Senin -> Senin.subDay 06:00)
-            // dateEnd   = terakhir dayEnd  (Minggu -> Minggu 05:59)
-            $targetDay = $filterDate->copy();
-            $dateStart = $targetDay->copy()->subDay()->setTime(6, 0, 0);    // 06:00 hari sebelumnya
-            $dateEnd   = $targetDay->copy()->setTime(5, 59, 59);
         } else {
             // mode all time
             $labels[] = 'All Time';
@@ -2278,32 +2261,35 @@ class TransaksiController extends Controller
             ->get();
 
         foreach ($transaksiQuery as $trx) {
-            $tanggalAsli = $trx->updated_at;
-            $labelTrx = null;
-            $tanggalOffset = $tanggalAsli->format('d-m-Y H:i:s');
+            $harga = max(0, (int)$trx->total - (int)($trx->ongkos_kirim ?? 0));
+            $bersih = $trx->status === 'selesai' ? $harga - (0.1 * $harga) : 0;
 
-            foreach ($dayRanges as $label => [$start, $end]) {
-                if ($tanggalAsli->between($start, $end)) {
-                    $labelTrx = $label;
-                    // tanggal offset mengikuti hari label, tapi hanya jika memang masuk range-nya
-                    $tanggalOffset = $tanggalAsli->copy()->format('d-m-Y H:i:s');
-                    break;
+            // default null
+            $labelTrx = null;
+
+            if (!empty($weekRanges)) {
+                // mode monthly → cari minggu transaksi
+                foreach ($weekRanges as $label => [$start, $end]) {
+                    if ($trx->updated_at->between($start, $end)) {
+                        $labelTrx = $label;
+                        break;
+                    }
                 }
+            } elseif ($year && $month && $date) {
+                // mode daily → pakai nama hari
+                $labelTrx = $trx->updated_at->locale('id')->translatedFormat('l');
+            } else {
+                // fallback (yearly / all time) → bisa pakai bulan atau null
+                $labelTrx = $trx->updated_at->locale('id')->translatedFormat('F');
             }
 
-            // kalau gak masuk range apa pun, skip aja
-            if (!$labelTrx) continue;
-
-            $harga = intval($trx->total);
-            $pendapatanBersih = intval($harga - (0.1 * $harga));
-
             $transaksiList[] = [
-                'id' => $trx->id,
-                'status' => $trx->status,
-                'harga' => $harga,
-                'pendapatan_bersih' => $pendapatanBersih,
-                'tanggal' => $tanggalOffset,
-                'label' => $labelTrx,
+                'id'                => $trx->id,
+                'status'            => $trx->status,
+                'harga'             => $harga,
+                'pendapatan_bersih' => $bersih,
+                'tanggal'           => $trx->updated_at->format('d-m-Y H:i:s'),
+                'label'             => $labelTrx,
             ];
         }
 
