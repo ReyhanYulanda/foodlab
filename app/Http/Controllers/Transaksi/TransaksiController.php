@@ -2316,7 +2316,7 @@ class TransaksiController extends Controller
                 'id' => $trx->id,
                 'status' => $trx->status,
                 'harga' => $trx->total,
-                'pendapatan_bersih' => $trx->pendapatan_bersih ?? 0,
+                'pendapatan_bersih' => intval($trx->total - (0.1 * $trx->total)),
                 'tanggal' => $tanggalOffset, // <--- tanggal sudah disesuaikan dengan label
                 'label' => $labelTrx
             ];
