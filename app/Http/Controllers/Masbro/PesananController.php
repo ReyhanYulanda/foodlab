@@ -624,50 +624,52 @@ class PesananController extends Controller
                  * maka refund sesuai kondisi ongkir
                  */
                 if ($transaksi->multitenant_id) {
-                    $related = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                    // ambil semua pasangan (untuk keamanan jika ada >1)
+                    $relatedItems = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
                         ->where('id', '!=', $transaksi->id)
-                        ->first();
+                        ->get();
+
+                    // cari transaksi yang berstatus refund_selesai di antara pasangan (prioritas)
+                    $relatedRefund = $relatedItems->firstWhere('status', 'refund_selesai');
+
+                    // jika tidak ada yang refund_selesai, coba first() seperti sebelumnya (opsional)
+                    $related = $relatedRefund ?? $relatedItems->first();
 
                     // ===============================
                     // 🔹 1. LOGIKA REFUND MULTITENANT
                     // ===============================
                     if ($related && $related->status === 'refund_selesai') {
-                        $ongkirMulti = $transaksi->ruangan->gedung->ongkir_multitenant ?? 0;
-                        $baseOngkir = $transaksi->ruangan->gedung->ongkir ?? 0;
+                        // gunakan transaksi yang refunded sebagai sumber data refund
+                        $refundTx = $related;
+                        $ongkirMulti = $refundTx->ruangan->gedung->ongkir_multitenant ?? 0;
+                        $baseOngkir = $refundTx->ruangan->gedung->ongkir ?? 0;
                         $priorityOngkir = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
 
-                        if ($transaksi->isPriority) {
-                            // 🔸Jika ongkir sama → refund full total
-                            if ($transaksi->ongkos_kirim == $ongkirMulti) {
-                                $refundAmount = $transaksi->total;
-                            }
-                            // 🔸Jika ongkir berbeda → refund total dikurangi ongkir dasar + ongkir prioritas, lalu ditambah ongkir multitenant
-                            else {
-                                $refundAmount = max(($transaksi->total - ($baseOngkir + $priorityOngkir)) + $ongkirMulti, 0);
+                        if ($refundTx->isPriority) {
+                            if ($refundTx->ongkos_kirim == $ongkirMulti) {
+                                $refundAmount = $refundTx->total;
+                            } else {
+                                $refundAmount = max(($refundTx->total - ($baseOngkir + $priorityOngkir)) + $ongkirMulti, 0);
                             }
                         } else {
-                            // 🔸Jika ongkir sama → refund full total
-                            if ($transaksi->ongkos_kirim == $ongkirMulti) {
-                                $refundAmount = $transaksi->total;
-                            }
-                            // 🔸Jika ongkir berbeda → refund total - ongkir_multitenant
-                            else {
-                                $refundAmount = max($transaksi->total - $ongkirMulti, 0);
+                            if ($refundTx->ongkos_kirim == $ongkirMulti) {
+                                $refundAmount = $refundTx->total;
+                            } else {
+                                $refundAmount = max($refundTx->total - $ongkirMulti, 0);
                             }
                         }
 
-                        // Lakukan refund saldo ke user
-                        $user = $transaksi->user;
+                        // Lakukan refund ke user pemilik transaksi yang di-refund (refundTx->user)
+                        $user = $refundTx->user;
                         $saldo = SaldoKoin::firstOrCreate(['user_id' => $user->id], ['jumlah' => 0]);
                         $saldo->jumlah += $refundAmount;
                         $saldo->save();
 
-                        // Catat ke transaksi saldo koin
                         TransaksiSaldoKoin::create([
                             'user_id'   => $user->id,
                             'jumlah'    => $refundAmount,
                             'tipe'      => 'masuk',
-                            'deskripsi' => "Refund pesanan {$transaksi->kode_pemesanan} karena pesanan multitenant lain dibatalkan",
+                            'deskripsi' => "Refund pesanan {$refundTx->kode_pemesanan} karena pesanan multitenant lain dibatalkan",
                         ]);
 
                         Log::info("Refund multitenant: {$refundAmount} diberikan ke {$user->name} untuk transaksi #{$transaksi->id}");
