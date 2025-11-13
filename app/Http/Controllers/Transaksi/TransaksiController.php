@@ -2232,17 +2232,16 @@ class TransaksiController extends Controller
             $harga = max(0, (int)$trx->total - (int)($trx->ongkos_kirim ?? 0));
             $bersih = $trx->status === 'selesai' ? $harga - (0.1 * $harga) : 0;
 
-            $original = $trx->updated_at->copy();
+            // Pastikan timezone lokal
+            $original = $trx->updated_at->copy()->timezone('Asia/Jakarta');
 
-            // tentukan waktu batas hari (jam 06:00)
+            // batas hari dimulai jam 06:00
             $dayStart = $original->copy()->setTime(6, 0, 0);
 
             // kalau waktu transaksi < 06:00 → geser ke hari berikutnya
-            if ($original->lt($dayStart)) {
-                $shifted = $original->copy()->addDay();
-            } else {
-                $shifted = $original->copy();
-            }
+            $shifted = $original->lt($dayStart)
+                ? $original->copy()->addDay()
+                : $original->copy();
 
             $label = $shifted->locale('id')->translatedFormat('l');
             $labelTanggal = $shifted->format('d-m-Y H:i:s');
@@ -2252,7 +2251,7 @@ class TransaksiController extends Controller
                 'status'            => $trx->status,
                 'harga'             => $harga,
                 'pendapatan_bersih' => $bersih,
-                'tanggal'           => $trx->updated_at->format('d-m-Y H:i:s'),
+                'tanggal'           => $original->format('d-m-Y H:i:s'),
                 'label'             => $label,
                 'label_tanggal'     => $labelTanggal,
             ];
