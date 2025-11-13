@@ -2201,37 +2201,43 @@ class TransaksiController extends Controller
             $dateStart = $startOfMonth;
             $dateEnd   = $endOfMonth;
         } elseif ($year && $month && $date) {
-            // mode daily → ambil minggu dari tanggal yang dipilih
+            // =========================
+            // MODE DAILY (DENGAN WINDOW 06:00–05:59)
+            // =========================
             $filterDate = Carbon::create($year, $month, $date);
-
-            // tentukan rentang minggu (Senin - Minggu) berdasarkan tanggal itu
             $startOfWeek = $filterDate->copy()->startOfWeek(Carbon::MONDAY);
             $endOfWeek   = $filterDate->copy()->endOfWeek(Carbon::SUNDAY);
 
             $dateStart = $startOfWeek;
             $dateEnd   = $endOfWeek;
 
-            // looping setiap hari dalam minggu itu
             $period = CarbonPeriod::create($startOfWeek, $endOfWeek);
 
+            // Buat mapping label & window
+            $labelDateMap = [];
+            $labelWindowMap = [];
+
             foreach ($period as $day) {
-                $dayStart = $day->copy()->startOfDay();
-                $dayEnd   = $day->copy()->endOfDay();
+                $dayName = $day->locale('id')->translatedFormat('l');
+                $dayDate = $day->format('d-m-Y');
 
-                $labels[] = $day->locale('id')->translatedFormat('l'); // Senin, Selasa, dst (bahasa Indonesia)
+                $labelDateMap[$dayName] = $dayDate;
 
-                $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
-                    $q->where('user_id', $tenantId);
-                })
+                // window 06:00 hari sebelumnya - 05:59 hari ini
+                $windowStart = $day->copy()->subDay()->setTime(6, 0, 0);
+                $windowEnd   = $day->copy()->setTime(5, 59, 59);
+                $labelWindowMap[$dayName] = [$windowStart, $windowEnd];
+
+                $labels[] = $dayName;
+
+                $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
                     ->where('status', 'selesai')
-                    ->whereBetween('updated_at', [$dayStart, $dayEnd])
+                    ->whereBetween('updated_at', [$windowStart, $windowEnd])
                     ->count();
 
-                $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
-                    $q->where('user_id', $tenantId);
-                })
+                $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
                     ->where('status', 'refund_selesai')
-                    ->whereBetween('updated_at', [$dayStart, $dayEnd])
+                    ->whereBetween('updated_at', [$windowStart, $windowEnd])
                     ->count();
             }
         } else {
@@ -2264,11 +2270,15 @@ class TransaksiController extends Controller
             $harga = max(0, (int)$trx->total - (int)($trx->ongkos_kirim ?? 0));
             $bersih = $trx->status === 'selesai' ? $harga - (0.1 * $harga) : 0;
 
-            // default null
+            $original = $trx->updated_at->copy()->timezone('Asia/Jakarta');
+            $hour = (int)$original->format('H');
+
+            // default value
             $labelTrx = null;
+            $labelTanggal = $original->copy();
 
             if (!empty($weekRanges)) {
-                // mode monthly → cari minggu transaksi
+                // 🗓️ Mode monthly → cari minggu transaksi
                 foreach ($weekRanges as $label => [$start, $end]) {
                     if ($trx->updated_at->between($start, $end)) {
                         $labelTrx = $label;
@@ -2276,10 +2286,15 @@ class TransaksiController extends Controller
                     }
                 }
             } elseif ($year && $month && $date) {
-                // mode daily → pakai nama hari
-                $labelTrx = $trx->updated_at->locale('id')->translatedFormat('l');
+                // ☀️ Mode daily → pakai nama hari (06:00 - 05:59)
+                if ($hour < 6) {
+                    $labelTanggal = $original->copy()->addDay();
+                }
+
+                // Ambil nama hari sesuai label_tanggal
+                $labelTrx = $labelTanggal->locale('id')->translatedFormat('l');
             } else {
-                // fallback (yearly / all time) → bisa pakai bulan atau null
+                // 📅 Mode yearly / all time → pakai nama bulan
                 $labelTrx = $trx->updated_at->locale('id')->translatedFormat('F');
             }
 
@@ -2290,6 +2305,7 @@ class TransaksiController extends Controller
                 'pendapatan_bersih' => $bersih,
                 'tanggal'           => $trx->updated_at->format('d-m-Y H:i:s'),
                 'label'             => $labelTrx,
+                'label_tanggal'     => $labelTanggal->format('d-m-Y'),
             ];
         }
 
@@ -2309,23 +2325,45 @@ class TransaksiController extends Controller
             $totalPendapatan += $harga - (0.1 * $harga);
         }
 
-        return response()->json([
-            'labels'            => $labels,
-            'selesaiData'       => array_map('intval', $selesaiData),
-            'refundData'        => array_map('intval', $refundData),
-            'totalSelesai'      => intval(array_sum($selesaiData)),
-            'totalRefund'       => intval(array_sum($refundData)),
-            'totalPendapatan'   => intval($totalPendapatan),
-            'transaksi' => collect($transaksiList)->map(function ($trx) {
-                return [
-                    'id'                => intval($trx['id']),
-                    'status'            => $trx['status'],
-                    'harga'             => intval($trx['harga']),
-                    'pendapatan_bersih' => intval($trx['pendapatan_bersih']),
-                    'tanggal'           => $trx['tanggal'],
-                    'label'             => $trx['label'],
-                ];
-            }),
-        ]);
+        if ($year && $month && $date) {
+            return response()->json([
+                'labels'            => $labels,
+                'selesaiData'       => array_map('intval', $selesaiData),
+                'refundData'        => array_map('intval', $refundData),
+                'totalSelesai'      => intval(array_sum($selesaiData)),
+                'totalRefund'       => intval(array_sum($refundData)),
+                'totalPendapatan'   => intval($totalPendapatan),
+                'transaksi' => collect($transaksiList)->map(function ($trx) {
+                    return [
+                        'id'                => intval($trx['id']),
+                        'status'            => $trx['status'],
+                        'harga'             => intval($trx['harga']),
+                        'pendapatan_bersih' => intval($trx['pendapatan_bersih']),
+                        'tanggal'           => $trx['tanggal'],
+                        'label'             => $trx['label'],
+                        'label_tanggal'     => $trx['label_tanggal'],
+                    ];
+                }),
+            ]);
+        } else {
+            return response()->json([
+                'labels'            => $labels,
+                'selesaiData'       => array_map('intval', $selesaiData),
+                'refundData'        => array_map('intval', $refundData),
+                'totalSelesai'      => intval(array_sum($selesaiData)),
+                'totalRefund'       => intval(array_sum($refundData)),
+                'totalPendapatan'   => intval($totalPendapatan),
+                'transaksi' => collect($transaksiList)->map(function ($trx) {
+                    return [
+                        'id'                => intval($trx['id']),
+                        'status'            => $trx['status'],
+                        'harga'             => intval($trx['harga']),
+                        'pendapatan_bersih' => intval($trx['pendapatan_bersih']),
+                        'tanggal'           => $trx['tanggal'],
+                        'label'             => $trx['label'],
+                    ];
+                }),
+            ]);
+        }
     }
 }
