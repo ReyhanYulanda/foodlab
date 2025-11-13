@@ -2264,23 +2264,42 @@ class TransaksiController extends Controller
             $harga = max(0, (int)$trx->total - (int)($trx->ongkos_kirim ?? 0));
             $bersih = $trx->status === 'selesai' ? $harga - (0.1 * $harga) : 0;
 
-            // default null
             $labelTrx = null;
+            $labelTanggal = null;
 
-            if (!empty($weekRanges)) {
-                // mode monthly → cari minggu transaksi
-                foreach ($weekRanges as $label => [$start, $end]) {
-                    if ($trx->updated_at->between($start, $end)) {
-                        $labelTrx = $label;
-                        break;
-                    }
+            if ($year && $month && $date) {
+                // mode daily (mingguan)
+                $filterDate = Carbon::create($year, $month, $date);
+                $startOfWeek = $filterDate->copy()->startOfWeek(Carbon::MONDAY);
+                $endOfWeek   = $filterDate->copy()->endOfWeek(Carbon::SUNDAY);
+                $period = CarbonPeriod::create($startOfWeek, $endOfWeek);
+
+                // Map hari → tanggal sebenarnya
+                $labelDateMap = [];
+                foreach ($period as $day) {
+                    $labelDateMap[$day->locale('id')->translatedFormat('l')] = $day->format('d-m-Y');
                 }
-            } elseif ($year && $month && $date) {
-                // mode daily → pakai nama hari
-                $labelTrx = $trx->updated_at->locale('id')->translatedFormat('l');
+
+                // tentukan label hari transaksi berdasar aturan 06:00 s.d 05:59
+                $trxTime = $trx->updated_at;
+                $dayStart = $trxTime->copy()->setTime(6, 0, 0);
+                if ($trxTime->lt($dayStart)) {
+                    // Jika sebelum jam 06:00, berarti masih dihitung ke hari sebelumnya
+                    $labelTrx = $trxTime->copy()->subDay()->locale('id')->translatedFormat('l');
+                    $labelTanggal = $labelDateMap[$labelTrx] ?? $trxTime->subDay()->format('d-m-Y');
+                } else {
+                    // Setelah jam 06:00, gunakan hari aktual
+                    $labelTrx = $trxTime->locale('id')->translatedFormat('l');
+                    $labelTanggal = $labelDateMap[$labelTrx] ?? $trxTime->format('d-m-Y');
+                }
+
+                // Gabungkan tanggal label + jam dari waktu asli
+                $labelTanggal = Carbon::createFromFormat('d-m-Y H:i:s', $labelTanggal . ' ' . $trxTime->format('H:i:s'))
+                    ->format('d-m-Y H:i:s');
             } else {
-                // fallback (yearly / all time) → bisa pakai bulan atau null
+                // fallback (bulanan / tahunan / all time)
                 $labelTrx = $trx->updated_at->locale('id')->translatedFormat('F');
+                $labelTanggal = $trx->updated_at->format('d-m-Y H:i:s');
             }
 
             $transaksiList[] = [
@@ -2288,8 +2307,9 @@ class TransaksiController extends Controller
                 'status'            => $trx->status,
                 'harga'             => $harga,
                 'pendapatan_bersih' => $bersih,
-                'tanggal'           => $trx->updated_at->copy()->addDay()->format('d-m-Y H:i:s'),
+                'tanggal'           => $trx->updated_at->format('d-m-Y H:i:s'),
                 'label'             => $labelTrx,
+                'label_tanggal'     => $labelTanggal,
             ];
         }
 
@@ -2324,6 +2344,7 @@ class TransaksiController extends Controller
                     'pendapatan_bersih' => intval($trx['pendapatan_bersih']),
                     'tanggal'           => $trx['tanggal'],
                     'label'             => $trx['label'],
+                    'label_tanggal'     => $trx['label_tanggal'],
                 ];
             }),
         ]);
