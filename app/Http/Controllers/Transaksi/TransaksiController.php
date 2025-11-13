@@ -2232,11 +2232,13 @@ class TransaksiController extends Controller
             $harga = max(0, (int)$trx->total - (int)($trx->ongkos_kirim ?? 0));
             $bersih = $trx->status === 'selesai' ? $harga - (0.1 * $harga) : 0;
 
-            // Geser waktu transaksi 6 jam ke depan untuk menentukan hari label
-            // $shiftedTime = $trx->updated_at->copy()->addHours(6);
             $original = $trx->updated_at->copy();
 
-            if ($original->format('H') < 6) {
+            // tentukan waktu batas hari (jam 06:00)
+            $dayStart = $original->copy()->setTime(6, 0, 0);
+
+            // kalau waktu transaksi < 06:00 → geser ke hari berikutnya
+            if ($original->lt($dayStart)) {
                 $shifted = $original->copy()->addDay();
             } else {
                 $shifted = $original->copy();
