@@ -106,6 +106,30 @@ class AutoCancelOrder extends Command
                             'deskripsi' => 'Refund pesanan multitenant #' . $transaksi->multitenant_id,
                         ]);
 
+                        // ✅ Tambahan: kembalikan voucher & cashback jika semua refund / auto cancel
+                        $transaksiDenganVoucher = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                            ->whereNotNull('voucher_id')
+                            ->first();
+
+                        if ($transaksiDenganVoucher && $transaksiDenganVoucher->voucher_id) {
+                            $voucher = $transaksiDenganVoucher->voucher;
+
+                            if ($voucher) {
+                                // Hapus catatan penggunaan voucher
+                                CatatVoucher::where('transaksi_id', $transaksiDenganVoucher->id)->delete();
+
+                                // Kembalikan stok voucher
+                                $voucher->increment('quantity');
+
+                                // Kembalikan stok cashback (jika ada relasi)
+                                if ($voucher->cashback) {
+                                    $voucher->cashback->increment('quantity');
+                                }
+
+                                Log::info("🔁 Voucher #{$voucher->id} dikembalikan otomatis karena semua transaksi multitenant #{$transaksi->multitenant_id} refund (auto cancel).");
+                            }
+                        }
+
                         // Notifikasi refund penuh ke user
                         if (!empty($fcmUserToken)) {
                             $firebases
@@ -174,17 +198,19 @@ class AutoCancelOrder extends Command
 
         CatatVoucher::where('transaksi_id', $transaksi->id)->delete();
 
-        if ($transaksi->cashback_amount > 0 && $transaksi->voucher_id) {
-            $voucher = $transaksi->voucher;
+        if ($transaksi->multitenant_id === null) {
+            if ($transaksi->cashback_amount > 0 && $transaksi->voucher_id) {
+                $voucher = $transaksi->voucher;
 
-            if ($voucher) {
-                $voucher->increment('quantity');
+                if ($voucher) {
+                    $voucher->increment('quantity');
 
-                if ($voucher->cashback) {
-                    $voucher->cashback->increment('quantity');
+                    if ($voucher->cashback) {
+                        $voucher->cashback->increment('quantity');
+                    }
+
+                    Log::info("Voucher #{$voucher->id} dikembalikan karena refund transaksi #{$transaksi->id}");
                 }
-
-                Log::info("Voucher #{$voucher->id} dikembalikan karena refund transaksi #{$transaksi->id}");
             }
         }
     }
