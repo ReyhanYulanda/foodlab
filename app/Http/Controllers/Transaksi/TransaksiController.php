@@ -439,6 +439,61 @@ class TransaksiController extends Controller
                 }
 
                 $createdTransaksi = [];
+                $voucherId = $request->input('voucher_id');
+                $voucher = null;
+                $cashback = null;
+                $assignCashback = 0;
+
+                if ($voucherId) {
+                    $voucher = Voucher::with('cashback')
+                        ->where('id', $voucherId)
+                        ->where('user_id', $user->id)
+                        ->first();
+
+                    if (!$voucher) {
+                        return response()->json([
+                            'status'  => 'failed',
+                            'message' => 'Voucher tidak valid'
+                        ], 400);
+                    }
+
+                    $cashback = $voucher->cashback;
+
+                    if (!$cashback) {
+                        return response()->json([
+                            'status'  => 'failed',
+                            'message' => 'Cashback tidak ditemukan'
+                        ], 400);
+                    }
+
+                    if ($cashback->quantity <= 0) {
+                        return response()->json([
+                            'status'  => 'failed',
+                            'message' => 'Cashback sudah habis'
+                        ], 400);
+                    }
+
+                    if (now()->gt($cashback->end_date)) {
+                        return response()->json([
+                            'status'  => 'failed',
+                            'message' => 'Cashback telah expired'
+                        ], 400);
+                    }
+
+                    if ($voucher->quantity <= 0) {
+                        return response()->json([
+                            'status'  => 'failed',
+                            'message' => 'Voucher sudah habis'
+                        ], 400);
+                    }
+
+                    if (!$cashback->is_valid) {
+                        return response()->json([
+                            'status'  => 'failed',
+                            'message' => 'Cashback tidak valid'
+                        ], 400);
+                    }
+                }
 
                 // Sekarang buat transaksi per tenant — gunakan nilai dari pre-calc agar konsisten
                 foreach ($perTenantCalc as $tenantId => $calc) {
@@ -558,41 +613,37 @@ class TransaksiController extends Controller
                     }
                 }
 
-                if ($isMultiTenant && !empty($createdTransaksi)) {
-                    $transaksiUntukCashback = $createdTransaksi[0]; // ambil transaksi pertama dalam grup
+                if ($voucher && $cashback && !empty($createdTransaksi)) {
+                    $transaksiUntukCashback = $createdTransaksi[0];
+                    $totalFinal = $transaksiUntukCashback->total;
 
-                    // Cek apakah sudah ada cashback dicatat untuk multitenant ini (jaga-jaga kalau bug double create)
-                    $sudahAdaCashback = CatatVoucher::whereIn(
-                        'transaksi_id',
-                        collect($createdTransaksi)->pluck('id')
-                    )->exists();
-
-                    if (!$sudahAdaCashback) {
-                        // Ambil voucher aktif user (yang valid)
-                        $voucher = Voucher::where('user_id', $user->id)
-                            ->whereHas('cashback', function ($q) {
-                                $q->where('is_valid', true);
-                            })
-                            ->first();
-
-                        if ($voucher) {
-                            CatatVoucher::create([
-                                'user_id' => $user->id,
-                                'transaksi_id' => $transaksiUntukCashback->id,
-                                'voucher_id' => $voucher->id,
-                                'quantity_voucher' => 1,
-                                'cashback_amount' => $voucher->cashback->value,
-                            ]);
-
-                            Log::info('Cashback diberikan hanya ke 1 transaksi multitenant', [
-                                'transaksi_id' => $transaksiUntukCashback->id,
-                                'cashback_value' => $voucher->cashback->value,
-                            ]);
-                        } else {
-                            Log::info('Tidak ada voucher aktif untuk user, cashback dilewati', [
-                                'user_id' => $user->id,
-                            ]);
+                    if ($totalFinal < $cashback->minimal_beli) {
+                        // tidak memenuhi minimum
+                        Log::info('Transaksi multitenant tidak memenuhi minimal beli cashback', [
+                            'transaksi_id' => $transaksiUntukCashback->id,
+                            'minimal_beli' => $cashback->minimal_beli
+                        ]);
+                    } else {
+                        $assignCashback = $totalFinal * $cashback->value;
+                        if ($assignCashback > $cashback->max_cashback) {
+                            $assignCashback = $cashback->max_cashback;
                         }
+
+                        $cashback->decrement('quantity');
+                        $voucher->decrement('quantity');
+
+                        CatatVoucher::create([
+                            'user_id' => $user->id,
+                            'transaksi_id' => $transaksiUntukCashback->id,
+                            'voucher_id' => $voucher->id,
+                            'quantity_voucher' => 1,
+                            'cashback_amount' => $assignCashback,
+                        ]);
+
+                        Log::info('Cashback diberikan hanya ke 1 transaksi multitenant', [
+                            'transaksi_id' => $transaksiUntukCashback->id,
+                            'cashback_value' => $assignCashback,
+                        ]);
                     }
                 }
 
