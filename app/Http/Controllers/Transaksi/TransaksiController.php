@@ -2286,15 +2286,27 @@ class TransaksiController extends Controller
                     }
                 }
             } elseif ($year && $month && $date) {
-                // ☀️ Mode daily → pakai nama hari (06:00 - 05:59)
+                // ☀️ Mode daily → perhitungan transaksi harian dimulai dari 06:00 hari sebelumnya hingga 05:59 hari ini
                 $original = $trx->updated_at->copy()->timezone('Asia/Jakarta');
                 $hour = (int)$original->format('H');
 
-                // logika: semua transaksi dimulai dari jam 06:00 hari sebelumnya
-                // jadi semua digeser +1 hari dari hari transaksi aktual
-                $labelTanggal = $original->copy()->addDay();
+                // Ambil tanggal yang dipilih user
+                $selectedDate = Carbon::createFromDate($year, $month, $date, 'Asia/Jakarta')->startOfDay();
 
-                // ambil nama hari sesuai label_tanggal
+                // Rentang waktu 06:00 hari sebelumnya hingga 05:59 hari yang dipilih
+                $startOfCycle = $selectedDate->copy()->subDay()->setTime(6, 0, 0);
+                $endOfCycle   = $selectedDate->copy()->setTime(5, 59, 59)->addDay(); // 05:59 hari berikutnya
+
+                // Tentukan label_tanggal sesuai logika 06:00–05:59
+                if ($original->between($startOfCycle, $endOfCycle)) {
+                    // Masuk dalam range hari yang dipilih → label pakai tanggal user pilih
+                    $labelTanggal = $selectedDate;
+                } else {
+                    // Di luar range → pakai tanggal sebenarnya
+                    $labelTanggal = $original->copy();
+                }
+
+                // Ambil nama hari sesuai label_tanggal
                 $label = $labelTanggal->locale('id')->translatedFormat('l');
             } else {
                 // 📅 Mode yearly / all time → pakai nama bulan
