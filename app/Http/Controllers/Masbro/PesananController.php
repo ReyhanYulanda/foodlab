@@ -837,6 +837,80 @@ class PesananController extends Controller
                     // === FLOW DRIVER: ONGKIR MULTITENANT / NON-MULTITENANT ===
                     if ($transaksi->driver_id) {
                         $isMultiTenant = $transaksi->multitenant_id !== null;
+                        $related = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                            ->where('id', '!=', $transaksi->id)
+                            ->first();
+
+                        if ($related) {
+                            $bothRefund =
+                                in_array($transaksi->status, ['refund_selesai', 'refund']) &&
+                                in_array($related->status, ['refund_selesai', 'refund']);
+
+                            // Ambil transaksi mana yang punya cashback_amount > 0
+                            $transaksiCashback = null;
+                            if ($transaksi->cashback_amount > 0) {
+                                $transaksiCashback = $transaksi;
+                            } elseif ($related->cashback_amount > 0) {
+                                $transaksiCashback = $related;
+                            }
+                            $atLeastOneSelesai =
+                                in_array($transaksi->status, ['selesai']) ||
+                                in_array($related->status, ['selesai']);
+
+                            if ($transaksiCashback && !$bothRefund && $atLeastOneSelesai) {
+                                $user = $transaksiCashback->user;
+                                $cashbackValue = $transaksiCashback->cashback_amount;
+
+                                if ($cashbackValue > 0) {
+                                    // Tambahkan ke saldo user
+                                    $saldo = SaldoKoin::firstOrCreate(
+                                        ['user_id' => $user->id],
+                                        ['jumlah' => 0]
+                                    );
+
+                                    $saldo->jumlah += $cashbackValue;
+                                    $saldo->save();
+
+                                    // Catat transaksi saldo
+                                    TransaksiSaldoKoin::create([
+                                        'user_id'   => $user->id,
+                                        'jumlah'    => $cashbackValue,
+                                        'tipe'      => 'masuk',
+                                        'deskripsi' => "Cashback pesanan #{$transaksiCashback->kode_pemesanan} telah masuk",
+                                    ]);
+
+                                    Log::info("✅ Cashback: {$cashbackValue} diberikan ke {$user->name} dari transaksi #{$transaksiCashback->id}");
+
+                                    // Kirim notifikasi FCM ke user
+                                    $fcmUser = User::with('fcmTokens')->find($user->id);
+                                    $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+
+                                    if (!empty($fcmUserToken)) {
+                                        $title = 'Cashback berhasil didapatkan';
+                                        $body  = "Cashback sebesar {$cashbackValue} telah masuk ke akunmu.";
+
+                                        $firebases->withNotification($title, $body)
+                                            ->withData([
+                                                'title'        => $title,
+                                                'body'         => $body,
+                                                'type'         => 'cashback',
+                                                'transaksi_id' => $transaksiCashback->id,
+                                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                            ])
+                                            ->sendToFallback($fcmUserToken);
+                                    }
+                                }
+                            } else {
+                                Log::info("💤 Cashback dilewati — kondisi tidak terpenuhi (both refund / tidak ada yang selesai / tidak ada cashback).", [
+                                    'transaksi_id' => $transaksi->id,
+                                    'related_id'   => $related->id ?? null,
+                                    'status1'      => $transaksi->status,
+                                    'status2'      => $related->status,
+                                    'cashback1'    => $transaksi->cashback_amount,
+                                    'cashback2'    => $related->cashback_amount,
+                                ]);
+                            }
+                        }
 
                         if ($transaksi->driver_id && $transaksi->multitenant_id) {
                             $related = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
