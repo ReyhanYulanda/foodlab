@@ -934,6 +934,31 @@ class PesananController extends Controller
                             $priorityOngkir = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
                             $pajakPersen = 10;
 
+                            // 🔄 Swap ongkir jika salah satu refund dan lainnya selesai
+                            if ($related) {
+                                $refundCondition = (
+                                    ($transaksi->status === 'refund_selesai' && $related->status === 'selesai') ||
+                                    ($transaksi->status === 'selesai' && $related->status === 'refund_selesai')
+                                );
+
+                                // 💡 Pastikan belum pernah diswap sebelumnya
+                                $alreadySwapped = (
+                                    ($transaksi->ongkos_kirim < $related->ongkos_kirim && $transaksi->status === 'refund_selesai') ||
+                                    ($related->ongkos_kirim < $transaksi->ongkos_kirim && $related->status === 'refund_selesai')
+                                );
+
+                                if ($refundCondition && !$alreadySwapped && $transaksi->ongkos_kirim !== $related->ongkos_kirim) {
+                                    $tempOngkir = $transaksi->ongkos_kirim;
+                                    $transaksi->ongkos_kirim = $related->ongkos_kirim;
+                                    $related->ongkos_kirim = $tempOngkir;
+
+                                    $transaksi->save();
+                                    $related->save();
+
+                                    Log::info("🔄 [SWAP ONCE] Ongkir ditukar antara transaksi #{$transaksi->id} dan #{$related->id}");
+                                }
+                            }
+
                             // Tentukan status pasangan
                             $bothSelesai = $transaksi->status === 'selesai' && $related && $related->status === 'selesai';
                             $oneRefund   = $related && in_array($related->status, ['refund_selesai', 'refund']);
