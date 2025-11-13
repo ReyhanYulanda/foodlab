@@ -2235,24 +2235,12 @@ class TransaksiController extends Controller
             $original = $trx->updated_at->copy()->timezone('Asia/Jakarta');
             $hour = (int)$original->format('H');
 
-            // Kalau jam >= 6 → masih dalam "hari berjalan" yang dimulai jam 6 pagi hari itu
-            // Kalau jam < 6 → berarti masih di rentang "malam sebelumnya", geser 1 hari ke depan
-            if ($hour < 6) {
-                // 00:00 - 05:59 → masuk ke hari berikutnya
-                $shifted = $original->copy()->addDay();
-            } else {
-                // 06:00 - 23:59 → masuk ke hari saat ini + 1 hari untuk sistem 06:00-05:59
-                $shifted = $original->copy()->addDay();
-            }
+            // logika: semua transaksi dimulai dari jam 06:00 hari sebelumnya
+            // jadi semua digeser +1 hari dari hari transaksi aktual
+            $labelTanggal = $original->copy()->addDay();
 
-            // karena jam >=6 harusnya tetap hari itu, tapi jam<6 baru digeser
-            // maka kita ubah logika sedikit:
-            if ($hour >= 6) {
-                $shifted = $original->copy();
-            }
-
-            $label = $shifted->locale('id')->translatedFormat('l');
-            $labelTanggal = $shifted->format('d-m-Y H:i:s');
+            // ambil nama hari sesuai label_tanggal
+            $label = $labelTanggal->locale('id')->translatedFormat('l');
 
             $transaksiList[] = [
                 'id'                => $trx->id,
@@ -2261,7 +2249,7 @@ class TransaksiController extends Controller
                 'pendapatan_bersih' => $bersih,
                 'tanggal'           => $original->format('d-m-Y H:i:s'),
                 'label'             => $label,
-                'label_tanggal'     => $labelTanggal,
+                'label_tanggal'     => $labelTanggal->format('d-m-Y'),
             ];
         }
 
