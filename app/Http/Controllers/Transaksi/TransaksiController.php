@@ -2065,7 +2065,7 @@ class TransaksiController extends Controller
 
     public function getPenghasilanTenant(Request $request)
     {
-        $tenantId = $request->user()->id;
+        $tenantId = $request->user()->id; // ambil id tenant dari user login
         $year     = $request->query('year');
         $month    = $request->query('month');
         $date     = $request->query('date');
@@ -2075,25 +2075,28 @@ class TransaksiController extends Controller
         $refundData    = [];
         $transaksiList = [];
 
+        // default: all time
         $dateStart = null;
         $dateEnd   = null;
 
         if ($year && !$month && !$date) {
-            // =========================
-            // MODE YEARLY
-            // =========================
+            // mode yearly → data per bulan
             for ($m = 1; $m <= 12; $m++) {
                 $start = Carbon::create($year, $m, 1)->startOfMonth();
                 $end   = Carbon::create($year, $m, 1)->endOfMonth();
 
                 $labels[] = $start->locale('id')->translatedFormat('F');
 
-                $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
+                $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+                    $q->where('user_id', $tenantId);
+                })
                     ->where('status', 'selesai')
                     ->whereBetween('updated_at', [$start, $end])
                     ->count();
 
-                $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
+                $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+                    $q->where('user_id', $tenantId);
+                })
                     ->where('status', 'refund_selesai')
                     ->whereBetween('updated_at', [$start, $end])
                     ->count();
@@ -2102,12 +2105,11 @@ class TransaksiController extends Controller
             $dateStart = Carbon::create($year, 1, 1)->startOfYear();
             $dateEnd   = Carbon::create($year, 12, 31)->endOfYear();
         } elseif ($year && $month && !$date) {
-            // =========================
-            // MODE MONTHLY
-            // =========================
+            // mode monthly → data per minggu (maks 5 minggu)
             $startOfMonth = Carbon::create($year, $month, 1)->startOfMonth();
             $endOfMonth   = Carbon::create($year, $month, 1)->endOfMonth();
 
+            // 1) Bentuk minggu mentah (Senin–Minggu), lalu clamp ke dalam bulan
             $period = CarbonPeriod::create(
                 $startOfMonth->copy()->startOfWeek(Carbon::MONDAY),
                 '1 week',
@@ -2117,47 +2119,78 @@ class TransaksiController extends Controller
             $rawWeeks = [];
             foreach ($period as $weekStart) {
                 $weekEnd = $weekStart->copy()->endOfWeek(Carbon::SUNDAY);
+
+                // Clamp ke bulan
                 if ($weekStart < $startOfMonth) $weekStart = $startOfMonth->copy();
-                if ($weekEnd > $endOfMonth) $weekEnd = $endOfMonth->copy();
+                if ($weekEnd   > $endOfMonth)   $weekEnd   = $endOfMonth->copy();
+
+                // Abaikan jika sudah invalid setelah clamp
                 if ($weekStart > $weekEnd) continue;
+
                 $rawWeeks[] = [$weekStart, $weekEnd];
             }
 
+            // 2) Normalisasi ke maksimal 5 minggu:
+            //    Jika dapat 6 minggu, gabungkan minggu dengan durasi paling kecil ke tetangganya.
             if (count($rawWeeks) > 5) {
-                $durations = array_map(fn($r) => $r[0]->diffInDays($r[1]) + 1, $rawWeeks);
+                // Hitung durasi (hari) tiap minggu
+                $durations = array_map(function ($range) {
+                    /** @var Carbon $a; @var Carbon $b */
+                    [$a, $b] = $range;
+                    return $a->diffInDays($b) + 1; // inklusif
+                }, $rawWeeks);
+
                 $minIdx = array_keys($durations, min($durations))[0];
+
+                // Prefer merge minggu parsial awal ke minggu berikutnya,
+                // kalau parsialnya di akhir, merge ke sebelumnya.
                 if ($minIdx === 0 && isset($rawWeeks[1])) {
+                    // Gabungkan awal → minggu ke-2
                     $rawWeeks[1][0] = $rawWeeks[0][0]->copy();
                     array_splice($rawWeeks, 0, 1);
                 } elseif ($minIdx === count($rawWeeks) - 1 && isset($rawWeeks[$minIdx - 1])) {
+                    // Gabungkan akhir → minggu sebelumnya
                     $rawWeeks[$minIdx - 1][1] = $rawWeeks[$minIdx][1]->copy();
                     array_splice($rawWeeks, $minIdx, 1);
                 } else {
+                    // Parsial di tengah: pilih tetangga dengan durasi lebih kecil agar gabungan tetap seimbang
                     $leftDur  = $durations[$minIdx - 1] ?? PHP_INT_MAX;
                     $rightDur = $durations[$minIdx + 1] ?? PHP_INT_MAX;
+
                     if ($rightDur <= $leftDur && isset($rawWeeks[$minIdx + 1])) {
+                        // merge ke kanan
                         $rawWeeks[$minIdx + 1][0] = $rawWeeks[$minIdx][0]->copy();
                         array_splice($rawWeeks, $minIdx, 1);
                     } else {
+                        // merge ke kiri
                         $rawWeeks[$minIdx - 1][1] = $rawWeeks[$minIdx][1]->copy();
                         array_splice($rawWeeks, $minIdx, 1);
                     }
                 }
             }
 
+            // 3) Pakai $rawWeeks (sudah <= 5) sebagai $weekRanges final
             $weekRanges = [];
+            $labels = [];
+            $selesaiData = [];
+            $refundData = [];
+
             $week = 1;
             foreach ($rawWeeks as [$weekStart, $weekEnd]) {
                 $label = "Minggu {$week}";
                 $labels[] = $label;
                 $weekRanges[$label] = [$weekStart, $weekEnd];
 
-                $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
+                $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+                    $q->where('user_id', $tenantId);
+                })
                     ->where('status', 'selesai')
                     ->whereBetween('updated_at', [$weekStart, $weekEnd])
                     ->count();
 
-                $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
+                $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+                    $q->where('user_id', $tenantId);
+                })
                     ->where('status', 'refund_selesai')
                     ->whereBetween('updated_at', [$weekStart, $weekEnd])
                     ->count();
@@ -2208,23 +2241,28 @@ class TransaksiController extends Controller
                     ->count();
             }
         } else {
-            // =========================
-            // MODE ALL TIME
-            // =========================
+            // mode all time
             $labels[] = 'All Time';
-            $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
+
+            $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+                $q->where('user_id', $tenantId);
+            })
                 ->where('status', 'selesai')
                 ->count();
-            $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
+
+            $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+                $q->where('user_id', $tenantId);
+            })
                 ->where('status', 'refund_selesai')
                 ->count();
         }
 
-        // =========================================================
-        // DAFTAR TRANSAKSI (LABEL PER TRANSAKSI)
-        // =========================================================
-        $transaksiQuery = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
-            ->when($dateStart && $dateEnd, fn($q) => $q->whereBetween('updated_at', [$dateStart, $dateEnd]))
+        // transaksi detail (list)
+        $transaksiQuery = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+            $q->where('user_id', $tenantId);
+        })->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
+            $q->whereBetween('updated_at', [$dateStart, $dateEnd]);
+        })
             ->orderBy('updated_at', 'asc')
             ->get();
 
@@ -2253,34 +2291,61 @@ class TransaksiController extends Controller
             ];
         }
 
-        // =========================================================
-        // TOTAL PENDAPATAN
-        // =========================================================
-        $totalPendapatan = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
+        // total pendapatan bersih
+        $totalPendapatan = 0;
+        $transaksiSelesai = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
+            $q->where('user_id', $tenantId);
+        })
             ->where('status', 'selesai')
-            ->when($dateStart && $dateEnd, fn($q) => $q->whereBetween('updated_at', [$dateStart, $dateEnd]))
-            ->get()
-            ->sum(function ($trx) {
-                $harga = ($trx->total ?? 0) - ($trx->ongkos_kirim ?? 0);
-                return $harga - (0.1 * $harga);
-            });
+            ->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
+                $q->whereBetween('updated_at', [$dateStart, $dateEnd]);
+            })
+            ->get();
 
-        return response()->json([
-            'labels'          => $labels,
-            'selesaiData'     => array_map('intval', $selesaiData),
-            'refundData'      => array_map('intval', $refundData),
-            'totalSelesai'    => intval(array_sum($selesaiData)),
-            'totalRefund'     => intval(array_sum($refundData)),
-            'totalPendapatan' => intval($totalPendapatan),
-            'transaksi'       => collect($transaksiList)->map(fn($trx) => [
-                'id'                => intval($trx['id']),
-                'status'            => $trx['status'],
-                'harga'             => intval($trx['harga']),
-                'pendapatan_bersih' => intval($trx['pendapatan_bersih']),
-                'tanggal'           => $trx['tanggal'],
-                'label'             => $trx['label'],
-                'label_tanggal'     => $trx['label_tanggal'],
-            ]),
-        ]);
+        foreach ($transaksiSelesai as $trx) {
+            $harga = ($trx->total ?? 0) - ($trx->ongkos_kirim ?? 0);
+            $totalPendapatan += $harga - (0.1 * $harga);
+        }
+
+        if ($year && $month && $date) {
+            return response()->json([
+                'labels'            => $labels,
+                'selesaiData'       => array_map('intval', $selesaiData),
+                'refundData'        => array_map('intval', $refundData),
+                'totalSelesai'      => intval(array_sum($selesaiData)),
+                'totalRefund'       => intval(array_sum($refundData)),
+                'totalPendapatan'   => intval($totalPendapatan),
+                'transaksi' => collect($transaksiList)->map(function ($trx) {
+                    return [
+                        'id'                => intval($trx['id']),
+                        'status'            => $trx['status'],
+                        'harga'             => intval($trx['harga']),
+                        'pendapatan_bersih' => intval($trx['pendapatan_bersih']),
+                        'tanggal'           => $trx['tanggal'],
+                        'label'             => $trx['label'],
+                        'label_tanggal'     => $trx['label_tanggal'],
+                    ];
+                }),
+            ]);
+        } else {
+            return response()->json([
+                'labels'            => $labels,
+                'selesaiData'       => array_map('intval', $selesaiData),
+                'refundData'        => array_map('intval', $refundData),
+                'totalSelesai'      => intval(array_sum($selesaiData)),
+                'totalRefund'       => intval(array_sum($refundData)),
+                'totalPendapatan'   => intval($totalPendapatan),
+                'transaksi' => collect($transaksiList)->map(function ($trx) {
+                    return [
+                        'id'                => intval($trx['id']),
+                        'status'            => $trx['status'],
+                        'harga'             => intval($trx['harga']),
+                        'pendapatan_bersih' => intval($trx['pendapatan_bersih']),
+                        'tanggal'           => $trx['tanggal'],
+                        'label'             => $trx['label'],
+                    ];
+                }),
+            ]);
+        }
     }
 }
