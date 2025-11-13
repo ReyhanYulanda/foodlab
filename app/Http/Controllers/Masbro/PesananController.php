@@ -762,7 +762,8 @@ class PesananController extends Controller
                 if ($transaksi->status == 'selesai') {
                     if (
                         $transaksi->status === 'selesai' &&
-                        $transaksi->cashback_amount > 0
+                        $transaksi->cashback_amount > 0 &&
+                        $transaksi->multitenant_id === null
                     ) {
                         $user = $transaksi->user;
 
