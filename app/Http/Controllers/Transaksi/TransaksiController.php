@@ -2286,12 +2286,12 @@ class TransaksiController extends Controller
                     }
                 }
             } elseif ($year && $month && $date) {
-                // 🌙 mode daily (hari aktif 18:00 – 05:59)
-                if ($hour >= 6 && $hour < 18) {
-                    // 06:00 - 17:59 → masuk hari berikutnya
+                // 🌙 mode daily (hari aktif = mulai dari jam 06:00 pagi sampai 05:59 besoknya)
+                if ($hour >= 6) {
+                    // Semua jam 06:00 ke atas → dianggap hari berikutnya
                     $labelTanggal = $original->copy()->addDay();
                 } else {
-                    // 18:00 - 05:59 → tetap hari itu
+                    // Jam 00:00 - 05:59 → tetap hari itu
                     $labelTanggal = $original->copy();
                 }
 
