@@ -77,6 +77,7 @@ class VoucherController extends Controller
                     ->whereDate('end_date', '>=', now())
                     ->where('quantity', '>', 0);
             })
+            ->where('quantity', '>', 0)
             ->get();
 
         return response()->json([
