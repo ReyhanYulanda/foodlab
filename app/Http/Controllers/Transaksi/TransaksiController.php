@@ -443,6 +443,7 @@ class TransaksiController extends Controller
                 $voucher = null;
                 $cashback = null;
                 $assignCashback = 0;
+                $voucherApplied = false;
 
                 if ($voucherId) {
                     $voucher = Voucher::with('cashback')
@@ -493,6 +494,8 @@ class TransaksiController extends Controller
                             'message' => 'Cashback tidak valid'
                         ], 400);
                     }
+                    $voucher = Voucher::with('cashback')->where('id', $voucherId)->where('user_id', $user->id)->first();
+                    $cashback = $voucher ? $voucher->cashback : null;
                 }
 
                 // Sekarang buat transaksi per tenant — gunakan nilai dari pre-calc agar konsisten
@@ -504,6 +507,30 @@ class TransaksiController extends Controller
                     $ongkosKirim = $calc['ongkosKirim'];
                     $biayaLayanan = $calc['biayaLayanan'];
                     $totalFinal = $calc['totalFinal'];
+
+                    $applyThis = false;
+                    $assignCashback = 0;
+                    if ($voucher && $cashback && !$voucherApplied) {
+                        $tt = $calc['totalFinal']; // total untuk transaksi ini
+                        if ($tt >= ($cashback->minimal_beli ?? 0)) {
+                            // hitung nilai cashback dan batasi max
+                            $assignCashback = $tt * $cashback->value;
+                            if ($cashback->max_cashback && $assignCashback > $cashback->max_cashback) {
+                                $assignCashback = $cashback->max_cashback;
+                            }
+                            // hanya apply kalau nilai cashback > 0 (opsional)
+                            if ($assignCashback > 0) {
+                                $applyThis = true;
+                            }
+                        } else {
+                            // jika transaksi pertama tidak memenuhi minimal_beli, kita lanjut ke transaksi berikutnya
+                            Log::info('Transaksi multitenant - transaksi ini tidak memenuhi minimal_beli untuk cashback', [
+                                'tenant_id' => $tenantId,
+                                'total' => $tt,
+                                'minimal_beli' => $cashback->minimal_beli ?? null,
+                            ]);
+                        }
+                    }
 
                     // Create transaksi
                     $transaksi = Transaksi::create([
@@ -520,6 +547,8 @@ class TransaksiController extends Controller
                         'biaya_layanan' => $biayaLayanan,
                         'catatan_lokasi_pengantaran' => $request->catatan_lokasi_pengantaran ?? null,
                         'multitenant_id' => $multitenantId,
+                        'voucher_id' => $applyThis ? $voucher->id : null,
+                        'cashback_amount' => $applyThis ? $assignCashback : 0,
                     ]);
 
                     // generate kode pemesanan unik per transaksi
@@ -557,6 +586,29 @@ class TransaksiController extends Controller
                             'tipe' => 'keluar',
                             'deskripsi' => 'Pembayaran pesanan #' . $transaksi->id,
                         ]);
+                    }
+
+                    // jika kita apply voucher ke transaksi ini, catat CatatVoucher & decrement quantity (HANYA SEKALI)
+                    if ($applyThis) {
+                        // decrement quantity di tabel cashback & voucher
+                        $cashback->decrement('quantity');
+                        $voucher->decrement('quantity');
+
+                        CatatVoucher::create([
+                            'user_id' => $user->id,
+                            'transaksi_id' => $transaksi->id,
+                            'voucher_id' => $voucher->id,
+                            'quantity_voucher' => 1,
+                            'cashback_amount' => $assignCashback,
+                        ]);
+
+                        Log::info('Cashback diberikan ke 1 transaksi multitenant (disimpan di transaksi).', [
+                            'transaksi_id' => $transaksi->id,
+                            'cashback_amount' => $assignCashback,
+                            'voucher_id' => $voucher->id,
+                        ]);
+
+                        $voucherApplied = true; // pastikan tidak diaplikasikan lagi
                     }
 
                     // simpan transaksi created
@@ -613,39 +665,39 @@ class TransaksiController extends Controller
                     }
                 }
 
-                if ($voucher && $cashback && !empty($createdTransaksi)) {
-                    $transaksiUntukCashback = $createdTransaksi[0];
-                    $totalFinal = $transaksiUntukCashback->total;
+                // if ($voucher && $cashback && !empty($createdTransaksi)) {
+                //     $transaksiUntukCashback = $createdTransaksi[0];
+                //     $totalFinal = $transaksiUntukCashback->total;
 
-                    if ($totalFinal < $cashback->minimal_beli) {
-                        // tidak memenuhi minimum
-                        Log::info('Transaksi multitenant tidak memenuhi minimal beli cashback', [
-                            'transaksi_id' => $transaksiUntukCashback->id,
-                            'minimal_beli' => $cashback->minimal_beli
-                        ]);
-                    } else {
-                        $assignCashback = $totalFinal * $cashback->value;
-                        if ($assignCashback > $cashback->max_cashback) {
-                            $assignCashback = $cashback->max_cashback;
-                        }
+                //     if ($totalFinal < $cashback->minimal_beli) {
+                //         // tidak memenuhi minimum
+                //         Log::info('Transaksi multitenant tidak memenuhi minimal beli cashback', [
+                //             'transaksi_id' => $transaksiUntukCashback->id,
+                //             'minimal_beli' => $cashback->minimal_beli
+                //         ]);
+                //     } else {
+                //         $assignCashback = $totalFinal * $cashback->value;
+                //         if ($assignCashback > $cashback->max_cashback) {
+                //             $assignCashback = $cashback->max_cashback;
+                //         }
 
-                        $cashback->decrement('quantity');
-                        $voucher->decrement('quantity');
+                //         $cashback->decrement('quantity');
+                //         $voucher->decrement('quantity');
 
-                        CatatVoucher::create([
-                            'user_id' => $user->id,
-                            'transaksi_id' => $transaksiUntukCashback->id,
-                            'voucher_id' => $voucher->id,
-                            'quantity_voucher' => 1,
-                            'cashback_amount' => $assignCashback,
-                        ]);
+                //         CatatVoucher::create([
+                //             'user_id' => $user->id,
+                //             'transaksi_id' => $transaksiUntukCashback->id,
+                //             'voucher_id' => $voucher->id,
+                //             'quantity_voucher' => 1,
+                //             'cashback_amount' => $assignCashback,
+                //         ]);
 
-                        Log::info('Cashback diberikan hanya ke 1 transaksi multitenant', [
-                            'transaksi_id' => $transaksiUntukCashback->id,
-                            'cashback_value' => $assignCashback,
-                        ]);
-                    }
-                }
+                //         Log::info('Cashback diberikan hanya ke 1 transaksi multitenant', [
+                //             'transaksi_id' => $transaksiUntukCashback->id,
+                //             'cashback_value' => $assignCashback,
+                //         ]);
+                //     }
+                // }
 
                 DB::commit();
 
