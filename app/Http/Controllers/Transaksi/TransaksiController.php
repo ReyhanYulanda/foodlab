@@ -2232,20 +2232,11 @@ class TransaksiController extends Controller
             $harga = max(0, (int)$trx->total - (int)($trx->ongkos_kirim ?? 0));
             $bersih = $trx->status === 'selesai' ? $harga - (0.1 * $harga) : 0;
 
-            $trxTime = $trx->updated_at->copy();
-            $jam06 = $trxTime->copy()->setTime(6, 0, 0);
+            // Geser waktu transaksi 6 jam ke depan untuk menentukan hari label
+            $shiftedTime = $trx->updated_at->copy()->addHours(6);
 
-            // 🧠 Perhitungan shift hari
-            // Jika sebelum jam 06:00 → hari label = hari berikutnya
-            if ($trxTime->lt($jam06)) {
-                $labelTime = $trxTime->copy()->addDay();
-            } else {
-                $labelTime = $trxTime->copy();
-            }
-
-            // Label dan tanggal label berdasarkan waktu hasil pergeseran
-            $label = $labelTime->locale('id')->translatedFormat('l');
-            $labelTanggal = $labelTime->format('d-m-Y') . ' ' . $trxTime->format('H:i:s');
+            $label = $shiftedTime->locale('id')->translatedFormat('l');
+            $labelTanggal = $shiftedTime->format('d-m-Y') . ' ' . $trx->updated_at->format('H:i:s');
 
             $transaksiList[] = [
                 'id'                => $trx->id,
