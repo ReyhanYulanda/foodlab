@@ -1211,19 +1211,21 @@ class TransaksiController extends Controller
                 $transaksi->catatan_penolakan = $request->input('catatan_penolakan');
             }
 
-            CatatVoucher::where('transaksi_id', $transaksi->id)->delete();
+            if ($transaksi->multitenant_id === null) {
+                CatatVoucher::where('transaksi_id', $transaksi->id)->delete();
 
-            if ($transaksi->cashback_amount > 0 && $transaksi->voucher_id) {
-                $voucher = $transaksi->voucher;
+                if ($transaksi->cashback_amount > 0 && $transaksi->voucher_id) {
+                    $voucher = $transaksi->voucher;
 
-                if ($voucher) {
-                    $voucher->increment('quantity');
+                    if ($voucher) {
+                        $voucher->increment('quantity');
 
-                    if ($voucher->cashback) {
-                        $voucher->cashback->increment('quantity');
+                        if ($voucher->cashback) {
+                            $voucher->cashback->increment('quantity');
+                        }
+
+                        Log::info("Voucher #{$voucher->id} dikembalikan karena refund transaksi #{$transaksi->id}");
                     }
-
-                    Log::info("Voucher #{$voucher->id} dikembalikan karena refund transaksi #{$transaksi->id}");
                 }
             }
 
@@ -1297,6 +1299,30 @@ class TransaksiController extends Controller
                             'tipe'      => 'masuk',
                             'deskripsi' => 'Refund pesanan multitenant #' . $transaksi->multitenant_id,
                         ]);
+
+                        // ✅ Tambahan: kembalikan voucher & cashback jika semua refund
+                        $transaksiDenganVoucher = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                            ->whereNotNull('voucher_id')
+                            ->first();
+
+                        if ($transaksiDenganVoucher && $transaksiDenganVoucher->voucher_id) {
+                            $voucher = $transaksiDenganVoucher->voucher;
+
+                            if ($voucher) {
+                                // Hapus catatan voucher
+                                CatatVoucher::where('transaksi_id', $transaksiDenganVoucher->id)->delete();
+
+                                // Kembalikan quantity voucher
+                                $voucher->increment('quantity');
+
+                                // Kembalikan quantity cashback (jika ada relasi)
+                                if ($voucher->cashback) {
+                                    $voucher->cashback->increment('quantity');
+                                }
+
+                                Log::info("🔁 Voucher #{$voucher->id} dikembalikan karena semua transaksi multitenant #{$transaksi->multitenant_id} refund.");
+                            }
+                        }
 
                         // Kirim notifikasi ke user
                         if (!empty($fcmUserToken)) {
