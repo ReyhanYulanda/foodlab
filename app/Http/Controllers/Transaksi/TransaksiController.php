@@ -2287,26 +2287,41 @@ class TransaksiController extends Controller
                 }
             } elseif ($year && $month && $date) {
                 // ☀️ Mode daily → pakai nama hari (06:00 - 05:59)
-                if ($hour < 6) {
-                    $labelTanggal = $original->copy()->addDay();
-                }
+                $original = $trx->updated_at->copy()->timezone('Asia/Jakarta');
+                $hour = (int)$original->format('H');
 
-                // Ambil nama hari sesuai label_tanggal
-                $labelTrx = $labelTanggal->locale('id')->translatedFormat('l');
+                // logika: semua transaksi dimulai dari jam 06:00 hari sebelumnya
+                // jadi semua digeser +1 hari dari hari transaksi aktual
+                $labelTanggal = $original->copy()->addDay();
+
+                // ambil nama hari sesuai label_tanggal
+                $label = $labelTanggal->locale('id')->translatedFormat('l');
             } else {
                 // 📅 Mode yearly / all time → pakai nama bulan
                 $labelTrx = $trx->updated_at->locale('id')->translatedFormat('F');
             }
 
-            $transaksiList[] = [
-                'id'                => $trx->id,
-                'status'            => $trx->status,
-                'harga'             => $harga,
-                'pendapatan_bersih' => $bersih,
-                'tanggal'           => $trx->updated_at->format('d-m-Y H:i:s'),
-                'label'             => $labelTrx,
-                'label_tanggal'     => $labelTanggal->format('d-m-Y'),
-            ];
+            if ($year && $month && $date) {
+                $transaksiList[] = [
+                    'id'                => $trx->id,
+                    'status'            => $trx->status,
+                    'harga'             => $harga,
+                    'pendapatan_bersih' => $bersih,
+                    'tanggal'           => $trx->updated_at->format('d-m-Y H:i:s'),
+                    'label'             => $label,
+                    'label_tanggal'     => $labelTanggal->format('d-m-Y'),
+                ];
+            } else {
+                $transaksiList[] = [
+                    'id'                => $trx->id,
+                    'status'            => $trx->status,
+                    'harga'             => $harga,
+                    'pendapatan_bersih' => $bersih,
+                    'tanggal'           => $trx->updated_at->format('d-m-Y H:i:s'),
+                    'label'             => $labelTrx,
+                    'label_tanggal'     => $labelTanggal->format('d-m-Y'),
+                ];
+            }
         }
 
         // total pendapatan bersih
