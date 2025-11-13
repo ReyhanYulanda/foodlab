@@ -2232,37 +2232,20 @@ class TransaksiController extends Controller
             $harga = max(0, (int)$trx->total - (int)($trx->ongkos_kirim ?? 0));
             $bersih = $trx->status === 'selesai' ? $harga - (0.1 * $harga) : 0;
 
-            $labelTrx = null;
-            $labelTanggal = null;
+            $trxTime = $trx->updated_at->copy();
+            $jam06 = $trxTime->copy()->setTime(6, 0, 0);
 
-            if (!empty($labelWindowMap)) {
-                $assigned = false;
-                foreach ($labelWindowMap as $dayName => [$start, $end]) {
-                    if ($trx->updated_at->between($start, $end)) {
-                        $labelTrx = $dayName;
-                        $datePart = $labelDateMap[$dayName];
-                        $timePart = $trx->updated_at->format('H:i:s');
-                        $labelTanggal = Carbon::createFromFormat('d-m-Y H:i:s', "$datePart $timePart")
-                            ->format('d-m-Y H:i:s');
-                        $assigned = true;
-                        break;
-                    }
-                }
-
-                if (!$assigned) {
-                    $dayStart = $trx->updated_at->copy()->setTime(6, 0, 0);
-                    if ($trx->updated_at->lt($dayStart)) {
-                        $labelTrx = $trx->updated_at->copy()->subDay()->locale('id')->translatedFormat('l');
-                        $labelTanggal = $trx->updated_at->copy()->subDay()->format('d-m-Y') . ' ' . $trx->updated_at->format('H:i:s');
-                    } else {
-                        $labelTrx = $trx->updated_at->locale('id')->translatedFormat('l');
-                        $labelTanggal = $trx->updated_at->format('d-m-Y H:i:s');
-                    }
-                }
+            // 🧠 Perhitungan shift hari
+            // Jika sebelum jam 06:00 → hari label = hari berikutnya
+            if ($trxTime->lt($jam06)) {
+                $labelTime = $trxTime->copy()->addDay();
             } else {
-                $labelTrx = $trx->updated_at->locale('id')->translatedFormat('F');
-                $labelTanggal = $trx->updated_at->format('d-m-Y H:i:s');
+                $labelTime = $trxTime->copy();
             }
+
+            // Label dan tanggal label berdasarkan waktu hasil pergeseran
+            $label = $labelTime->locale('id')->translatedFormat('l');
+            $labelTanggal = $labelTime->format('d-m-Y') . ' ' . $trxTime->format('H:i:s');
 
             $transaksiList[] = [
                 'id'                => $trx->id,
@@ -2270,7 +2253,7 @@ class TransaksiController extends Controller
                 'harga'             => $harga,
                 'pendapatan_bersih' => $bersih,
                 'tanggal'           => $trx->updated_at->format('d-m-Y H:i:s'),
-                'label'             => $labelTrx,
+                'label'             => $label,
                 'label_tanggal'     => $labelTanggal,
             ];
         }
