@@ -2065,7 +2065,7 @@ class TransaksiController extends Controller
 
     public function getPenghasilanTenant(Request $request)
     {
-        $tenantId = $request->user()->id; // ambil id tenant dari user login
+        $tenantId = $request->user()->id;
         $year     = $request->query('year');
         $month    = $request->query('month');
         $date     = $request->query('date');
@@ -2075,28 +2075,25 @@ class TransaksiController extends Controller
         $refundData    = [];
         $transaksiList = [];
 
-        // default: all time
         $dateStart = null;
         $dateEnd   = null;
 
         if ($year && !$month && !$date) {
-            // mode yearly → data per bulan
+            // =========================
+            // MODE YEARLY
+            // =========================
             for ($m = 1; $m <= 12; $m++) {
                 $start = Carbon::create($year, $m, 1)->startOfMonth();
                 $end   = Carbon::create($year, $m, 1)->endOfMonth();
 
                 $labels[] = $start->locale('id')->translatedFormat('F');
 
-                $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
-                    $q->where('user_id', $tenantId);
-                })
+                $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
                     ->where('status', 'selesai')
                     ->whereBetween('updated_at', [$start, $end])
                     ->count();
 
-                $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
-                    $q->where('user_id', $tenantId);
-                })
+                $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
                     ->where('status', 'refund_selesai')
                     ->whereBetween('updated_at', [$start, $end])
                     ->count();
@@ -2105,11 +2102,12 @@ class TransaksiController extends Controller
             $dateStart = Carbon::create($year, 1, 1)->startOfYear();
             $dateEnd   = Carbon::create($year, 12, 31)->endOfYear();
         } elseif ($year && $month && !$date) {
-            // mode monthly → data per minggu (maks 5 minggu)
+            // =========================
+            // MODE MONTHLY
+            // =========================
             $startOfMonth = Carbon::create($year, $month, 1)->startOfMonth();
             $endOfMonth   = Carbon::create($year, $month, 1)->endOfMonth();
 
-            // 1) Bentuk minggu mentah (Senin–Minggu), lalu clamp ke dalam bulan
             $period = CarbonPeriod::create(
                 $startOfMonth->copy()->startOfWeek(Carbon::MONDAY),
                 '1 week',
@@ -2119,78 +2117,47 @@ class TransaksiController extends Controller
             $rawWeeks = [];
             foreach ($period as $weekStart) {
                 $weekEnd = $weekStart->copy()->endOfWeek(Carbon::SUNDAY);
-
-                // Clamp ke bulan
                 if ($weekStart < $startOfMonth) $weekStart = $startOfMonth->copy();
-                if ($weekEnd   > $endOfMonth)   $weekEnd   = $endOfMonth->copy();
-
-                // Abaikan jika sudah invalid setelah clamp
+                if ($weekEnd > $endOfMonth) $weekEnd = $endOfMonth->copy();
                 if ($weekStart > $weekEnd) continue;
-
                 $rawWeeks[] = [$weekStart, $weekEnd];
             }
 
-            // 2) Normalisasi ke maksimal 5 minggu:
-            //    Jika dapat 6 minggu, gabungkan minggu dengan durasi paling kecil ke tetangganya.
             if (count($rawWeeks) > 5) {
-                // Hitung durasi (hari) tiap minggu
-                $durations = array_map(function ($range) {
-                    /** @var Carbon $a; @var Carbon $b */
-                    [$a, $b] = $range;
-                    return $a->diffInDays($b) + 1; // inklusif
-                }, $rawWeeks);
-
+                $durations = array_map(fn($r) => $r[0]->diffInDays($r[1]) + 1, $rawWeeks);
                 $minIdx = array_keys($durations, min($durations))[0];
-
-                // Prefer merge minggu parsial awal ke minggu berikutnya,
-                // kalau parsialnya di akhir, merge ke sebelumnya.
                 if ($minIdx === 0 && isset($rawWeeks[1])) {
-                    // Gabungkan awal → minggu ke-2
                     $rawWeeks[1][0] = $rawWeeks[0][0]->copy();
                     array_splice($rawWeeks, 0, 1);
                 } elseif ($minIdx === count($rawWeeks) - 1 && isset($rawWeeks[$minIdx - 1])) {
-                    // Gabungkan akhir → minggu sebelumnya
                     $rawWeeks[$minIdx - 1][1] = $rawWeeks[$minIdx][1]->copy();
                     array_splice($rawWeeks, $minIdx, 1);
                 } else {
-                    // Parsial di tengah: pilih tetangga dengan durasi lebih kecil agar gabungan tetap seimbang
                     $leftDur  = $durations[$minIdx - 1] ?? PHP_INT_MAX;
                     $rightDur = $durations[$minIdx + 1] ?? PHP_INT_MAX;
-
                     if ($rightDur <= $leftDur && isset($rawWeeks[$minIdx + 1])) {
-                        // merge ke kanan
                         $rawWeeks[$minIdx + 1][0] = $rawWeeks[$minIdx][0]->copy();
                         array_splice($rawWeeks, $minIdx, 1);
                     } else {
-                        // merge ke kiri
                         $rawWeeks[$minIdx - 1][1] = $rawWeeks[$minIdx][1]->copy();
                         array_splice($rawWeeks, $minIdx, 1);
                     }
                 }
             }
 
-            // 3) Pakai $rawWeeks (sudah <= 5) sebagai $weekRanges final
             $weekRanges = [];
-            $labels = [];
-            $selesaiData = [];
-            $refundData = [];
-
             $week = 1;
             foreach ($rawWeeks as [$weekStart, $weekEnd]) {
                 $label = "Minggu {$week}";
                 $labels[] = $label;
                 $weekRanges[$label] = [$weekStart, $weekEnd];
 
-                $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
-                    $q->where('user_id', $tenantId);
-                })
+                $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
                     ->where('status', 'selesai')
                     ->whereBetween('updated_at', [$weekStart, $weekEnd])
                     ->count();
 
-                $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
-                    $q->where('user_id', $tenantId);
-                })
+                $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
                     ->where('status', 'refund_selesai')
                     ->whereBetween('updated_at', [$weekStart, $weekEnd])
                     ->count();
@@ -2201,62 +2168,63 @@ class TransaksiController extends Controller
             $dateStart = $startOfMonth;
             $dateEnd   = $endOfMonth;
         } elseif ($year && $month && $date) {
-            // mode daily → ambil minggu dari tanggal yang dipilih
+            // =========================
+            // MODE DAILY (DENGAN WINDOW 06:00–05:59)
+            // =========================
             $filterDate = Carbon::create($year, $month, $date);
-
-            // tentukan rentang minggu (Senin - Minggu) berdasarkan tanggal itu
             $startOfWeek = $filterDate->copy()->startOfWeek(Carbon::MONDAY);
             $endOfWeek   = $filterDate->copy()->endOfWeek(Carbon::SUNDAY);
 
             $dateStart = $startOfWeek;
             $dateEnd   = $endOfWeek;
 
-            // looping setiap hari dalam minggu itu
             $period = CarbonPeriod::create($startOfWeek, $endOfWeek);
 
+            // Buat mapping label & window
+            $labelDateMap = [];
+            $labelWindowMap = [];
+
             foreach ($period as $day) {
-                $dayStart = $day->copy()->subDay()->setTime(6, 0, 0);
-                $dayEnd   = $day->copy()->setTime(5, 59, 59);
+                $dayName = $day->locale('id')->translatedFormat('l');
+                $dayDate = $day->format('d-m-Y');
 
-                $labels[] = $day->locale('id')->translatedFormat('l'); // Senin, Selasa, dst (bahasa Indonesia)
+                $labelDateMap[$dayName] = $dayDate;
 
-                $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
-                    $q->where('user_id', $tenantId);
-                })
+                // window 06:00 hari sebelumnya - 05:59 hari ini
+                $windowStart = $day->copy()->subDay()->setTime(6, 0, 0);
+                $windowEnd   = $day->copy()->setTime(5, 59, 59);
+                $labelWindowMap[$dayName] = [$windowStart, $windowEnd];
+
+                $labels[] = $dayName;
+
+                $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
                     ->where('status', 'selesai')
-                    ->whereBetween('updated_at', [$dayStart, $dayEnd])
+                    ->whereBetween('updated_at', [$windowStart, $windowEnd])
                     ->count();
 
-                $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
-                    $q->where('user_id', $tenantId);
-                })
+                $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
                     ->where('status', 'refund_selesai')
-                    ->whereBetween('updated_at', [$dayStart, $dayEnd])
+                    ->whereBetween('updated_at', [$windowStart, $windowEnd])
                     ->count();
             }
         } else {
-            // mode all time
+            // =========================
+            // MODE ALL TIME
+            // =========================
             $labels[] = 'All Time';
-
-            $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
-                $q->where('user_id', $tenantId);
-            })
+            $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
                 ->where('status', 'selesai')
                 ->count();
-
-            $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
-                $q->where('user_id', $tenantId);
-            })
+            $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
                 ->where('status', 'refund_selesai')
                 ->count();
         }
 
-        // transaksi detail (list)
-        $transaksiQuery = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
-            $q->where('user_id', $tenantId);
-        })->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
-            $q->whereBetween('updated_at', [$dateStart, $dateEnd]);
-        })
+        // =========================================================
+        // DAFTAR TRANSAKSI (LABEL PER TRANSAKSI)
+        // =========================================================
+        $transaksiQuery = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
+            ->when($dateStart && $dateEnd, fn($q) => $q->whereBetween('updated_at', [$dateStart, $dateEnd]))
             ->orderBy('updated_at', 'asc')
             ->get();
 
@@ -2267,37 +2235,31 @@ class TransaksiController extends Controller
             $labelTrx = null;
             $labelTanggal = null;
 
-            if ($year && $month && $date) {
-                // mode daily (mingguan)
-                $filterDate = Carbon::create($year, $month, $date);
-                $startOfWeek = $filterDate->copy()->startOfWeek(Carbon::MONDAY);
-                $endOfWeek   = $filterDate->copy()->endOfWeek(Carbon::SUNDAY);
-                $period = CarbonPeriod::create($startOfWeek, $endOfWeek);
-
-                // Map hari → tanggal sebenarnya
-                $labelDateMap = [];
-                foreach ($period as $day) {
-                    $labelDateMap[$day->locale('id')->translatedFormat('l')] = $day->format('d-m-Y');
+            if (!empty($labelWindowMap)) {
+                $assigned = false;
+                foreach ($labelWindowMap as $dayName => [$start, $end]) {
+                    if ($trx->updated_at->between($start, $end)) {
+                        $labelTrx = $dayName;
+                        $datePart = $labelDateMap[$dayName];
+                        $timePart = $trx->updated_at->format('H:i:s');
+                        $labelTanggal = Carbon::createFromFormat('d-m-Y H:i:s', "$datePart $timePart")
+                            ->format('d-m-Y H:i:s');
+                        $assigned = true;
+                        break;
+                    }
                 }
 
-                // tentukan label hari transaksi berdasar aturan 06:00 s.d 05:59
-                $trxTime = $trx->updated_at;
-                $dayStart = $trxTime->copy()->setTime(6, 0, 0);
-                if ($trxTime->lt($dayStart)) {
-                    // Jika sebelum jam 06:00, berarti masih dihitung ke hari sebelumnya
-                    $labelTrx = $trxTime->copy()->subDay()->locale('id')->translatedFormat('l');
-                    $labelTanggal = $labelDateMap[$labelTrx] ?? $trxTime->subDay()->format('d-m-Y');
-                } else {
-                    // Setelah jam 06:00, gunakan hari aktual
-                    $labelTrx = $trxTime->locale('id')->translatedFormat('l');
-                    $labelTanggal = $labelDateMap[$labelTrx] ?? $trxTime->format('d-m-Y');
+                if (!$assigned) {
+                    $dayStart = $trx->updated_at->copy()->setTime(6, 0, 0);
+                    if ($trx->updated_at->lt($dayStart)) {
+                        $labelTrx = $trx->updated_at->copy()->subDay()->locale('id')->translatedFormat('l');
+                        $labelTanggal = $trx->updated_at->copy()->subDay()->format('d-m-Y') . ' ' . $trx->updated_at->format('H:i:s');
+                    } else {
+                        $labelTrx = $trx->updated_at->locale('id')->translatedFormat('l');
+                        $labelTanggal = $trx->updated_at->format('d-m-Y H:i:s');
+                    }
                 }
-
-                // Gabungkan tanggal label + jam dari waktu asli
-                $labelTanggal = Carbon::createFromFormat('d-m-Y H:i:s', $labelTanggal . ' ' . $trxTime->format('H:i:s'))
-                    ->format('d-m-Y H:i:s');
             } else {
-                // fallback (bulanan / tahunan / all time)
                 $labelTrx = $trx->updated_at->locale('id')->translatedFormat('F');
                 $labelTanggal = $trx->updated_at->format('d-m-Y H:i:s');
             }
@@ -2313,40 +2275,34 @@ class TransaksiController extends Controller
             ];
         }
 
-        // total pendapatan bersih
-        $totalPendapatan = 0;
-        $transaksiSelesai = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
-            $q->where('user_id', $tenantId);
-        })
+        // =========================================================
+        // TOTAL PENDAPATAN
+        // =========================================================
+        $totalPendapatan = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
             ->where('status', 'selesai')
-            ->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
-                $q->whereBetween('updated_at', [$dateStart, $dateEnd]);
-            })
-            ->get();
-
-        foreach ($transaksiSelesai as $trx) {
-            $harga = ($trx->total ?? 0) - ($trx->ongkos_kirim ?? 0);
-            $totalPendapatan += $harga - (0.1 * $harga);
-        }
+            ->when($dateStart && $dateEnd, fn($q) => $q->whereBetween('updated_at', [$dateStart, $dateEnd]))
+            ->get()
+            ->sum(function ($trx) {
+                $harga = ($trx->total ?? 0) - ($trx->ongkos_kirim ?? 0);
+                return $harga - (0.1 * $harga);
+            });
 
         return response()->json([
-            'labels'            => $labels,
-            'selesaiData'       => array_map('intval', $selesaiData),
-            'refundData'        => array_map('intval', $refundData),
-            'totalSelesai'      => intval(array_sum($selesaiData)),
-            'totalRefund'       => intval(array_sum($refundData)),
-            'totalPendapatan'   => intval($totalPendapatan),
-            'transaksi' => collect($transaksiList)->map(function ($trx) {
-                return [
-                    'id'                => intval($trx['id']),
-                    'status'            => $trx['status'],
-                    'harga'             => intval($trx['harga']),
-                    'pendapatan_bersih' => intval($trx['pendapatan_bersih']),
-                    'tanggal'           => $trx['tanggal'],
-                    'label'             => $trx['label'],
-                    'label_tanggal'     => $trx['label_tanggal'],
-                ];
-            }),
+            'labels'          => $labels,
+            'selesaiData'     => array_map('intval', $selesaiData),
+            'refundData'      => array_map('intval', $refundData),
+            'totalSelesai'    => intval(array_sum($selesaiData)),
+            'totalRefund'     => intval(array_sum($refundData)),
+            'totalPendapatan' => intval($totalPendapatan),
+            'transaksi'       => collect($transaksiList)->map(fn($trx) => [
+                'id'                => intval($trx['id']),
+                'status'            => $trx['status'],
+                'harga'             => intval($trx['harga']),
+                'pendapatan_bersih' => intval($trx['pendapatan_bersih']),
+                'tanggal'           => $trx['tanggal'],
+                'label'             => $trx['label'],
+                'label_tanggal'     => $trx['label_tanggal'],
+            ]),
         ]);
     }
 }
