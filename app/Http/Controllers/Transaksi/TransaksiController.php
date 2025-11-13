@@ -2245,7 +2245,7 @@ class TransaksiController extends Controller
             }
 
             $label = $shifted->locale('id')->translatedFormat('l');
-            $labelTanggal = $shifted->format('d-m-Y') . ' ' . $trx->updated_at->format('H:i:s');
+            $labelTanggal = $shifted->format('d-m-Y H:i:s');
 
             $transaksiList[] = [
                 'id'                => $trx->id,
