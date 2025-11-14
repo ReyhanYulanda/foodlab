@@ -26,4 +26,10 @@ class Voucher extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
+    public function scopeClaimedAndEmpty($query, $userId)
+    {
+        return $query->where('user_id', $userId)
+            ->where('quantity', 0);
+    }
 }
