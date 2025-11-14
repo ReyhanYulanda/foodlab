@@ -359,7 +359,7 @@ class TransaksiController extends Controller
                 if ($request->isAntar === 0 || $request->isAntar === false) {
                     return response()->json([
                         'status' => 'failed',
-                        'message' => ['Metode ambil sendiri tidak bisa digunakan untuk pesanan multitenant']
+                        'message' => ['Multitenant hanya mendukung layanan pesan antar']
                     ], 400);
                 }
 
