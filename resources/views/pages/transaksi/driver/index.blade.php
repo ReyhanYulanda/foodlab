@@ -16,6 +16,13 @@
                             class="form-control w-48">
                         <button type="submit" id="filter_date" class="btn btn-primary">Filter</button>
                         <a href="{{ route('transaksi.driver') }}" class="btn btn-secondary">Reset</a>
+                        <a href="{{ route('transaksi.driver.export', [
+                            'start_date' => request('start_date'),
+                            'end_date' => request('end_date'),
+                        ]) }}"
+                            class="btn btn-success">
+                            Export CSV
+                        </a>
                     </form>
 
                     <table class="table table-responsive w-full table-striped">

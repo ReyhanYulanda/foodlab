@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Transaksi;
 use App\Models\Pengaturan;
 use App\Models\User;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Illuminate\Http\Request;
 
 class TransaksiDriverController extends Controller
@@ -34,12 +36,12 @@ class TransaksiDriverController extends Controller
         }
 
         $data = $query->groupBy('driver_id')
-            ->with(['driver.koin']) 
+            ->with(['driver.koin'])
             ->get()
             ->map(function ($item) use ($persentasePotongan) {
                 $item->pendapatan_pens = $item->total_ongkir * $persentasePotongan / 100;
                 $item->pendapatan_driver = $item->total_ongkir - $item->pendapatan_pens;
-                $item->saldo_driver = $item->driver->saldo ?? 0; 
+                $item->saldo_driver = $item->driver->saldo ?? 0;
                 return $item;
             });
 
@@ -69,5 +71,82 @@ class TransaksiDriverController extends Controller
         return view('pages.transaksi.rincianTransaksiDriver.index', compact('driver', 'transaksi'));
     }
 
-    public function detailPencairanTransaksiDriver($driver_id) {}
+    public function exportTransaksiDriverCsv(Request $request)
+    {
+        // Ambil persentase biaya ongkir (default 10%)
+        $pengaturanPotongan = Pengaturan::where('nama', 'biaya_ongkos_kirim')->first();
+        $persentasePotongan = $pengaturanPotongan ? (float)$pengaturanPotongan->nilai : 10;
+
+        // Query transaksi (sama seperti halaman index)
+        $query = Transaksi::select(
+            'driver_id',
+            DB::raw('SUM(ongkos_kirim) as total_ongkir')
+        )
+            ->whereNotNull('driver_id')
+            ->where('status', 'selesai');
+
+        if ($request->start_date) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+        if ($request->end_date) {
+            $query->whereDate('created_at', '<=', $request->end_date);
+        }
+
+        $data = $query->groupBy('driver_id')
+            ->with(['driver.koin'])
+            ->get()
+            ->map(function ($item) use ($persentasePotongan) {
+                $item->pendapatan_pens = $item->total_ongkir * $persentasePotongan / 100;
+                $item->pendapatan_driver = $item->total_ongkir - $item->pendapatan_pens;
+                $item->saldo_driver = $item->driver->saldo ?? 0;
+                return $item;
+            });
+
+        // Spreadsheet
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // Header
+        $headers = ["No", "Nama Driver", "Total Ongkir", "Pendapatan Pens (10%)", "Pendapatan Driver (90%)", "Saldo Driver"];
+        $sheet->fromArray($headers, NULL, 'A1');
+
+        // Data
+        $row = 2;
+        foreach ($data as $index => $item) {
+            $sheet->fromArray([
+                $index + 1,
+                $item->driver->name ?? 'Tidak ditemukan',
+                $item->total_ongkir,
+                $item->pendapatan_pens,
+                $item->pendapatan_driver,
+                $item->saldo_driver
+            ], NULL, "A{$row}");
+            $row++;
+        }
+
+        // Styling
+        $headerStyle = [
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => 'solid', 'color' => ['rgb' => '4F81BD']],
+            'alignment' => ['horizontal' => 'center'],
+        ];
+
+        $sheet->getStyle("A1:F1")->applyFromArray($headerStyle);
+
+        // Auto size
+        foreach (range('A', 'F') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // File name
+        $fileName = "rekap_driver_" . date('YmdHis') . ".xlsx";
+
+        $writer = new Xlsx($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $fileName, [
+            "Content-Type" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ]);
+    }
 }
