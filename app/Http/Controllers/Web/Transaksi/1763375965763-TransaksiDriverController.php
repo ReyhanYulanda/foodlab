@@ -101,8 +101,7 @@ class TransaksiDriverController extends Controller
                 return $item;
             });
 
-        // Hitung rata-rata
-        $avg_pens = $data->avg('pendapatan_pens') ?? 0;
+        // Hitung rata-rata (yang dipakai hanya pendapatan driver)
         $avg_driver = $data->avg('pendapatan_driver') ?? 0;
         $jumlah_driver = $data->count();
 
@@ -110,23 +109,17 @@ class TransaksiDriverController extends Controller
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
 
-        // ==============================
-        //  BARIS HEADER GLOBAL (STATISTIK)
-        // ==============================
-
         // Judul besar
         $sheet->setCellValue('A1', 'Rekap Pendapatan Driver');
         $sheet->mergeCells('A1:E1');
 
-        // Rata-rata pendapatan
-        $sheet->setCellValue('A2', 'Rata-rata Pendapatan Pens:');
-        $sheet->setCellValue('B2', number_format($avg_pens, 0, ',', '.'));
+        // Rata-rata Pendapatan Driver
+        $sheet->setCellValue('A2', 'Rata-rata Pendapatan Driver:');
+        $sheet->setCellValue('B2', number_format($avg_driver, 0, ',', '.'));
 
-        $sheet->setCellValue('A3', 'Rata-rata Pendapatan Driver:');
-        $sheet->setCellValue('B3', number_format($avg_driver, 0, ',', '.'));
-
-        $sheet->setCellValue('A4', 'Total Driver:');
-        $sheet->setCellValue('B4', $jumlah_driver);
+        // Total Driver
+        $sheet->setCellValue('A3', 'Total Driver:');
+        $sheet->setCellValue('B3', $jumlah_driver);
 
         // ==============================
         // TABEL DATA DIMULAI BARIS 6
@@ -150,9 +143,7 @@ class TransaksiDriverController extends Controller
             $row++;
         }
 
-        // ==============================
-        // Styling Header Tabel
-        // ==============================
+        // Styling header tabel
         $headerStyle = [
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => 'solid', 'color' => ['rgb' => '4F81BD']],
