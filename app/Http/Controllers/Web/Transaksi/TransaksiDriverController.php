@@ -115,17 +115,14 @@ class TransaksiDriverController extends Controller
 
         // Rata-rata Pendapatan Driver
         $sheet->setCellValue('A2', 'Rata-rata Pendapatan Driver:');
-        $sheet->setCellValue('B2', number_format($avg_driver, 0, ',', '.'));
+        $sheet->setCellValue('B2', $avg_driver);
 
         // Total Driver
         $sheet->setCellValue('A3', 'Total Driver:');
         $sheet->setCellValue('B3', $jumlah_driver);
 
-        // ==============================
-        // TABEL DATA DIMULAI BARIS 6
-        // ==============================
+        // Header tabel
         $headerRow = 6;
-
         $headers = ["No", "Nama Driver", "Total Ongkir", "Pendapatan Pens (10%)", "Pendapatan Driver (90%)"];
         $sheet->fromArray($headers, NULL, "A{$headerRow}");
 
@@ -142,6 +139,12 @@ class TransaksiDriverController extends Controller
             ], NULL, "A{$row}");
             $row++;
         }
+
+        // ==== Number Formatting: Kolom angka (C, D, E) ====
+        // Format: #.##0 (format Indonesia)
+        $sheet->getStyle("C7:E{$row}")
+            ->getNumberFormat()
+            ->setFormatCode('#,##0');
 
         // Styling header tabel
         $headerStyle = [
