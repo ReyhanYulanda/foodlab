@@ -398,12 +398,14 @@ class PesananController extends Controller
                                 $relatedTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
                                 foreach ($relatedTransaksi as $t) {
                                     $t->driver_id = $user->id;
+                                    $t->status = 'diantar';
+                                    $t->save();
                                 }
                             } else {
                                 $transaksi->driver_id = $user->id;
+                                $transaksi->status = 'diantar';
+                                $transaksi->save();
                             }
-                            $transaksi->status = 'diantar';
-                            $transaksi->save();
 
                             $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
                             $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
