@@ -155,7 +155,7 @@ class AutoCompleteSiapDiambil extends Command
 
         // Kirim notifikasi
         $fcmUser = User::with('fcmTokens')->find($user->id);
-        $tokens = $fcmUser?->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() ?? [];
+        $tokens = $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() ?? [];
 
         if (!empty($tokens)) {
             $title = 'Cashback berhasil didapatkan';
