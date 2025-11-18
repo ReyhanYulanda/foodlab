@@ -356,12 +356,12 @@ class TransaksiController extends Controller
                     ], 400);
                 }
 
-                if ($request->isAntar === 0 || $request->isAntar === false) {
-                    return response()->json([
-                        'status' => 'failed',
-                        'message' => ['Multitenant hanya mendukung layanan pesan antar']
-                    ], 400);
-                }
+                // if ($request->isAntar === 0 || $request->isAntar === false) {
+                //     return response()->json([
+                //         'status' => 'failed',
+                //         'message' => ['Multitenant hanya mendukung layanan pesan antar']
+                //     ], 400);
+                // }
 
                 // if ($request->boolean('isPriority')) {
                 //     return response()->json([
