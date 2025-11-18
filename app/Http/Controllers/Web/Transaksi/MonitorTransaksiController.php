@@ -255,4 +255,165 @@ class MonitorTransaksiController extends Controller
                 ->sendToFallback($tokens);
         }
     }
+
+    public function resetDriver($id, Firebases $firebases)
+    {
+        DB::beginTransaction();
+        try {
+            $transaksi = Transaksi::find($id);
+
+            if (!$transaksi) {
+                return redirect()->back()->with('error', 'Transaksi tidak ditemukan.');
+            }
+
+            if (!in_array($transaksi->status, ['siap_diantar', 'diantar'])) {
+                return redirect()->back()->with('error', 'Status pesanan tidak valid untuk reset driver.');
+            }
+
+            if ($transaksi->driver_id === null) {
+                return redirect()->back()->with('error', 'Driver sudah kosong, tidak bisa di-reset.');
+            }
+
+            /**
+             * =============================
+             * 🔥 LOGIKA MULTITENANT
+             * =============================
+             */
+            if ($transaksi->multitenant_id) {
+
+                $group = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
+
+                $adaProses = $group->contains(fn($t) => $t->status === 'pesanan_diproses');
+
+                foreach ($group as $t) {
+
+                    $t->driver_id = null;
+
+                    if ($adaProses) {
+                        if ($t->status === 'diantar') {
+                            $t->status = 'siap_diantar';
+                        }
+                    } else {
+                        if (in_array($t->status, ['diantar', 'pesanan_diproses'])) {
+                            $t->status = 'siap_diantar';
+                        }
+                    }
+
+                    $t->save();
+                }
+            } else {
+                // Non-multitenant
+                $transaksi->driver_id = null;
+                $transaksi->status = 'siap_diantar';
+                $transaksi->save();
+            }
+
+
+            /**
+             * ===================================================
+             * 🔥 PERSIAPAN TOKENS DRIVER ONLINE & OFFLINE
+             * ===================================================
+             */
+
+            $masbroTokens = User::role('masbro')
+                ->where('isOnline', 1)
+                ->with('fcmTokens')
+                ->get()
+                ->flatMap(fn($user) => $user->fcmTokens->pluck('fcm_token'))
+                ->filter()
+                ->unique()
+                ->values()
+                ->toArray();
+
+            $masbroOfflineTokens = User::role('masbro')
+                ->where('isOnline', 0)
+                ->with('fcmTokens')
+                ->get()
+                ->flatMap(fn($user) => $user->fcmTokens->pluck('fcm_token'))
+                ->filter()
+                ->unique()
+                ->values()
+                ->toArray();
+
+
+            /**
+             * ===================================================
+             * 🔥 FUNCTION UNTUK SEND NOTIF ONLINE
+             * ===================================================
+             */
+            $sendToDrivers = function ($title, $body, $type) use (
+                $firebases,
+                $transaksi,
+                $masbroTokens
+            ) {
+                if (!empty($masbroTokens)) {
+                    $firebases->withNotification($title, $body)
+                        ->withData([
+                            'title'          => $title,
+                            'body'           => $body,
+                            'type'           => $type,
+                            'transaksi_id'   => $transaksi->id,
+                            'click_action'   => 'FLUTTER_NOTIFICATION_CLICK',
+                        ])
+                        ->sendToDriver($masbroTokens);
+                }
+            };
+
+
+            /**
+             * ===================================================
+             * 🔥 FUNCTION UNTUK SEND NOTIF OFFLINE
+             * ===================================================
+             */
+            $sendToOfflineDrivers = function ($title, $body, $type) use (
+                $firebases,
+                $transaksi,
+                $masbroOfflineTokens
+            ) {
+                if (!empty($masbroOfflineTokens)) {
+                    $firebases->withNotification($title, $body)
+                        ->withData([
+                            'title'          => $title,
+                            'body'           => $body,
+                            'type'           => $type,
+                            'transaksi_id'   => $transaksi->id,
+                            'click_action'   => 'FLUTTER_NOTIFICATION_CLICK',
+                        ])
+                        ->sendToFallback($masbroOfflineTokens);
+                }
+            };
+
+
+            /**
+             * ===================================================
+             * 🔥 KIRIM NOTIF SETELAH STATUS JADI SIAP DIANTAR
+             * ===================================================
+             */
+
+            if ($transaksi->status === 'siap_diantar') {
+
+                // ONLINE
+                $sendToDrivers(
+                    'Ada Pesanan Siap Diantar',
+                    "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!",
+                    'siap_diantar_driver'
+                );
+
+                // OFFLINE
+                $sendToOfflineDrivers(
+                    'Ada Pesanan Siap Diantar Loh',
+                    "Pesanan ke {$transaksi->id}. Yuk, nyalain status drivermu!",
+                    'siap_diantar_driver'
+                );
+            }
+
+
+            DB::commit();
+            return redirect()->back()->with('success', "Driver berhasil di-reset. Notifikasi terkirim ke driver.");
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error("Reset driver gagal: " . $e->getMessage());
+            return redirect()->back()->with('error', 'Reset driver gagal.');
+        }
+    }
 }

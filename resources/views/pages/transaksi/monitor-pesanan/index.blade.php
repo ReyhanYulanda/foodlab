@@ -50,8 +50,19 @@
                                             @csrf
                                             <input type="text" name="catatan_penolakan"
                                                 placeholder="Catatan penolakan" class="form-control mb-2" required>
-                                            <button type="submit" class="btn btn-danger btn-sm">Cancel</button>
+                                            <button type="submit"
+                                                class="btn btn-danger btn-sm w-100 mb-1">Cancel</button>
                                         </form>
+
+                                        @if ($trx->status === 'siap_diantar' && $trx->driver_id !== null)
+                                            <form method="POST"
+                                                action="{{ route('monitor.pesanan.resetDriver', $trx->id) }}"
+                                                onsubmit="return confirm('Reset driver untuk pesanan ini?');">
+                                                @csrf
+                                                <button type="submit" class="btn btn-warning btn-sm w-100">Reset
+                                                    Driver</button>
+                                            </form>
+                                        @endif
                                     </td>
                                 </tr>
                             @empty

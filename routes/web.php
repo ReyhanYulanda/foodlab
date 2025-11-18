@@ -105,6 +105,9 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
 
     Route::get('/monitor_pesanan', [MonitorTransaksiController::class, 'monitorPesanan'])->name('monitor.pesanan');
     Route::post('/monitor_pesanan/cancel/{id}', [MonitorTransaksiController::class, 'postCancel'])->name('monitor.pesanan.cancel');
+    Route::post('/monitor/pesanan/{id}/reset-driver', [MonitorTransaksiController::class, 'resetDriver'])
+        ->name('monitor.pesanan.resetDriver');
+
 
     Route::get('/transfer_coin', [TransferCoinController::class, 'index'])->name('transfer.coin.index');
     Route::post('/transfer_coin', [TransferCoinController::class, 'transferCoin'])->name('transfer.coin.store');
