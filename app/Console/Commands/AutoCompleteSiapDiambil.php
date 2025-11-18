@@ -69,8 +69,8 @@ class AutoCompleteSiapDiambil extends Command
                         $siap = $t1->status === 'siap_diambil' ? $t1 : $t2;
                         $refund = $t1->status === 'refund_selesai' ? $t1 : $t2;
 
-                        // Kembalikan dana refund
-                        $this->refundBalance($refund);
+                        // Kembalikan dana refund + cashback
+                        $this->refundBalance($refund, $firebases);
 
                         // Selesaikan yang siap_diambil
                         $this->completeTransaction($siap);
@@ -174,9 +174,9 @@ class AutoCompleteSiapDiambil extends Command
     }
 
     // ==============================
-    // 🔧 HELPER: KEMBALIKAN DANA REFUND
+    // 🔧 HELPER: KEMBALIKAN DANA REFUND + CASHBACK
     // ==============================
-    private function refundBalance($transaksi)
+    private function refundBalance($transaksi, $firebases)
     {
         $user = $transaksi->user;
 
@@ -185,6 +185,7 @@ class AutoCompleteSiapDiambil extends Command
             ['jumlah' => 0]
         );
 
+        // Kembalikan total amount
         $saldo->jumlah += $transaksi->total;
         $saldo->save();
 
@@ -192,7 +193,58 @@ class AutoCompleteSiapDiambil extends Command
             'user_id'   => $user->id,
             'jumlah'    => $transaksi->total,
             'tipe'      => 'masuk',
-            'deskripsi' => "Pengembalian dana refund multitenant pesanan {$transaksi->id}",
+            'deskripsi' => "Pengembalian dana refund multitenant pesanan {$transaksi->kode_pemesanan}",
         ]);
+
+        // Jika ada cashback_amount pada transaksi refund, kembalikan juga cashback-nya
+        if ($transaksi->cashback_amount > 0) {
+            $saldo->jumlah += $transaksi->cashback_amount;
+            $saldo->save();
+
+            TransaksiSaldoKoin::create([
+                'user_id'   => $user->id,
+                'jumlah'    => $transaksi->cashback_amount,
+                'tipe'      => 'masuk',
+                'deskripsi' => "Pengembalian cashback refund multitenant pesanan {$transaksi->kode_pemesanan}",
+            ]);
+
+            // Kirim notifikasi untuk pengembalian cashback
+            $fcmUser = User::with('fcmTokens')->find($user->id);
+            $tokens = $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() ?? [];
+
+            if (!empty($tokens)) {
+                $title = 'Cashback dikembalikan';
+                $body  = "Cashback sebanyak {$transaksi->cashback_amount} telah dikembalikan ke akunmu karena refund.";
+
+                $firebases->withNotification($title, $body)
+                    ->withData([
+                        'title' => $title,
+                        'body' => $body,
+                        'type' => 'cashback_refund',
+                        'transaksi_id' => $transaksi->id,
+                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                    ])
+                    ->sendToFallback($tokens);
+            }
+        }
+
+        // Notifikasi untuk pengembalian dana utama
+        $fcmUser = User::with('fcmTokens')->find($user->id);
+        $tokens = $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() ?? [];
+
+        if (!empty($tokens)) {
+            $title = 'Dana refund dikembalikan';
+            $body  = "Dana sebanyak {$transaksi->total} telah dikembalikan ke saldomu karena pembatalan pesanan.";
+
+            $firebases->withNotification($title, $body)
+                ->withData([
+                    'title' => $title,
+                    'body' => $body,
+                    'type' => 'refund',
+                    'transaksi_id' => $transaksi->id,
+                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                ])
+                ->sendToFallback($tokens);
+        }
     }
 }
