@@ -238,6 +238,13 @@ class PesananController extends Controller
                                 ]);
                             }
                             if ($transaksi->driver_id !== null) {
+                                if ($transaksi->status === 'pesanan_diproses' && $request->status === 'pesanan_diproses') { {
+                                        return response()->json([
+                                            "status" => "forbidden",
+                                            "message" => "Pesanan sudah diproses tenant",
+                                        ], 403);
+                                    }
+                                }
                                 if ($transaksi->driver_id !== $user->id) {
                                     return response()->json([
                                         "status" => "forbidden",
