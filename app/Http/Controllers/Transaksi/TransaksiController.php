@@ -498,6 +498,25 @@ class TransaksiController extends Controller
                     $cashback = $voucher ? $voucher->cashback : null;
                 }
 
+                // Hitung cashback berdasarkan GRAND TOTAL
+                $computedCashback = 0;
+                $shouldApplyCashback = false;
+
+                if ($voucher && $cashback) {
+
+                    if ($grandTotal >= ($cashback->minimal_beli ?? 0)) {
+
+                        $computedCashback = $grandTotal * $cashback->value;
+
+                        if ($cashback->max_cashback && $computedCashback > $cashback->max_cashback) {
+                            $computedCashback = $cashback->max_cashback;
+                        }
+
+                        $shouldApplyCashback = true;
+                    }
+                }
+
+
                 // Sekarang buat transaksi per tenant — gunakan nilai dari pre-calc agar konsisten
                 foreach ($perTenantCalc as $tenantId => $calc) {
                     $tenant = Tenants::find($tenantId); // pastikan model Tenant (singular)
@@ -508,28 +527,10 @@ class TransaksiController extends Controller
                     $biayaLayanan = $calc['biayaLayanan'];
                     $totalFinal = $calc['totalFinal'];
 
-                    $applyThis = false;
                     $assignCashback = 0;
-                    if ($voucher && $cashback && !$voucherApplied) {
-                        $tt = $calc['totalFinal']; // total untuk transaksi ini
-                        if ($tt >= ($cashback->minimal_beli ?? 0)) {
-                            // hitung nilai cashback dan batasi max
-                            $assignCashback = $tt * $cashback->value;
-                            if ($cashback->max_cashback && $assignCashback > $cashback->max_cashback) {
-                                $assignCashback = $cashback->max_cashback;
-                            }
-                            // hanya apply kalau nilai cashback > 0 (opsional)
-                            if ($assignCashback > 0) {
-                                $applyThis = true;
-                            }
-                        } else {
-                            // jika transaksi pertama tidak memenuhi minimal_beli, kita lanjut ke transaksi berikutnya
-                            Log::info('Transaksi multitenant - transaksi ini tidak memenuhi minimal_beli untuk cashback', [
-                                'tenant_id' => $tenantId,
-                                'total' => $tt,
-                                'minimal_beli' => $cashback->minimal_beli ?? null,
-                            ]);
-                        }
+                    // Apply hanya ke transaksi pertama
+                    if ($shouldApplyCashback && !$voucherApplied) {
+                        $assignCashback = $computedCashback;
                     }
 
                     // Create transaksi
@@ -547,8 +548,8 @@ class TransaksiController extends Controller
                         'biaya_layanan' => $biayaLayanan,
                         'catatan_lokasi_pengantaran' => $request->catatan_lokasi_pengantaran ?? null,
                         'multitenant_id' => $multitenantId,
-                        'voucher_id' => $applyThis ? $voucher->id : null,
-                        'cashback_amount' => $applyThis ? $assignCashback : 0,
+                        'voucher_id' => $assignCashback ? $voucher->id : null,
+                        'cashback_amount' => $assignCashback ?? 0
                     ]);
 
                     // generate kode pemesanan unik per transaksi
@@ -589,8 +590,9 @@ class TransaksiController extends Controller
                     }
 
                     // jika kita apply voucher ke transaksi ini, catat CatatVoucher & decrement quantity (HANYA SEKALI)
-                    if ($applyThis) {
-                        // decrement quantity di tabel cashback & voucher
+                    if ($assignCashback > 0) {
+
+                        // Kurangi quantity baru sekali
                         $cashback->decrement('quantity');
                         $voucher->decrement('quantity');
 
@@ -600,12 +602,6 @@ class TransaksiController extends Controller
                             'voucher_id' => $voucher->id,
                             'quantity_voucher' => 1,
                             'cashback_amount' => $assignCashback,
-                        ]);
-
-                        Log::info('Cashback diberikan ke 1 transaksi multitenant (disimpan di transaksi).', [
-                            'transaksi_id' => $transaksi->id,
-                            'cashback_amount' => $assignCashback,
-                            'voucher_id' => $voucher->id,
                         ]);
 
                         $voucherApplied = true; // pastikan tidak diaplikasikan lagi
@@ -664,40 +660,6 @@ class TransaksiController extends Controller
                         Log::info('Sending FCM to driver', ['tokens' => $fcmMasbroToken]);
                     }
                 }
-
-                // if ($voucher && $cashback && !empty($createdTransaksi)) {
-                //     $transaksiUntukCashback = $createdTransaksi[0];
-                //     $totalFinal = $transaksiUntukCashback->total;
-
-                //     if ($totalFinal < $cashback->minimal_beli) {
-                //         // tidak memenuhi minimum
-                //         Log::info('Transaksi multitenant tidak memenuhi minimal beli cashback', [
-                //             'transaksi_id' => $transaksiUntukCashback->id,
-                //             'minimal_beli' => $cashback->minimal_beli
-                //         ]);
-                //     } else {
-                //         $assignCashback = $totalFinal * $cashback->value;
-                //         if ($assignCashback > $cashback->max_cashback) {
-                //             $assignCashback = $cashback->max_cashback;
-                //         }
-
-                //         $cashback->decrement('quantity');
-                //         $voucher->decrement('quantity');
-
-                //         CatatVoucher::create([
-                //             'user_id' => $user->id,
-                //             'transaksi_id' => $transaksiUntukCashback->id,
-                //             'voucher_id' => $voucher->id,
-                //             'quantity_voucher' => 1,
-                //             'cashback_amount' => $assignCashback,
-                //         ]);
-
-                //         Log::info('Cashback diberikan hanya ke 1 transaksi multitenant', [
-                //             'transaksi_id' => $transaksiUntukCashback->id,
-                //             'cashback_value' => $assignCashback,
-                //         ]);
-                //     }
-                // }
 
                 DB::commit();
 
