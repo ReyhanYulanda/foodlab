@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Cashier;
 use App\Models\CashierDetail;
+use App\Models\Checkout;
 use App\Models\Menus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
 use Carbon\Carbon;
+use Illuminate\Support\Str;
 
 class CashierController extends Controller
 {
@@ -125,10 +127,57 @@ class CashierController extends Controller
 
             DB::commit();
 
+            $uuidParts = explode('-', Str::uuid()->toString());
+            $shortUuid = implode('-', array_slice($uuidParts, 0, 3));
+            $qrisTotalFinal = $totalHarga;
+
+            $orderId = 'foodlabs-' . $shortUuid . '-' . time();
+            $params = [
+                'transaction_details' => [
+                    'order_id' => $orderId,
+                    'gross_amount' => $qrisTotalFinal,
+                ],
+                'payment_type' => 'qris',
+                'qris' => [
+                    'acquirer' => 'gopay'
+                ],
+            ];
+
+            \Midtrans\Config::$serverKey = config('custom.midtrans_server_key');
+            \Midtrans\Config::$isProduction = true;
+            \Midtrans\Config::$isSanitized = true;
+            \Midtrans\Config::$is3ds = true;
+            $snap = \Midtrans\CoreApi::charge($params);
+
+            Checkout::create([
+                'user_id' => $user->id,
+                // 'transaksi_id' => $transaksi->id,
+                'cashier_id' => $cashier->id,
+                'nominal' => $totalHarga,
+                'biaya_midtrans' => 0,
+                'biaya_ubisma' => 0,
+                'total_biaya_admin' => 0,
+                'total_bayar_user' => $totalHarga,
+                'status_bayar' => 'pending',
+                'midtrans_request_id' => $orderId,
+                'kode_bayar' => $snap->actions[0]->url ?? null,
+                'tgl_akhir_tagihan' => $snap->expiry_time ?? null,
+            ]);
+
+            $extraQris = [
+                'order_id_midtrans' => $orderId,
+                'qr_url' => $snap->actions[0]->url ?? null,
+                'expiry' => $snap->expiry_time ?? null,
+                'biaya_admin' => 0,
+            ];
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Transaksi kasir berhasil dibuat',
-                'data' => $cashier->load('details.menu'),
+                'data' => array_merge(
+                    $cashier->load('details.menu')->toArray(),
+                    $extraQris
+                ),
             ], 201);
         } catch (\Throwable $th) {
             DB::rollBack();
