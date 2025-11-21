@@ -14,6 +14,7 @@ class Checkout extends Model
     protected $fillable = [
         'user_id',
         'transaksi_id',
+        'cashier_id',
         'nominal',
         'biaya_midtrans',
         'biaya_ubisma',

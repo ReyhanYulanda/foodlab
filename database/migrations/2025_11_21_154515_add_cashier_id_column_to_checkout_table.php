@@ -14,7 +14,7 @@ class AddCashierIdColumnToCheckoutTable extends Migration
     public function up()
     {
         Schema::table('checkout', function (Blueprint $table) {
-            $table->unsignedBigInteger('cashier_id')->nullable();
+            $table->unsignedBigInteger('cashier_id')->nullable()->after('transaksi_id');
         });
     }
 
