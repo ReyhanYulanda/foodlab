@@ -102,7 +102,7 @@ class CashierController extends Controller
                 'order_tenant' => $nextOrderTenant,
                 'total' => $totalHarga,
                 'kode_pemesanan' => self::generateKodePemesanan(null),
-                'status' => 'pesanan_diproses', // ✅ default status
+                'status' => 'pending', // ✅ default status
             ]);
 
             $details = [];

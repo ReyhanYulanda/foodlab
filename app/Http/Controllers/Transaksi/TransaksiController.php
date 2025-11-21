@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\CekMidtransTopupStatusJob;
 use App\Jobs\CekTopupStatusJob;
 use App\Models\Cashback;
+use App\Models\Cashier;
 use App\Models\CatatVoucher;
 use App\Models\ChatMessage;
 use App\Models\Checkout;
@@ -2119,6 +2120,24 @@ class TransaksiController extends Controller
                                     'body' => 'Pesanan ' . $transaksi->id . ' telah masuk ke tenant!',
                                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                                 ])->sendToFallback($fcmUserToken);
+                        }
+                    }
+                    $cashier = Cashier::find($checkout->cashier_id);
+                    if ($cashier && $cashier->status === 'pending') {
+                        $cashier->status = 'pesanan_diproses';
+                        $cashier->save();
+
+                        $tenantUser = User::with('fcmTokens')->find($cashier->user_id);
+                        $fcmTenantToken = $tenantUser ? $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                        if (!empty($fcmTenantToken)) {
+                            $firebases = new Firebases();
+                            $firebases
+                                ->withNotification('Pesanan Berhasil Dibayar', 'Pesanan baru, segera diproses!')
+                                ->withData([
+                                    'title' => 'Pesanan Berhasil Dibayar',
+                                    'body' => 'Pesanan baru, segera diproses!',
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                ])->sendToTenant($fcmTenantToken);
                         }
                     }
                 } elseif ($transactionStatus === 'pending') {
