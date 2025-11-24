@@ -48,7 +48,7 @@ class Cashier extends Model
         return $this->belongsTo(Tenants::class, 'tenant_id', 'id');
     }
 
-    public function checkouts()
+    public function checkout()
     {
         return $this->hasOne(Checkout::class, 'cashier_id');
     }
