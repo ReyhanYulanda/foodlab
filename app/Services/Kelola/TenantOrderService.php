@@ -289,47 +289,47 @@ class TenantOrderService
 
         // Validasi status agar tidak double update
         if ($cashier->status === 'selesai' && $request->status === 'selesai') {
-            return ResponseApi::error('Pesanan kasir sudah selesai sebelumnya.', 403);
+            return ResponseApi::error('Pesanan kasir sudah selesai sebelumnya.', 400);
         }
 
         if ($cashier->status === 'selesai' && $request->status === 'pesnan_diproses') {
-            return ResponseApi::error('Pesanan kasir sudah selesai sebelumnya.', 403);
+            return ResponseApi::error('Pesanan kasir sudah selesai sebelumnya.', 400);
         }
 
         if ($cashier->status === 'gagal_bayar' && $request->status === 'selesai') {
-            return ResponseApi::error('Pesanan kasir gagal dibayar.', 403);
+            return ResponseApi::error('Pesanan kasir gagal dibayar.', 400);
         }
 
         if ($cashier->status === 'gagal_bayar' && $request->status === 'pesanan_diproses') {
-            return ResponseApi::error('Pesanan kasir gagal dibayar.', 403);
+            return ResponseApi::error('Pesanan kasir gagal dibayar.', 400);
         }
 
         if ($cashier->status === 'gagal_bayar' && $request->status === 'pending') {
-            return ResponseApi::error('Pesanan kasir gagal dibayar.', 403);
+            return ResponseApi::error('Pesanan kasir gagal dibayar.', 400);
         }
 
         if ($cashier->status === 'pending' && $request->status === 'selesai') {
-            return ResponseApi::error('Pesanan kasir belum dibayar.', 403);
+            return ResponseApi::error('Pesanan kasir belum dibayar.', 400);
         }
 
         if ($cashier->status === 'pending' && $request->status === 'gagal_bayar') {
-            return ResponseApi::error('Pesanan kasir belum dibayar.', 403);
+            return ResponseApi::error('Pesanan kasir belum dibayar.', 400);
         }
 
         if ($cashier->status === 'pending' && $request->status === 'pesanan_diproses') {
-            return ResponseApi::error('Pesanan kasir belum dibayar.', 403);
+            return ResponseApi::error('Pesanan kasir belum dibayar.', 400);
         }
 
         if ($cashier->status === 'pesanan_diproses' && $request->status === 'pending') {
-            return ResponseApi::error('Pesanan kasir sudah dalam proses sebelumnya.', 403);
+            return ResponseApi::error('Pesanan kasir sudah dalam proses sebelumnya.', 400);
         }
 
         if ($cashier->status === 'pesanan_diproses' && $request->status === 'gagal_bayar') {
-            return ResponseApi::error('Pesanan kasir sudah dalam proses sebelumnya.', 403);
+            return ResponseApi::error('Pesanan kasir sudah dalam proses sebelumnya.', 400);
         }
 
         if ($cashier->status === 'pesanan_diproses' && $request->status === 'pesanan_diproses') {
-            return ResponseApi::error('Pesanan kasir sudah dalam proses sebelumnya.', 403);
+            return ResponseApi::error('Pesanan kasir sudah dalam proses sebelumnya.', 400);
         }
 
         // Update status
