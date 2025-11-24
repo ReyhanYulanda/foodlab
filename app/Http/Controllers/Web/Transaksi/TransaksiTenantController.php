@@ -42,7 +42,6 @@ class TransaksiTenantController extends Controller
             $start = Carbon::parse($startDate)->subDay()->setTime(6, 0, 0);
             $end   = Carbon::parse($endDate)->setTime(5, 59, 59);
         } else {
-            // fallback aman
             $start = Carbon::today()->subDay()->setTime(6, 0, 0);
             $end   = Carbon::today()->setTime(5, 59, 59);
         }
@@ -51,15 +50,12 @@ class TransaksiTenantController extends Controller
          * ============================================================
          *  SUBQUERY KASIR
          * ============================================================
-         * Penting:
-         * - Tidak boleh pakai MAX(updated_at)
-         * - updated_at harus row-by-row
          */
         $kasirSub = DB::table('cashiers_detail')
             ->selectRaw("
             tenants.id AS tenant_id,
             SUM(cashiers_detail.harga) AS kasir_kotor,
-            SUM(cashiers_detail.harga) * 0.9 AS kasir_bersih
+            SUM(cashiers_detail.harga) AS kasir_bersih
         ")
             ->join('cashiers', 'cashiers.id', '=', 'cashiers_detail.cashier_id')
             ->join('menus', 'menus.id', '=', 'cashiers_detail.menu_id')
@@ -67,50 +63,61 @@ class TransaksiTenantController extends Controller
             ->where('cashiers.status', 'selesai')
             ->whereBetween('cashiers.updated_at', [$start, $end])
             ->groupBy('tenants.id');
+
         /**
          * ============================================================
-         *  QUERY TRANSAKSI TENANT
+         *  SUBQUERY TRANSAKSI TENANT
          * ============================================================
+         * Filter tanggal HARUS di dalam subquery (SOLUSI UTAMA)
+         */
+        $transaksiSub = DB::table('transaksi_detail')
+            ->selectRaw("
+            tenants.id AS tenant_id,
+            SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) AS pendapatan_kotor_1,
+            SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) * 0.9 AS pendapatan_bersih_1,
+            SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) AS pendapatan_kotor_2,
+            SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) * 0.9 AS pendapatan_bersih_2
+        ")
+            ->join('transaksi', 'transaksi.id', '=', 'transaksi_detail.transaksi_id')
+            ->join('menus', 'menus.id', '=', 'transaksi_detail.menu_id')
+            ->join('tenants', 'tenants.id', '=', 'menus.tenant_id')
+            ->where('transaksi.status', 'selesai')
+            ->whereBetween('transaksi.updated_at', [$start, $end])
+            ->groupBy('tenants.id');
+
+        /**
+         * ============================================================
+         *  QUERY UTAMA: HANYA JOIN SUBQUERY
+         * ============================================================
+         * Tidak ada filter waktu di query utama!
          */
         $query = Tenants::selectRaw("
             tenants.nama_tenant,
             tenants.id,
-    
-            -- Pesan Antar
-            SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) AS pendapatan_kotor_1,
-            SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) * 0.9 AS pendapatan_bersih_1,
-    
-            -- Ambil Sendiri
-            SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) AS pendapatan_kotor_2,
-            SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) * 0.9 AS pendapatan_bersih_2,
-    
-            -- Kasir
+
+            COALESCE(ts.pendapatan_kotor_1, 0) AS pendapatan_kotor_1,
+            COALESCE(ts.pendapatan_bersih_1, 0) AS pendapatan_bersih_1,
+
+            COALESCE(ts.pendapatan_kotor_2, 0) AS pendapatan_kotor_2,
+            COALESCE(ts.pendapatan_bersih_2, 0) AS pendapatan_bersih_2,
+
             COALESCE(kasir.kasir_bersih, 0) AS kasir_bersih
         ")
-            ->leftJoin('menus', 'menus.tenant_id', '=', 'tenants.id')
-            ->leftJoin('transaksi_detail', 'transaksi_detail.menu_id', '=', 'menus.id')
-            ->leftJoin('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id')
+            ->leftJoinSub($transaksiSub, 'ts', function ($join) {
+                $join->on('ts.tenant_id', '=', 'tenants.id');
+            })
             ->leftJoinSub($kasirSub, 'kasir', function ($join) {
                 $join->on('kasir.tenant_id', '=', 'tenants.id');
             });
 
         /**
          * ============================================================
-         *  FILTER WAKTU TRANSAKSI (06:00 → 05:59)
-         * ============================================================
-         */
-        $query->where(function ($q) use ($start, $end) {
-            $q->whereBetween('transaksi.updated_at', [$start, $end]);
-        });
-
-        /**
-         * ============================================================
-         *  HILANGKAN TENANT TANPA TRANSAKSI DAN TANPA KASIR
+         *  FILTER TENANT YANG ADA DATA SAJA
          * ============================================================
          */
         $query->where(function ($q) {
-            $q->whereNotNull('transaksi.id')
-                ->orWhereNotNull('kasir.kasir_bersih');
+            $q->whereNotNull('ts.tenant_id')
+                ->orWhereNotNull('kasir.tenant_id');
         });
 
         /**
