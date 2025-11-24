@@ -2081,6 +2081,7 @@ class TransaksiController extends Controller
                         'status_bayar' => 'settlement',
                         'tgl_bayar' => $json['settlement_time'] ?? now()
                     ]);
+                    Log::info("Checkout ID {$checkout->id} sudah dibayar. Status checkout ganti ke settlement.");
 
                     // Update Transaksi → pesanan_masuk
                     $transaksi = Transaksi::find($checkout->transaksi_id);
@@ -2126,6 +2127,7 @@ class TransaksiController extends Controller
                     if ($cashier && $cashier->status === 'pending') {
                         $cashier->status = 'pesanan_diproses';
                         $cashier->save();
+                        Log::info("Cashier ID {$cashier->id} sudah dibayar. Status cashier ganti ke pesanan_diproses.");
 
                         $tenantUser = User::with('fcmTokens')->find($cashier->user_id);
                         $fcmTenantToken = $tenantUser ? $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
