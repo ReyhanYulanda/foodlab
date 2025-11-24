@@ -36,10 +36,12 @@ class TransaksiTenantController extends Controller
          * =====================================================================
          */
         $kasirQuery = CashierDetail::selectRaw("
-            tenants.id AS tenant_id,
-            SUM(cashiers_detail.harga) AS kasir_kotor,
-            (SUM(cashiers_detail.harga) - (0.1 * SUM(cashiers_detail.harga))) AS kasir_bersih
-        ")
+        tenants.id AS tenant_id,
+        SUM(cashiers_detail.harga) AS kasir_kotor,
+        (SUM(cashiers_detail.harga) - (0.1 * SUM(cashiers_detail.harga))) AS kasir_bersih,
+        NULL as updated_at
+    ")
+
             ->join('cashiers', 'cashiers_detail.cashier_id', '=', 'cashiers.id')
             ->join('menus', 'cashiers_detail.menu_id', '=', 'menus.id')
             ->join('tenants', 'menus.tenant_id', '=', 'tenants.id')
