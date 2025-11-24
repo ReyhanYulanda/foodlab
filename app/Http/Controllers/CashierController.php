@@ -204,7 +204,8 @@ class CashierController extends Controller
                 'details.menu.tenant' => function ($q) {
                     $q->select('id', 'nama_tenant', 'user_id', 'nama_gambar');
                 },
-                'user:id,name'
+                'user:id,name',
+                'checkout'
             ])
             ->orderBy('order_tenant', 'asc')
             ->get();
@@ -216,6 +217,23 @@ class CashierController extends Controller
                 'data' => [],
             ], 200);
         }
+
+        // Tambahkan extra field ke setiap cashier
+        $cashiers = $cashiers->map(function ($c) {
+
+            $extra = [];
+
+            if ($c->checkout) {
+                $extra = [
+                    'order_id_midtrans' => $c->checkout->midtrans_request_id,
+                    'qr_url'            => $c->checkout->kode_bayar,
+                    'expiry'            => $c->checkout->tgl_akhir_tagihan,
+                ];
+            }
+
+            // merge extra ke structure cashier (tidak mengubah struktur)
+            return array_merge($c->toArray(), $extra);
+        });
 
         return response()->json([
             'status' => 'success',
@@ -235,12 +253,13 @@ class CashierController extends Controller
             })
             ->with([
                 'details.menu' => function ($q) {
-                    $q->select('id', 'nama', 'harga', 'tenant_id');
+                    $q->select('id', 'nama as nama_menu', 'harga', 'tenant_id');
                 },
                 'details.menu.tenant' => function ($q) {
                     $q->select('id', 'nama_tenant', 'user_id');
                 },
-                'user:id,name'
+                'user:id,name',
+                'checkout' // tambahkan relasi checkout
             ])
             ->first();
 
@@ -250,6 +269,22 @@ class CashierController extends Controller
                 'message' => 'Transaksi kasir tidak ditemukan atau tidak memiliki akses',
             ], 404);
         }
+
+        // ────────────────────────────────────────
+        // Tambahkan EXTRA field dari checkout
+        // ────────────────────────────────────────
+        $extra = [];
+
+        if ($cashier->checkout) {
+            $extra = [
+                'order_id_midtrans' => $cashier->checkout->midtrans_request_id,
+                'qr_url'            => $cashier->checkout->kode_bayar,
+                'expiry'            => $cashier->checkout->tgl_akhir_tagihan,
+            ];
+        }
+
+        // Merge extra ke root data cashier (tanpa ubah struktur)
+        $cashier = array_merge($cashier->toArray(), $extra);
 
         return response()->json([
             'status' => 'success',

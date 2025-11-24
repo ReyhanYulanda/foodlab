@@ -39,6 +39,11 @@ class Checkout extends Model
         return $this->belongsTo(Transaksi::class);
     }
 
+    public function cashier()
+    {
+        return $this->belongsTo(Cashier::class);
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);
