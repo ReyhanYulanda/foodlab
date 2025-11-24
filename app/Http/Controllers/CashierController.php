@@ -144,7 +144,7 @@ class CashierController extends Controller
             ];
 
             \Midtrans\Config::$serverKey = config('custom.midtrans_server_key');
-            \Midtrans\Config::$isProduction = true;
+            \Midtrans\Config::$isProduction = false;
             \Midtrans\Config::$isSanitized = true;
             \Midtrans\Config::$is3ds = true;
             $snap = \Midtrans\CoreApi::charge($params);
