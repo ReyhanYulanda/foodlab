@@ -21,9 +21,9 @@ class TransaksiTenantController extends Controller
         $this->authorize('read transaksi_tenant');
 
         $filterDate = $request->input('filter_date');
-        $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
-        $perPage = $request->input('per_page', 10);
+        $startDate  = $request->input('start_date');
+        $endDate    = $request->input('end_date');
+        $perPage    = $request->input('per_page', 10);
 
         // Default: hari ini
         if (!$filterDate && !$startDate && !$endDate) {
@@ -31,87 +31,96 @@ class TransaksiTenantController extends Controller
         }
 
         /**
-         * =====================================================================
-         *  SUBQUERY TRANSAKSI KASIR (Pendapatan Bersih Per Tenant)
-         * =====================================================================
+         * ============================================================
+         *  RANGE WAKTU GLOBAL
+         * ============================================================
          */
-        $kasirQuery = CashierDetail::selectRaw("
-    tenants.id AS tenant_id,
-    SUM(cashiers_detail.harga) AS kasir_kotor,
-    (SUM(cashiers_detail.harga) - (0.1 * SUM(cashiers_detail.harga))) AS kasir_bersih,
-    MAX(cashiers.updated_at) as updated_at
-")
-            ->join('cashiers', 'cashiers_detail.cashier_id', '=', 'cashiers.id')
-            ->join('menus', 'cashiers_detail.menu_id', '=', 'menus.id')
-            ->join('tenants', 'menus.tenant_id', '=', 'tenants.id')
-            ->where('cashiers.status', '=', 'selesai');
-
-        // Filter waktu kasir → mengikuti filter transaksi tenant
         if ($filterDate) {
             $start = Carbon::parse($filterDate)->subDay()->setTime(6, 0, 0);
             $end   = Carbon::parse($filterDate)->setTime(5, 59, 59);
-
-            $kasirQuery->whereBetween('cashiers.updated_at', [$start, $end]);
         } elseif ($startDate && $endDate) {
             $start = Carbon::parse($startDate)->subDay()->setTime(6, 0, 0);
             $end   = Carbon::parse($endDate)->setTime(5, 59, 59);
-
-            $kasirQuery->whereBetween('cashiers.updated_at', [$start, $end]);
+        } else {
+            // fallback aman
+            $start = Carbon::today()->subDay()->setTime(6, 0, 0);
+            $end   = Carbon::today()->setTime(5, 59, 59);
         }
 
-        $kasirQuery->groupBy('tenants.id');
-
-        // Bungkus dalam subquery
-        $kasirSub = DB::table(DB::raw("({$kasirQuery->toSql()}) as kasir"))
-            ->mergeBindings($kasirQuery->getQuery());
+        /**
+         * ============================================================
+         *  SUBQUERY KASIR
+         * ============================================================
+         * Penting:
+         * - Tidak boleh pakai MAX(updated_at)
+         * - updated_at harus row-by-row
+         */
+        $kasirSub = DB::table('cashiers_detail')
+            ->selectRaw("
+                tenants.id AS tenant_id,
+                SUM(cashiers_detail.harga) AS kasir_kotor,
+                SUM(cashiers_detail.harga) * 0.9 AS kasir_bersih,
+                cashiers.updated_at
+            ")
+            ->join('cashiers', 'cashiers.id', '=', 'cashiers_detail.cashier_id')
+            ->join('menus', 'menus.id', '=', 'cashiers_detail.menu_id')
+            ->join('tenants', 'tenants.id', '=', 'menus.tenant_id')
+            ->where('cashiers.status', 'selesai')
+            ->whereBetween('cashiers.updated_at', [$start, $end])
+            ->groupBy('tenants.id', 'cashiers.updated_at');
 
         /**
-         * =====================================================================
-         *  QUERY TRANSAKSI TENANT (Pesan Antar & Ambil Sendiri)
-         * =====================================================================
+         * ============================================================
+         *  QUERY TRANSAKSI TENANT
+         * ============================================================
          */
         $query = Tenants::selectRaw("
-    tenants.nama_tenant,
-    tenants.id,
-
-    -- Pesan Antar
-    SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) AS pendapatan_kotor_1,
-    SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) * 0.9 AS pendapatan_bersih_1,
-
-    -- Ambil Sendiri
-    SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) AS pendapatan_kotor_2,
-    SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) * 0.9 AS pendapatan_bersih_2,
-
-    -- Kasir
-    COALESCE(kasir.kasir_bersih, 0) AS kasir_bersih
-")
+            tenants.nama_tenant,
+            tenants.id,
+    
+            -- Pesan Antar
+            SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) AS pendapatan_kotor_1,
+            SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) * 0.9 AS pendapatan_bersih_1,
+    
+            -- Ambil Sendiri
+            SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) AS pendapatan_kotor_2,
+            SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) * 0.9 AS pendapatan_bersih_2,
+    
+            -- Kasir
+            COALESCE(kasir.kasir_bersih, 0) AS kasir_bersih
+        ")
             ->leftJoin('menus', 'menus.tenant_id', '=', 'tenants.id')
             ->leftJoin('transaksi_detail', 'transaksi_detail.menu_id', '=', 'menus.id')
             ->leftJoin('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id')
-            ->leftJoin(DB::raw("({$kasirQuery->toSql()}) as kasir"), 'kasir.tenant_id', '=', 'tenants.id')
-            ->mergeBindings($kasirQuery->getQuery());
-
-
-        // Filter waktu utama (transaksi)
-        if ($filterDate) {
-            $start = Carbon::parse($filterDate)->subDay()->setTime(6, 0, 0);
-            $end   = Carbon::parse($filterDate)->setTime(5, 59, 59);
-
-            $query->where(function ($q) use ($start, $end) {
-                $q->whereBetween('transaksi.updated_at', [$start, $end])
-                    ->orWhereBetween('kasir.updated_at', [$start, $end]);
+            ->leftJoinSub($kasirSub, 'kasir', function ($join) {
+                $join->on('kasir.tenant_id', '=', 'tenants.id');
             });
-        } elseif ($startDate && $endDate) {
 
-            $start = Carbon::parse($startDate)->subDay()->setTime(6, 0, 0);
-            $end   = Carbon::parse($endDate)->setTime(5, 59, 59);
+        /**
+         * ============================================================
+         *  FILTER WAKTU TRANSAKSI (06:00 → 05:59)
+         * ============================================================
+         */
+        $query->where(function ($q) use ($start, $end) {
+            $q->whereBetween('transaksi.updated_at', [$start, $end])
+                ->orWhereBetween('kasir.updated_at', [$start, $end]);
+        });
 
-            $query->where(function ($q) use ($start, $end) {
-                $q->whereBetween('transaksi.updated_at', [$start, $end])
-                    ->orWhereBetween('kasir.updated_at', [$start, $end]);
-            });
-        }
+        /**
+         * ============================================================
+         *  HILANGKAN TENANT TANPA TRANSAKSI DAN TANPA KASIR
+         * ============================================================
+         */
+        $query->where(function ($q) {
+            $q->whereNotNull('transaksi.id')
+                ->orWhereNotNull('kasir.kasir_bersih');
+        });
 
+        /**
+         * ============================================================
+         *  PAGINATION
+         * ============================================================
+         */
         $transaksiTenant = $query
             ->groupBy('tenants.id', 'tenants.nama_tenant')
             ->paginate($perPage);
