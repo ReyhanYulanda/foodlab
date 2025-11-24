@@ -39,7 +39,7 @@ class TransaksiTenantController extends Controller
     tenants.id AS tenant_id,
     SUM(cashiers_detail.harga) AS kasir_kotor,
     (SUM(cashiers_detail.harga) - (0.1 * SUM(cashiers_detail.harga))) AS kasir_bersih,
-    cashiers.updated_at as updated_at
+    MAX(cashiers.updated_at) as updated_at
 ")
             ->join('cashiers', 'cashiers_detail.cashier_id', '=', 'cashiers.id')
             ->join('menus', 'cashiers_detail.menu_id', '=', 'menus.id')
