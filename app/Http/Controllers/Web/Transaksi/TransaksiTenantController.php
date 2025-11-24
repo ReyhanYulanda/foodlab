@@ -45,7 +45,7 @@ class TransaksiTenantController extends Controller
             ->join('cashiers', 'cashiers_detail.cashier_id', '=', 'cashiers.id')
             ->join('menus', 'cashiers_detail.menu_id', '=', 'menus.id')
             ->join('tenants', 'menus.tenant_id', '=', 'tenants.id')
-            ->where('cashiers.status', 'selesai');
+            ->where('cashiers.status', '=', 'selesai');
 
         // Filter waktu kasir → mengikuti filter transaksi tenant
         if ($filterDate) {
