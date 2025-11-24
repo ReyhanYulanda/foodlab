@@ -14,12 +14,13 @@ class UpdateFailedTransactions extends Command
 
     public function handle(Firebases $firebases)
     {
-        $checkouts = Checkout::with('transaksi')
+        $checkouts = Checkout::with('transaksi', 'cashier')
             ->where('status_bayar', 'failed')
             ->get();
 
         foreach ($checkouts as $checkout) {
             $transaksi = $checkout->transaksi;
+            $cashier = $checkout->cashier;
 
             if (!$transaksi) {
                 continue;
@@ -30,11 +31,22 @@ class UpdateFailedTransactions extends Command
                 continue;
             }
 
-            // ✅ update status ke gagal_bayar
-            $transaksi->update([
-                'status' => 'gagal_bayar'
-            ]);
+            // ⛔ skip kalau transaksi sudah selesai
+            if ($cashier->status === 'gagal_bayar') {
+                continue;
+            }
 
+            if ($checkout->transaksi_id) {
+                $transaksi->update([
+                    'status' => 'gagal_bayar'
+                ]);
+            } else if ($checkout->cashier_id) {
+                $cashier->update([
+                    'status' => 'gagal_bayar'
+                ]);
+            }
+
+            // ✅ update status ke gagal_bayar
             $this->info("Transaksi ID {$checkout->transaksi_id} diupdate ke gagal_bayar");
 
             // kirim notifikasi sekali
