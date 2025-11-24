@@ -57,18 +57,16 @@ class TransaksiTenantController extends Controller
          */
         $kasirSub = DB::table('cashiers_detail')
             ->selectRaw("
-                tenants.id AS tenant_id,
-                SUM(cashiers_detail.harga) AS kasir_kotor,
-                SUM(cashiers_detail.harga) * 0.9 AS kasir_bersih,
-                cashiers.updated_at
-            ")
+            tenants.id AS tenant_id,
+            SUM(cashiers_detail.harga) AS kasir_kotor,
+            SUM(cashiers_detail.harga) * 0.9 AS kasir_bersih
+        ")
             ->join('cashiers', 'cashiers.id', '=', 'cashiers_detail.cashier_id')
             ->join('menus', 'menus.id', '=', 'cashiers_detail.menu_id')
             ->join('tenants', 'tenants.id', '=', 'menus.tenant_id')
             ->where('cashiers.status', 'selesai')
             ->whereBetween('cashiers.updated_at', [$start, $end])
-            ->groupBy('tenants.id', 'cashiers.updated_at');
-
+            ->groupBy('tenants.id');
         /**
          * ============================================================
          *  QUERY TRANSAKSI TENANT
@@ -102,8 +100,7 @@ class TransaksiTenantController extends Controller
          * ============================================================
          */
         $query->where(function ($q) use ($start, $end) {
-            $q->whereBetween('transaksi.updated_at', [$start, $end])
-                ->orWhereBetween('kasir.updated_at', [$start, $end]);
+            $q->whereBetween('transaksi.updated_at', [$start, $end]);
         });
 
         /**
