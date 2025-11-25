@@ -973,7 +973,7 @@ class TransaksiController extends Controller
                         ],
                     ];
                     \Midtrans\Config::$serverKey = config('custom.midtrans_server_key');
-                    \Midtrans\Config::$isProduction = true;
+                    \Midtrans\Config::$isProduction = false;
                     \Midtrans\Config::$isSanitized = true;
                     \Midtrans\Config::$is3ds = true;
                     $snap = \Midtrans\CoreApi::charge($params);
@@ -997,6 +997,7 @@ class TransaksiController extends Controller
                         'qr_url' => $snap->actions[0]->url ?? null,
                         'expiry' => $snap->expiry_time ?? null,
                         'biaya_admin' => $biaya['total_biaya_admin'],
+                        'grand_total' => $qrisTotalFinal
                     ];
                 }
 
