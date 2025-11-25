@@ -2148,6 +2148,35 @@ class TransaksiController extends Controller
                             'deskripsi' => 'Pembayaran pesanan (QRIS) #' . $transaksi->id,
                         ]);
 
+                        if ($transaksi->multitenant_id) {
+
+                            $relatedTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                                ->where('id', '!=', $transaksi->id)       // exclude transaksi utama
+                                ->get();
+
+                            foreach ($relatedTransaksi as $t) {
+                                if ($t->status === 'pending') {
+                                    $t->status = 'pesanan_masuk';
+                                    $t->save();
+                                }
+
+                                // 🔔 Notifikasi ke tenant terkait
+                                $tenantUser = User::with('fcmTokens')->find($t->tenant_id);
+                                $tenantTokens = $tenantUser ? $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+
+                                if (!empty($tenantTokens)) {
+                                    $firebases = new Firebases();
+                                    $firebases
+                                        ->withNotification('Pesanan Masuk', 'Ada pesanan baru, segera proses!')
+                                        ->withData([
+                                            'title' => 'Pesanan Masuk',
+                                            'body' => 'Ada pesanan baru multitenant, silakan cek detailnya.',
+                                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                        ])->sendToTenant($tenantTokens);
+                                }
+                            }
+                        }
+                        
                         // 🚀 Notifikasi ke tenant
                         $tenantUser = User::with('fcmTokens')->find($transaksi->tenant_id);
                         $fcmTenantToken = $tenantUser ? $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
