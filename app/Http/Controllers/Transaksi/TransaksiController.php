@@ -528,7 +528,9 @@ class TransaksiController extends Controller
                         'tenant_id' => $tenant->user_id,
                         'ruangan_id' => $ruanganId,
                         'catatan' => $request->catatan,
-                        'status' => 'pesanan_masuk',
+                        'status' => $request->metode_pembayaran === 'qris'
+                            ? 'pending'
+                            : 'pesanan_masuk',
                         'ongkos_kirim' => $ongkosKirim,
                         'biaya_layanan' => $biayaLayanan,
                         'catatan_lokasi_pengantaran' => $request->catatan_lokasi_pengantaran ?? null,
