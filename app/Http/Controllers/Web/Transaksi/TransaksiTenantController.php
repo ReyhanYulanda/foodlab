@@ -461,68 +461,166 @@ class TransaksiTenantController extends Controller
     public function exportCsvRekap(Request $request)
     {
         $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
+        $endDate   = $request->input('end_date');
 
-        $query = TransaksiDetail::selectRaw("
-                tenants.nama_tenant,
-                tenants.id,
-                SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_1,
-                SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_2,
-                SUM(transaksi.ongkos_kirim) as total_ongkir,
-                (SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) - (0.1 * SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_1,
-                (SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) - (0.1 * SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_2
-            ")
-            ->join('menus', 'transaksi_detail.menu_id', '=', 'menus.id')
-            ->join('tenants', 'menus.tenant_id', '=', 'tenants.id')
-            ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id');
-
-        $skipTenants = ['Kedai Pak Agil', 'Test Tenant', 'Mie Ayam Ziko'];
-
+        /**
+         * ============================================================
+         *  RANGE WAKTU GLOBAL
+         * ============================================================
+         */
         if ($startDate && $endDate) {
-            $query->whereBetween('transaksi.updated_at', [$startDate, $endDate]);
+            $start = Carbon::parse($startDate)->subDay()->setTime(6, 0, 0);
+            $end   = Carbon::parse($endDate)->setTime(5, 59, 59);
+        } else {
+            // default: hari ini
+            $start = Carbon::today()->subDay()->setTime(6, 0, 0);
+            $end   = Carbon::today()->setTime(5, 59, 59);
         }
 
-        $query->whereNotIn('tenants.nama_tenant', $skipTenants);
+        /**
+         * ============================================================
+         *  SUBQUERY KASIR
+         * ============================================================
+         */
+        $kasirSub = DB::table('cashiers_detail')
+            ->selectRaw("
+            tenants.id AS tenant_id,
+            SUM(cashiers_detail.harga) AS kasir_kotor,
+            SUM(cashiers_detail.harga) AS kasir_bersih
+        ")
+            ->join('cashiers', 'cashiers.id', '=', 'cashiers_detail.cashier_id')
+            ->join('menus', 'menus.id', '=', 'cashiers_detail.menu_id')
+            ->join('tenants', 'tenants.id', '=', 'menus.tenant_id')
+            ->where('cashiers.status', 'selesai')
+            ->whereBetween('cashiers.updated_at', [$start, $end])
+            ->groupBy('tenants.id');
 
-        $transaksiTenant = $query->groupBy('menus.tenant_id', 'tenants.nama_tenant')->get();
+        /**
+         * ============================================================
+         *  SUBQUERY TRANSAKSI TENANT
+         * ============================================================
+         */
+        $transaksiSub = DB::table('transaksi_detail')
+            ->selectRaw("
+            tenants.id AS tenant_id,
 
+            SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) AS pendapatan_kotor_1,
+            SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) * 0.9 AS pendapatan_bersih_1,
+
+            SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) AS pendapatan_kotor_2,
+            SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) * 0.9 AS pendapatan_bersih_2,
+
+            SUM(transaksi.ongkos_kirim) AS total_ongkir
+        ")
+            ->join('transaksi', 'transaksi.id', '=', 'transaksi_detail.transaksi_id')
+            ->join('menus', 'menus.id', '=', 'transaksi_detail.menu_id')
+            ->join('tenants', 'tenants.id', '=', 'menus.tenant_id')
+            ->where('transaksi.status', 'selesai')
+            ->whereBetween('transaksi.updated_at', [$start, $end])
+            ->groupBy('tenants.id');
+
+        /**
+         * ============================================================
+         *  QUERY UTAMA — JOIN SUBQUERY
+         * ============================================================
+         */
+        $query = Tenants::selectRaw("
+        tenants.id,
+        tenants.nama_tenant,
+
+        COALESCE(ts.pendapatan_kotor_1, 0) AS pendapatan_kotor_1,
+        COALESCE(ts.pendapatan_bersih_1, 0) AS pendapatan_bersih_1,
+        COALESCE(ts.total_ongkir, 0)        AS total_ongkir,
+
+        COALESCE(ts.pendapatan_kotor_2, 0) AS pendapatan_kotor_2,
+        COALESCE(ts.pendapatan_bersih_2, 0) AS pendapatan_bersih_2,
+
+        COALESCE(kasir.kasir_kotor, 0) AS kasir_kotor,
+        COALESCE(kasir.kasir_bersih, 0) AS kasir_bersih
+    ")
+            ->leftJoinSub(
+                $transaksiSub,
+                'ts',
+                fn($join) =>
+                $join->on('ts.tenant_id', '=', 'tenants.id')
+            )
+            ->leftJoinSub(
+                $kasirSub,
+                'kasir',
+                fn($join) =>
+                $join->on('kasir.tenant_id', '=', 'tenants.id')
+            )
+            ->where(function ($q) {
+                $q->whereNotNull('ts.tenant_id')
+                    ->orWhereNotNull('kasir.tenant_id');
+            });
+
+        $data = $query
+            ->groupBy('tenants.id', 'tenants.nama_tenant')
+            ->orderBy('tenants.nama_tenant')
+            ->get();
+
+        /**
+         * ============================================================
+         *  EXPORT XLSX
+         * ============================================================
+         */
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
 
-        // Header tabel
-        $headers = ["No", "Nama Tenant", "Pendapatan Kotor (Pesan Antar)", "Ongkir", "Pendapatan Bersih (Pesan Antar)", "Pendapatan Kotor (Ambil Sendiri)", "Pendapatan Bersih (Ambil Sendiri)"];
-        $sheet->fromArray($headers, NULL, 'A1');
+        $headers = [
+            "No",
+            "Nama Tenant",
+
+            "Pendapatan Kotor (Pesan Antar)",
+            "Ongkir",
+            "Pendapatan Bersih (Pesan Antar)",
+
+            "Pendapatan Kotor (Ambil Sendiri)",
+            "Pendapatan Bersih (Ambil Sendiri)",
+
+            "Kasir Kotor",
+            "Kasir Bersih"
+        ];
+
+        $sheet->fromArray($headers, null, 'A1');
 
         $row = 2;
-        foreach ($transaksiTenant as $index => $p) {
+
+        foreach ($data as $i => $p) {
             $sheet->fromArray([
-                $index + 1,
+                $i + 1,
                 $p->nama_tenant,
+
                 $p->pendapatan_kotor_1,
                 $p->total_ongkir,
                 $p->pendapatan_bersih_1,
+
                 $p->pendapatan_kotor_2,
                 $p->pendapatan_bersih_2,
-            ], NULL, "A{$row}");
+
+                $p->kasir_kotor,
+                $p->kasir_bersih
+
+            ], null, "A{$row}");
+
             $row++;
         }
 
-        // Auto size kolom
+        // Auto size
         foreach (range('A', $sheet->getHighestColumn()) as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
-        // Format angka dengan pemisah ribuan (mulai kolom C sampai G)
+        // Format angka
         $lastRow = $sheet->getHighestRow();
-        $sheet->getStyle("C2:G{$lastRow}")
+        $sheet->getStyle("C2:I{$lastRow}")
             ->getNumberFormat()
             ->setFormatCode('#,##0');
-        // Kalau mau ada Rp di depan, pakai ini:
-        // ->setFormatCode('"Rp" #,##0');
 
-        $fileName = "transaksi_tenant_" . date('YmdHis') . ".xlsx";
-
+        $fileName = "rekap_transaksi_tenant_" . date('YmdHis') . ".xlsx";
         $writer = new Xlsx($spreadsheet);
+
         return response()->streamDownload(function () use ($writer) {
             $writer->save('php://output');
         }, $fileName, [
