@@ -391,7 +391,7 @@ class TransaksiController extends Controller
                         }
                     }
 
-                    $biayaLayanan = Pengaturan::where('nama', 'biaya_layanan')->value('nilai') ?? 0;
+                    $biayaLayanan = (int) (Pengaturan::where('nama', 'biaya_layanan')->value('nilai') ?? 0);
                     $totalFinal = $totalHargaMenu + ($request->isAntar ? $ongkosKirim : 0) + $biayaLayanan;
 
                     $perTenantCalc[$tenantId] = [
