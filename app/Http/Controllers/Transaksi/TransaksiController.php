@@ -706,6 +706,7 @@ class TransaksiController extends Controller
                         'qr_url' => $snap->actions[0]->url ?? null,
                         'expiry' => $snap->expiry_time ?? null,
                         'biaya_admin' => $biaya['total_biaya_admin'],
+                        'grand_total' => $grandTotal
                     ];
 
                     $qrisCreatedYet = true;
