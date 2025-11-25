@@ -29,6 +29,28 @@ class CashierController extends Controller
         return $huruf . $angka;
     }
 
+    private function generateOrderTenant($tenantId)
+    {
+        // Ambil data paling akhir untuk tenant ini
+        $last = Cashier::where('tenant_id', $tenantId)
+            ->orderBy('id', 'desc')
+            ->first();
+
+        // Jika belum ada data sama sekali → mulai dari 1
+        if (!$last) {
+            return 1;
+        }
+
+        // Kalau latest created_at bukan hari ini → reset
+        if ($last->created_at->isSameDay(now()) === false) {
+            return 1;
+        }
+
+        // Kalau masih hari yg sama → lanjutkan
+        return $last->order_tenant + 1;
+    }
+
+
     public function store(Request $request)
     {
         $user = $request->user();
@@ -90,11 +112,7 @@ class CashierController extends Controller
                 }
             }
 
-            // ✅ Cari order_tenant terakhir milik tenant ini
-            $lastOrderTenant = Cashier::where('tenant_id', $tenant->id)
-                ->max('order_tenant');
-
-            $nextOrderTenant = $lastOrderTenant ? $lastOrderTenant + 1 : 1;
+            $nextOrderTenant = $this->generateOrderTenant($tenant->id);
 
             $cashier = Cashier::create([
                 'user_id' => $user->id,
