@@ -350,12 +350,6 @@ class TransaksiController extends Controller
             $isMultiTenant = $tenants->count() > 1;
             $multitenantId = null;
             if ($isMultiTenant) {
-                if ($request->metode_pembayaran === 'qris') {
-                    return response()->json([
-                        'status' => 'failed',
-                        'message' => ['Metode pembayaran Qris tidak bisa digunakan untuk pesanan multitenant']
-                    ], 400);
-                }
 
                 $multitenantId = (Transaksi::max('multitenant_id') ?? 0) + 1;
 
