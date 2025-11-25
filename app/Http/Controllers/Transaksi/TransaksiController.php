@@ -2180,18 +2180,21 @@ class TransaksiController extends Controller
                             }
                         }
 
-                        // 🚀 Notifikasi ke tenant
-                        $tenantUser = User::with('fcmTokens')->find($transaksi->tenant_id);
-                        $fcmTenantToken = $tenantUser ? $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
-                        if (!empty($fcmTenantToken)) {
-                            $firebases = new Firebases();
-                            $firebases
-                                ->withNotification('Pesanan Masuk', 'Ada pesanan baru, segera proses!')
-                                ->withData([
-                                    'title' => 'Pesanan Masuk',
-                                    'body' => 'Ada pesanan baru yang masuk! Silakan cek aplikasi untuk detailnya.',
-                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                                ])->sendToTenant($fcmTenantToken);
+                        if ($transaksi->multitenant_id == null) { {
+                                // 🚀 Notifikasi ke tenant
+                                $tenantUser = User::with('fcmTokens')->find($transaksi->tenant_id);
+                                $fcmTenantToken = $tenantUser ? $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                                if (!empty($fcmTenantToken)) {
+                                    $firebases = new Firebases();
+                                    $firebases
+                                        ->withNotification('Pesanan Masuk', 'Ada pesanan baru, segera proses!')
+                                        ->withData([
+                                            'title' => 'Pesanan Masuk',
+                                            'body' => 'Ada pesanan baru yang masuk! Silakan cek aplikasi untuk detailnya.',
+                                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                        ])->sendToTenant($fcmTenantToken);
+                                }
+                            }
                         }
 
                         $user = User::with('fcmTokens')->find($transaksi->user_id);
@@ -2218,10 +2221,10 @@ class TransaksiController extends Controller
                         if (!empty($fcmTenantToken)) {
                             $firebases = new Firebases();
                             $firebases
-                                ->withNotification('Pesanan Berhasil Dibayar', 'Pesanan baru, segera diproses!')
+                                ->withNotification("Pesanan KASIR-{$cashier->order_tenant} Berhasil Dibayar", "Pesanan {$cashier->id}, segera diproses!")
                                 ->withData([
-                                    'title' => 'Pesanan Berhasil Dibayar',
-                                    'body' => 'Pesanan baru, segera diproses!',
+                                    'title' => "Pesanan KASIR-{$cashier->order_tenant} Berhasil Dibayar",
+                                    'body' => "Pesanan {$cashier->id}, segera diproses!",
                                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                                 ])->sendToTenant($fcmTenantToken);
                         }
