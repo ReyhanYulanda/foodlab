@@ -523,7 +523,7 @@ class TransaksiController extends Controller
                         'user_id' => $user->id,
                         'total' => $totalFinal,
                         'isAntar' => (int) $request->boolean('isAntar'),
-                        'isPriority' => $request->boolean('isPriority') ?? false,
+                        'isPriority' => (int) $request->boolean('isPriority') ?? false,
                         'metode_pembayaran' => $request->metode_pembayaran,
                         'tenant_id' => $tenant->user_id,
                         'ruangan_id' => $ruanganId,
