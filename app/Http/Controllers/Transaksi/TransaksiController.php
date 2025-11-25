@@ -123,6 +123,7 @@ class TransaksiController extends Controller
                 'qr_url' => $transaksi->checkout->kode_bayar,
                 'expiry' => $transaksi->checkout->tgl_akhir_tagihan,
                 'biaya_admin' => $transaksi->checkout->total_biaya_admin,
+                'grand_total' => $transaksi->checkout->total_bayar_user
             ];
         }
 
