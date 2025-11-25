@@ -357,20 +357,6 @@ class TransaksiController extends Controller
                     ], 400);
                 }
 
-                // if ($request->isAntar === 0 || $request->isAntar === false) {
-                //     return response()->json([
-                //         'status' => 'failed',
-                //         'message' => ['Multitenant hanya mendukung layanan pesan antar']
-                //     ], 400);
-                // }
-
-                // if ($request->boolean('isPriority')) {
-                //     return response()->json([
-                //         'status' => 'failed',
-                //         'message' => ['Prioritas tidak bisa digunakan untuk pesanan multitenant']
-                //     ], 400);
-                // }
-                // Dapatkan id terakhir + 1 (auto increment manual)
                 $multitenantId = (Transaksi::max('multitenant_id') ?? 0) + 1;
 
                 // Pisahkan menu berdasarkan tenant
@@ -517,6 +503,10 @@ class TransaksiController extends Controller
                     }
                 }
 
+                $qrisCreatedYet = false;
+                $firstTransaksiForQris = null;
+                $qrisInfo = null;
+
 
                 // Sekarang buat transaksi per tenant — gunakan nilai dari pre-calc agar konsisten
                 foreach ($perTenantCalc as $tenantId => $calc) {
@@ -552,6 +542,10 @@ class TransaksiController extends Controller
                         'voucher_id' => $assignCashback ? $voucher->id : null,
                         'cashback_amount' => $assignCashback ?? 0
                     ]);
+
+                    if ($firstTransaksiForQris === null) {
+                        $firstTransaksiForQris = $transaksi;
+                    }
 
                     // generate kode pemesanan unik per transaksi
                     do {
@@ -662,6 +656,65 @@ class TransaksiController extends Controller
                     }
                 }
 
+                // ==== QRIS MULTITENANT PAYMENT ====
+                if ($request->metode_pembayaran === 'qris' && !$qrisCreatedYet) {
+
+                    // Tag transaksi pertama sebagai parent untuk checkout
+                    $firstTransaksiId = $firstTransaksiForQris->id;
+
+                    // Hitung biaya admin berdasarkan GRAND TOTAL multitenant
+                    $biaya = $this->generateBiayaAdmin((int) $grandTotal);
+
+                    $uuidParts = explode('-', Str::uuid()->toString());
+                    $shortUuid = implode('-', array_slice($uuidParts, 0, 3));
+
+                    $qrisTotalFinal = $biaya['total_biaya_admin'] + $grandTotal;
+
+                    $orderId = 'foodlabs-' . $shortUuid . '-' . time();
+
+                    $params = [
+                        'transaction_details' => [
+                            'order_id' => $orderId,
+                            'gross_amount' => $qrisTotalFinal,
+                        ],
+                        'payment_type' => 'qris',
+                        'qris' => [
+                            'acquirer' => 'gopay'
+                        ],
+                    ];
+
+                    \Midtrans\Config::$serverKey = config('custom.midtrans_server_key');
+                    \Midtrans\Config::$isProduction = false;
+                    \Midtrans\Config::$isSanitized = true;
+                    \Midtrans\Config::$is3ds = true;
+
+                    $snap = \Midtrans\CoreApi::charge($params);
+
+                    // Create checkout hanya sekali (transaksi pertama sebagai induk)
+                    Checkout::create([
+                        'user_id' => $user->id,
+                        'transaksi_id' => $firstTransaksiId,
+                        'nominal' => $grandTotal,
+                        'biaya_midtrans' => $biaya['biaya_midtrans'],
+                        'biaya_ubisma' => $biaya['biaya_ubsima'],
+                        'total_biaya_admin' => $biaya['total_biaya_admin'],
+                        'total_bayar_user' => $biaya['total_bayar_user'],
+                        'status_bayar' => 'pending',
+                        'midtrans_request_id' => $orderId,
+                        'kode_bayar' => $snap->actions[0]->url ?? null,
+                        'tgl_akhir_tagihan' => $snap->expiry_time ?? null,
+                    ]);
+
+                    $qrisInfo = [
+                        'order_id_midtrans' => $orderId,
+                        'qr_url' => $snap->actions[0]->url ?? null,
+                        'expiry' => $snap->expiry_time ?? null,
+                        'biaya_admin' => $biaya['total_biaya_admin'],
+                    ];
+
+                    $qrisCreatedYet = true;
+                }
+
                 DB::commit();
 
                 $transaksiWithDetails = Transaksi::with(['listTransaksiDetail.menus'])
@@ -673,7 +726,10 @@ class TransaksiController extends Controller
                     'messages' => 'Transaksi multitenant berhasil dibuat',
                     'multitenant_id' => $multitenantId,
                     'data' => [
-                        'transaksi' => $transaksiWithDetails,
+                        'transaksi' => array_merge(
+                            $transaksi->toArray(),
+                            $qrisInfo ?? []
+                        ),
                     ]
                 ], 201);
             }
