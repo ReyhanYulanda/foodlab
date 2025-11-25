@@ -522,7 +522,7 @@ class TransaksiController extends Controller
                     $transaksi = Transaksi::create([
                         'user_id' => $user->id,
                         'total' => $totalFinal,
-                        'isAntar' => $request->isAntar,
+                        'isAntar' => (int) $request->boolean('isAntar'),
                         'isPriority' => $request->boolean('isPriority') ?? false,
                         'metode_pembayaran' => $request->metode_pembayaran,
                         'tenant_id' => $tenant->user_id,
