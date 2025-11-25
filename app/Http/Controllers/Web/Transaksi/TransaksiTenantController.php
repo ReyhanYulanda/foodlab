@@ -206,36 +206,93 @@ class TransaksiTenantController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
-        $query = TransaksiDetail::selectRaw("
-        tenants.nama_tenant,
-    tenants.id,
-    tenants.no_rekening_toko,
-    SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_1,
-    SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) as pendapatan_kotor_2,
-    (SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) - 
-     (0.1 * SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_1,
-    (SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) - 
-     (0.1 * SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END))) as pendapatan_bersih_2
-    ")
-            ->join('menus', 'transaksi_detail.menu_id', '=', 'menus.id')
-            ->join('tenants', 'menus.tenant_id', '=', 'tenants.id')
-            ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id')
-            ->where('transaksi.status', 'selesai');
-
+        /**
+         * ============================================================
+         * RANGE TANGGAL (format 06:00 - 05:59)
+         * ============================================================
+         */
         if ($filterDate) {
             $start = Carbon::parse($filterDate)->subDay()->setTime(6, 0, 0);
             $end   = Carbon::parse($filterDate)->setTime(5, 59, 59);
-            $query->whereBetween('transaksi.updated_at', [$start, $end]);
         } elseif ($startDate && $endDate) {
             $start = Carbon::parse($startDate)->subDay()->setTime(6, 0, 0);
             $end   = Carbon::parse($endDate)->setTime(5, 59, 59);
-            $query->whereBetween('transaksi.updated_at', [$start, $end]);
+        } else {
+            $start = Carbon::today()->subDay()->setTime(6, 0, 0);
+            $end   = Carbon::today()->setTime(5, 59, 59);
         }
 
-        $transaksiTenant = $query
-            ->groupBy('tenants.id', 'tenants.nama_tenant', 'tenants.no_rekening_toko')
-            ->get();
+        /**
+         * ============================================================
+         * SUBQUERY CASHIER
+         * ============================================================
+         */
+        $kasirSub = DB::table('cashiers_detail')
+            ->selectRaw("
+            tenants.id AS tenant_id,
+            SUM(cashiers_detail.harga) AS kasir_bersih
+        ")
+            ->join('cashiers', 'cashiers.id', '=', 'cashiers_detail.cashier_id')
+            ->join('menus', 'menus.id', '=', 'cashiers_detail.menu_id')
+            ->join('tenants', 'tenants.id', '=', 'menus.tenant_id')
+            ->where('cashiers.status', 'selesai')
+            ->whereBetween('cashiers.updated_at', [$start, $end])
+            ->groupBy('tenants.id');
 
+        /**
+         * ============================================================
+         * SUBQUERY TRANSAKSI ONLINE
+         * ============================================================
+         */
+        $transaksiSub = DB::table('transaksi_detail')
+            ->selectRaw("
+            tenants.id AS tenant_id,
+            SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) AS pendapatan_kotor_1,
+            SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga ELSE 0 END) * 0.9 AS pendapatan_bersih_1,
+            SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) AS pendapatan_kotor_2,
+            SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga ELSE 0 END) * 0.9 AS pendapatan_bersih_2
+        ")
+            ->join('transaksi', 'transaksi.id', '=', 'transaksi_detail.transaksi_id')
+            ->join('menus', 'menus.id', '=', 'transaksi_detail.menu_id')
+            ->join('tenants', 'tenants.id', '=', 'menus.tenant_id')
+            ->where('transaksi.status', 'selesai')
+            ->whereBetween('transaksi.updated_at', [$start, $end])
+            ->groupBy('tenants.id');
+
+        /**
+         * ============================================================
+         * QUERY UTAMA: JOIN 2 SUBQUERY
+         * ============================================================
+         */
+        $query = Tenants::selectRaw("
+        tenants.nama_tenant,
+        tenants.id,
+        tenants.no_rekening_toko,
+
+        COALESCE(ts.pendapatan_kotor_1, 0) AS pendapatan_kotor_1,
+        COALESCE(ts.pendapatan_kotor_2, 0) AS pendapatan_kotor_2,
+        COALESCE(ts.pendapatan_bersih_1, 0) AS pendapatan_bersih_1,
+        COALESCE(ts.pendapatan_bersih_2, 0) AS pendapatan_bersih_2,
+
+        COALESCE(kasir.kasir_bersih, 0) AS kasir_bersih
+    ")
+            ->leftJoinSub($transaksiSub, 'ts', function ($join) {
+                $join->on('ts.tenant_id', '=', 'tenants.id');
+            })
+            ->leftJoinSub($kasirSub, 'kasir', function ($join) {
+                $join->on('kasir.tenant_id', '=', 'tenants.id');
+            })
+            ->where(function ($q) {
+                $q->whereNotNull('ts.tenant_id')->orWhereNotNull('kasir.tenant_id');
+            });
+
+        $transaksiTenant = $query->get();
+
+        /**
+         * ============================================================
+         * EXPORT CSV
+         * ============================================================
+         */
         $fileName = "mandiri_transfer_" . date('YmdHis') . ".csv";
         $handle = fopen('php://output', 'w');
 
@@ -251,7 +308,6 @@ class TransaksiTenantController extends Controller
             $tanggal = now()->format('Ymd');
             $skipTenants = ['Kedai Pak Agil', 'Test Tenant'];
 
-
             $totalBaris = 0;
             $totalAmount = 0;
             $rows = [];
@@ -262,7 +318,12 @@ class TransaksiTenantController extends Controller
                 }
 
                 $namaTenant = str_replace(['"', ','], '', $p->nama_tenant);
-                $totalBersih = ($p->pendapatan_bersih_1 ?? 0) + ($p->pendapatan_bersih_2 ?? 0);
+
+                $totalBersih =
+                    ($p->pendapatan_bersih_1 ?? 0) +
+                    ($p->pendapatan_bersih_2 ?? 0) +
+                    ($p->kasir_bersih ?? 0); // 🔥 tambahkan kasir
+
                 $totalBaris++;
                 $totalAmount += $totalBersih;
 
@@ -314,7 +375,7 @@ class TransaksiTenantController extends Controller
                 ];
             }
 
-            // Write header row
+            // HEADER CSV
             fputcsv($handle, [
                 'P',
                 $tanggal,
@@ -323,17 +384,14 @@ class TransaksiTenantController extends Controller
                 $totalAmount
             ]);
 
-            // Write all tenant rows
             foreach ($rows as $row) {
-                $cleanedRow = array_map(function ($item) {
-                    return str_replace(['"', ','], '', $item); // bersihkan tanda kutip dan koma jika perlu
-                }, $row);
-                fwrite($handle, implode(',', $cleanedRow) . "\n");
+                fwrite($handle, implode(',', $row) . "\n");
             }
 
             fclose($handle);
         }, 200, $headers);
     }
+
 
     public function exportCsvJasa(Request $request)
     {
