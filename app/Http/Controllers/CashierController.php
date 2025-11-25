@@ -215,6 +215,7 @@ class CashierController extends Controller
             $query->where('user_id', $user->id);
         })
             ->whereNotNull('order_tenant')
+            ->where('status', '!=', 'gagal_bayar')
             ->with([
                 'details.menu' => function ($q) {
                     $q->select('id', 'nama as nama_menu', 'harga', 'tenant_id', 'gambar');
