@@ -2176,7 +2176,7 @@ class TransaksiController extends Controller
                                 }
                             }
                         }
-                        
+
                         // 🚀 Notifikasi ke tenant
                         $tenantUser = User::with('fcmTokens')->find($transaksi->tenant_id);
                         $fcmTenantToken = $tenantUser ? $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
@@ -2227,6 +2227,21 @@ class TransaksiController extends Controller
                     $checkout->update(['status_bayar' => 'pending']);
                 } elseif (in_array($transactionStatus, ['deny', 'cancel', 'expire'])) {
                     $checkout->update(['status_bayar' => 'failed']);
+                    Log::info("Checkout ID {$checkout->id} status updated to failed by Midtrans ({$transactionStatus}).");
+
+                    // Update transaksi utama -> gagal_bayar (jika pending)
+                    $transaksi = Transaksi::find($checkout->transaksi_id);
+                    if ($transaksi && $transaksi->status === 'pending') {
+                        $transaksi->status = 'gagal_bayar';
+                        $transaksi->save();
+                    }
+
+                    // Jika multitenant -> update semua related transaksi pending -> gagal_bayar
+                    if ($transaksi && $transaksi->multitenant_id) {
+                        Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                            ->where('status', 'pending')
+                            ->update(['status' => 'gagal_bayar']);
+                    }
                 } else {
                     $checkout->update(['status_bayar' => 'unknown']);
                 }
