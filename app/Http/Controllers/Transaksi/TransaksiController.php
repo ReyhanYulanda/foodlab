@@ -408,20 +408,6 @@ class TransaksiController extends Controller
                     $grandTotal += $totalFinal;
                 }
 
-                // Hitung total seluruh item multitenant
-                $totalSemuaItem = 0;
-                foreach ($perTenantCalc as $calc) {
-                    $totalSemuaItem += $calc['totalJumlahMenu'];
-                }
-
-                // Hitung biaya extra global
-                $biayaExtra = Pengaturan::where('nama', 'biaya_extra')->value('nilai') ?? 1000;
-
-                $totalExtraGlobal = 0;
-                if ($totalSemuaItem > 10) {
-                    $totalExtraGlobal = ($totalSemuaItem - 10) * $biayaExtra;
-                }
-
                 // Jika metode pembayaran koin -> cek saldo user mencukupi GRAND TOTAL
                 if ($request->metode_pembayaran === 'koin') {
                     $saldo = SaldoKoin::where('user_id', $user->id)->first();
@@ -526,11 +512,6 @@ class TransaksiController extends Controller
                     $ongkosKirim = $calc['ongkosKirim'];
                     $biayaLayanan = $calc['biayaLayanan'];
                     $totalFinal = $calc['totalFinal'];
-
-                    if ($firstTransaksiForQris === null && $totalExtraGlobal > 0) {
-                        $totalFinal += $totalExtraGlobal;
-                        $ongkosKirim += $totalExtraGlobal;
-                    }
 
                     $assignCashback = 0;
                     // Apply hanya ke transaksi pertama
