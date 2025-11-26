@@ -175,18 +175,6 @@ class PesananController extends Controller
             ], 403);
         }
 
-        // if ($request->status === 'selesai') {
-        //     if ($request->hasFile('bukti_pengantaran')) {
-        //         $file = $request->file('bukti_pengantaran');
-        //         $path = $file->store('bukti_pengantaran', 'public');
-        //     } else {
-        //         return response()->json([
-        //             "status" => "Bad Request",
-        //             "message" => "Upload bukti pengantaran"
-        //         ], 400);
-        //     }
-        // }
-
         try {
             $transaksi = Transaksi::find($transaksiId);
 
@@ -198,6 +186,18 @@ class PesananController extends Controller
             }
             if ($status === 'pesanan_diproses') {
                 if ($transaksi->isPriority == 1) {
+                    if ($transaksi->driver_id === null) {
+                        $transaksiAktifDriver = Transaksi::where('driver_id', $user->id)
+                            ->whereIn('status', ['diantar', 'siap_diantar'])
+                            ->count();
+
+                        if ($transaksiAktifDriver >= 5) {
+                            return response()->json([
+                                "status" => "failed",
+                                "message" => "Maksimal 5 pesanan aktif. Selesaikan dulu pengantaran"
+                            ], 400);
+                        }
+                    }
                     if ($transaksi->status === 'pesanan_masuk' || $transaksi->status === 'pesanan_diproses') {
                         if (in_array($transaksi->status, ['refund_selesai', 'selesai'])) {
                             return response()->json([
@@ -309,6 +309,18 @@ class PesananController extends Controller
             if ($status === 'diantar') {
                 // Jika pesanan prioritas
                 if ($transaksi->isPriority == 1) {
+                    if ($transaksi->driver_id === null) {
+                        $transaksiAktifDriver = Transaksi::where('driver_id', $user->id)
+                            ->whereIn('status', ['diantar', 'siap_diantar'])
+                            ->count();
+
+                        if ($transaksiAktifDriver >= 5) {
+                            return response()->json([
+                                "status" => "failed",
+                                "message" => "Maksimal 5 pesanan aktif. Selesaikan dulu pengantaran"
+                            ], 400);
+                        }
+                    }
                     if ($transaksi->status === 'pesanan_diproses' & $request->status === 'diantar' & $transaksi->driver_id === null) {
                         if ($transaksi->multitenant_id) {
                             $relatedTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
@@ -1019,7 +1031,7 @@ class PesananController extends Controller
                             $transaksi1_items = $transaksi->listTransaksiDetail->sum('jumlah');
                             $transaksi2_items = $related ? $related->listTransaksiDetail->sum('jumlah') : 0;
 
-                            $extra_items_limit = 10; 
+                            $extra_items_limit = 10;
                             $value_extra_per_item = 500;
 
                             $totalItems = $transaksi1_items + $transaksi2_items;
