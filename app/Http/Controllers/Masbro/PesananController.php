@@ -668,6 +668,29 @@ class PesananController extends Controller
                             }
                         }
 
+                        try {
+                            $extraLimit = 10;
+                            $costPerExtra = 500;
+
+                            // total item dari transaksi refund + pasangan
+                            $refundTxItems = $refundTx->listTransaksiDetail->sum('jumlah');
+                            $pairTxItems   = $transaksi->listTransaksiDetail->sum('jumlah');
+
+                            $totalItemsGabungan = $refundTxItems + $pairTxItems;
+
+                            if ($totalItemsGabungan > $extraLimit) {
+                                $exceed = $totalItemsGabungan - $extraLimit;
+                                $extraFee = $exceed * $costPerExtra;
+
+                                // tambahkan ke refund amount
+                                $refundAmount += $extraFee;
+
+                                Log::info("Extra item fee applied: totalItems=$totalItemsGabungan exceed=$exceed extraFee=$extraFee");
+                            }
+                        } catch (\Throwable $e) {
+                            Log::error("Extra item calculation error: " . $e->getMessage());
+                        }
+
                         // Lakukan refund ke user pemilik transaksi yang di-refund (refundTx->user)
                         $user = $refundTx->user;
                         $saldo = SaldoKoin::firstOrCreate(['user_id' => $user->id], ['jumlah' => 0]);

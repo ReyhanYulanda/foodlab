@@ -89,10 +89,6 @@ class SaldoKoinController extends Controller
 
         $saldo = SaldoKoin::firstOrCreate(['user_id' => $userId], ['jumlah' => 0]);
 
-        Log::info('Register attempt', [
-            'ip' => request()->ip(),
-        ]);
-
         return response()->json([
             'success' => true,
             'saldo_koin' => $saldo->jumlah
