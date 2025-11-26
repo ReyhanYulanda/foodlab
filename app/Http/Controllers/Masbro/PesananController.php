@@ -1015,6 +1015,24 @@ class PesananController extends Controller
                                     $totalOngkir = 0;
                                 }
                             }
+                            // ===== Hitung EXTRA ITEM =====
+                            $transaksi1_items = $transaksi->listTransaksiDetail->sum('jumlah');
+                            $transaksi2_items = $related ? $related->listTransaksiDetail->sum('jumlah') : 0;
+
+                            $extra_items_limit = 10; 
+                            $value_extra_per_item = 500;
+
+                            $totalItems = $transaksi1_items + $transaksi2_items;
+
+                            $extraOngkir = 0;
+
+                            if ($bothSelesai && $totalItems > $extra_items_limit) {
+                                $extraOngkir = ($totalItems - $extra_items_limit) * $value_extra_per_item;
+                            }
+
+                            $totalOngkir += $extraOngkir;
+
+                            Log::info("Extra ongkir multitenant: totalItems={$totalItems}, extra={$extraOngkir}");
 
                             // Potong pajak 10%
                             $pajak = ($pajakPersen / 100) * $totalOngkir;
