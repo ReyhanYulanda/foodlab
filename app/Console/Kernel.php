@@ -18,6 +18,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('tenant:update-status')->everyMinute();
         $schedule->command('tenant:tutup')->everyMinute();
         $schedule->command('tenant:reset-manual-offline')->dailyAt($reset_manual->nilai ?? '00:00');
+        $schedule->command('kasir:auto-complete-pesanan-diproses')->dailyAt($jam_siap_diambil_done_otomatis->nilai ?? '01:00');
         $schedule->command('driver:tutup')->dailyAt($jam_tutup_driver->nilai ?? '00:00');
         $schedule->command('chat:delete-finished')->dailyAt($jam_clear_chat->nilai ?? '00:00');
         $schedule->command('notifikasi:siap-diantar')->everyMinute();
