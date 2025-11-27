@@ -671,7 +671,6 @@ class PesananController extends Controller
                     // 🔹 1. LOGIKA REFUND MULTITENANT
                     // ===============================
                     if ($related && $related->status === 'refund_selesai') {
-                        // gunakan transaksi yang refunded sebagai sumber data refund
                         $refundTx = $related;      // Transaksi yang di-refund (cancel)
                         $currentTx = $transaksi;   // Transaksi yang aktif/selesai
 
@@ -679,35 +678,41 @@ class PesananController extends Controller
                         $baseOngkir = $refundTx->ruangan->gedung->ongkir ?? 0;
                         $priorityOngkir = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
 
-                        // Hitung total items untuk extra fee calculation
+                        // Hitung total items
                         $refundTxItems = $refundTx->listTransaksiDetail->sum('jumlah');
                         $currentTxItems = $currentTx->listTransaksiDetail->sum('jumlah');
                         $totalItemsGabungan = $refundTxItems + $currentTxItems;
 
-                        // Hitung harga makanan saja (tanpa ongkir dan extra fee)
+                        // DEBUG: Hitung harga makanan (total - ongkos_kirim)
                         $hargaMakananRefundTx = $refundTx->total - $refundTx->ongkos_kirim;
                         $hargaMakananCurrentTx = $currentTx->total - $currentTx->ongkos_kirim;
 
-                        // Hitung extra fee untuk scenario BAYAR SEMUA
+                        // Hitung extra fees
                         $extraFeeBayarSemua = $this->calculateExtraFeeBayarSemua($totalItemsGabungan);
-
-                        // Hitung extra fee untuk scenario BAYAR SATU
                         $extraFeeBayarSatu = $this->calculateExtraFeeBayarSatu($currentTxItems, $refundTxItems);
 
-                        // Hitung total yang seharusnya dibayar jika BAYAR SEMUA
+                        // Hitung total scenarios
                         $totalBayarSemua = ($hargaMakananRefundTx + $hargaMakananCurrentTx)
                             + $baseOngkir + $ongkirMulti + $priorityOngkir + $extraFeeBayarSemua;
 
-                        // Hitung total yang seharusnya dibayar untuk transaksi yang aktif (BAYAR SATU)
                         $totalBayarSatu = $hargaMakananCurrentTx + $baseOngkir + $priorityOngkir + $extraFeeBayarSatu;
 
-                        // Refund amount = selisih antara bayar semua dan bayar satu
                         $refundAmount = $totalBayarSemua - $totalBayarSatu;
-
-                        // Pastikan refund amount tidak negatif
                         $refundAmount = max($refundAmount, 0);
 
-                        // Lakukan refund ke user pemilik transaksi yang di-refund (refundTx->user)
+                        // DEBUG LOG
+                        Log::info('=== DEBUG REFUND CALCULATION ===');
+                        Log::info("Transaksi Refund (ID: {$refundTx->id}): {$refundTxItems} items, Total: {$refundTx->total}, Ongkir: {$refundTx->ongkos_kirim}, Harga Makanan: {$hargaMakananRefundTx}");
+                        Log::info("Transaksi Aktif (ID: {$currentTx->id}): {$currentTxItems} items, Total: {$currentTx->total}, Ongkir: {$currentTx->ongkos_kirim}, Harga Makanan: {$hargaMakananCurrentTx}");
+                        Log::info("Ongkir: Base={$baseOngkir}, Multi={$ongkirMulti}, Priority={$priorityOngkir}");
+                        Log::info("Items: Refund={$refundTxItems}, Current={$currentTxItems}, Total={$totalItemsGabungan}");
+                        Log::info("Extra Fee: BayarSemua={$extraFeeBayarSemua}, BayarSatu={$extraFeeBayarSatu}");
+                        Log::info("Total Bayar Semua: {$totalBayarSemua}");
+                        Log::info("Total Bayar Satu: {$totalBayarSatu}");
+                        Log::info("Refund Amount: {$refundAmount}");
+                        Log::info('=== END DEBUG ===');
+
+                        // Lakukan refund
                         $user = $refundTx->user;
                         $saldo = SaldoKoin::firstOrCreate(['user_id' => $user->id], ['jumlah' => 0]);
                         $saldo->jumlah += $refundAmount;
