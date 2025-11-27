@@ -680,7 +680,7 @@ class PesananController extends Controller
                         $priorityOngkir = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
 
                         // Hitung biaya extra item yang benar
-                        $extraFee = $this->calculateExtraFeeConsistent($refundTx, $currentTx);
+                        $extraFee = $this->calculateExtraFee($refundTx, $currentTx);
 
                         // Hitung refund amount berdasarkan kondisi ongkir
                         if ($refundTx->ongkos_kirim == $ongkirMulti) {
