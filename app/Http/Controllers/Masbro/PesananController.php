@@ -696,7 +696,7 @@ class PesananController extends Controller
                                 $refundAmount = max($hargaMakanan + $ongkirMulti + $extraFee, 0);
                             }
                         }
-                        
+
                         // Lakukan refund ke user pemilik transaksi yang di-refund (refundTx->user)
                         $user = $refundTx->user;
                         $saldo = SaldoKoin::firstOrCreate(['user_id' => $user->id], ['jumlah' => 0]);
@@ -1114,11 +1114,12 @@ class PesananController extends Controller
     /**
      * Calculate extra fee based on the business rules
      */
-    private function calculateExtraFeeConsistent($refundTx, $currentTx)
+    private function calculateExtraFee($refundTx, $currentTx)
     {
         $extraLimit = 10;
         $costPerExtra = 500;
 
+        // Total items dari kedua transaksi
         $refundTxItems = $refundTx->listTransaksiDetail->sum('jumlah');
         $currentTxItems = $currentTx->listTransaksiDetail->sum('jumlah');
 
@@ -1129,20 +1130,10 @@ class PesananController extends Controller
             return 0;
         }
 
-        // LOGIKA KONSISTEN: Selalu kembalikan biaya extra berdasarkan item yang di-refund
-        // karena yang di-refund adalah transaksi tertentu, bukan gabungan
-
-        $exceedItems = $totalItemsGabungan - $extraLimit;
-
-        // Distribusi biaya extra: proporsional berdasarkan kontribusi item
-        if ($exceedItems > 0) {
-            // Hitung berapa banyak item dari refundTx yang berkontribusi pada kelebihan
-            $refundTxContribution = min($refundTxItems, $exceedItems);
-            return $refundTxContribution * $costPerExtra;
-        }
-
-        return 0;
+        // Extra fee = item di atas limit * biaya
+        return ($totalItemsGabungan - $extraLimit) * $costPerExtra;
     }
+
 
     private function calculateExtraFeeSimple($refundTx, $currentTx)
     {
