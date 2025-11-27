@@ -386,10 +386,10 @@ class TransaksiController extends Controller
                             $ongkosKirim += $ongkirPrioritas;
                         }
 
-                        $biayaExtra = Pengaturan::where('nama', 'biaya_extra')->value('nilai') ?? 500;
-                        if ($totalJumlahMenu > 10) {
-                            $ongkosKirim += ($totalJumlahMenu - 10) * $biayaExtra;
-                        }
+                        // $biayaExtra = Pengaturan::where('nama', 'biaya_extra')->value('nilai') ?? 500;
+                        // if ($totalJumlahMenu > 10) {
+                        //     $ongkosKirim += ($totalJumlahMenu - 10) * $biayaExtra;
+                        // }
                     }
 
                     $biayaLayanan = (int) (Pengaturan::where('nama', 'biaya_layanan')->value('nilai') ?? 0);
@@ -2532,10 +2532,10 @@ class TransaksiController extends Controller
         $transaksiQuery = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
             $q->where('user_id', $tenantId);
         })
-        ->whereIn('status', ['selesai', 'refund_selesai'])
-        ->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
-            $q->whereBetween('updated_at', [$dateStart, $dateEnd]);
-        })
+            ->whereIn('status', ['selesai', 'refund_selesai'])
+            ->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
+                $q->whereBetween('updated_at', [$dateStart, $dateEnd]);
+            })
             ->orderBy('updated_at', 'asc')
             ->get();
 
