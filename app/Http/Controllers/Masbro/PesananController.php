@@ -689,10 +689,10 @@ class PesananController extends Controller
                         } else {
                             // Case: Masih pakai ongkir normal
                             if ($refundTx->isPriority) {
-                                $hargaMakanan = $refundTx->total - ($baseOngkir + $priorityOngkir);
+                                $hargaMakanan = $refundTx->total - ($baseOngkir + $priorityOngkir + $extraFee);
                                 $refundAmount = max($hargaMakanan + $ongkirMulti + $extraFee, 0);
                             } else {
-                                $hargaMakanan = $refundTx->total - $baseOngkir;
+                                $hargaMakanan = $refundTx->total - ($baseOngkir + $extraFee);
                                 $refundAmount = max($hargaMakanan + $ongkirMulti + $extraFee, 0);
                             }
                         }
@@ -1114,24 +1114,31 @@ class PesananController extends Controller
     /**
      * Calculate extra fee based on the business rules
      */
-    private function calculateExtraFee($refundTx, $currentTx)
+    private function calculateExtraFeeConsistent($refundTx, $currentTx)
     {
         $extraLimit = 10;
         $costPerExtra = 500;
 
-        // Total items dari kedua transaksi
         $refundTxItems = $refundTx->listTransaksiDetail->sum('jumlah');
         $currentTxItems = $currentTx->listTransaksiDetail->sum('jumlah');
 
         $totalItemsGabungan = $refundTxItems + $currentTxItems;
 
-        // Jika total item <= 10, tidak ada biaya extra
         if ($totalItemsGabungan <= $extraLimit) {
             return 0;
         }
 
-        // Extra fee = item di atas limit * biaya
-        return ($totalItemsGabungan - $extraLimit) * $costPerExtra;
+        // HITUNG EXTRA FEE YANG SEBENARNYA DIBAYAR OLEH TRANSACTION INI
+        $exceedItems = $totalItemsGabungan - $extraLimit;
+
+        // Jika refundTx adalah transaksi pertama (yang bayar semua extra fee)
+        if ($refundTx->ongkos_kirim > 2000) { // Asumsi ongkirMulti = 2000
+            // Transaksi ini yang bayar semua extra fee gabungan
+            return $exceedItems * $costPerExtra;
+        } else {
+            // Transaksi ini hanya bayar ongkirMulti, tidak bayar extra fee
+            return 0;
+        }
     }
 
 
