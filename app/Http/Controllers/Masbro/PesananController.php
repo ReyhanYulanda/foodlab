@@ -657,7 +657,6 @@ class PesananController extends Controller
                  * maka refund sesuai kondisi ongkir
                  */
                 if ($transaksi->multitenant_id) {
-                    // ambil semua pasangan (untuk keamanan jika ada >1)
                     $relatedItems = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
                         ->where('id', '!=', $transaksi->id)
                         ->get();
@@ -673,29 +672,40 @@ class PesananController extends Controller
                     // ===============================
                     if ($related && $related->status === 'refund_selesai') {
                         // gunakan transaksi yang refunded sebagai sumber data refund
-                        $refundTx = $related;
-                        $currentTx = $transaksi; // transaksi yang sedang diproses
+                        $refundTx = $related;      // Transaksi yang di-refund (cancel)
+                        $currentTx = $transaksi;   // Transaksi yang aktif/selesai
 
                         $ongkirMulti = $refundTx->ruangan->gedung->ongkir_multitenant ?? 0;
                         $baseOngkir = $refundTx->ruangan->gedung->ongkir ?? 0;
                         $priorityOngkir = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
 
-                        // Hitung biaya extra item
-                        $extraFee = $this->calculateExtraFee($refundTx, $currentTx);
+                        // Hitung total items untuk extra fee calculation
+                        $refundTxItems = $refundTx->listTransaksiDetail->sum('jumlah');
+                        $currentTxItems = $currentTx->listTransaksiDetail->sum('jumlah');
+                        $totalItemsGabungan = $refundTxItems + $currentTxItems;
 
-                        if ($refundTx->isPriority) {
-                            if ($refundTx->ongkos_kirim == $ongkirMulti) {
-                                $refundAmount = $refundTx->total + $extraFee;
-                            } else {
-                                $refundAmount = max(($refundTx->total - ($baseOngkir + $priorityOngkir)) + $ongkirMulti + $extraFee, 0);
-                            }
-                        } else {
-                            if ($refundTx->ongkos_kirim == $ongkirMulti) {
-                                $refundAmount = $refundTx->total + $extraFee;
-                            } else {
-                                $refundAmount = max($refundTx->total - $ongkirMulti + $extraFee, 0);
-                            }
-                        }
+                        // Hitung harga makanan saja (tanpa ongkir dan extra fee)
+                        $hargaMakananRefundTx = $refundTx->total - $refundTx->ongkos_kirim;
+                        $hargaMakananCurrentTx = $currentTx->total - $currentTx->ongkos_kirim;
+
+                        // Hitung extra fee untuk scenario BAYAR SEMUA
+                        $extraFeeBayarSemua = $this->calculateExtraFeeBayarSemua($totalItemsGabungan);
+
+                        // Hitung extra fee untuk scenario BAYAR SATU
+                        $extraFeeBayarSatu = $this->calculateExtraFeeBayarSatu($currentTxItems, $refundTxItems);
+
+                        // Hitung total yang seharusnya dibayar jika BAYAR SEMUA
+                        $totalBayarSemua = ($hargaMakananRefundTx + $hargaMakananCurrentTx)
+                            + $baseOngkir + $ongkirMulti + $priorityOngkir + $extraFeeBayarSemua;
+
+                        // Hitung total yang seharusnya dibayar untuk transaksi yang aktif (BAYAR SATU)
+                        $totalBayarSatu = $hargaMakananCurrentTx + $baseOngkir + $priorityOngkir + $extraFeeBayarSatu;
+
+                        // Refund amount = selisih antara bayar semua dan bayar satu
+                        $refundAmount = $totalBayarSemua - $totalBayarSatu;
+
+                        // Pastikan refund amount tidak negatif
+                        $refundAmount = max($refundAmount, 0);
 
                         // Lakukan refund ke user pemilik transaksi yang di-refund (refundTx->user)
                         $user = $refundTx->user;
@@ -1114,38 +1124,29 @@ class PesananController extends Controller
     /**
      * Calculate extra fee based on the business rules
      */
-    private function calculateExtraFee($refundTx, $currentTx)
+    private function calculateExtraFeeBayarSemua($totalItems)
     {
         $extraLimit = 10;
         $costPerExtra = 500;
 
-        // Total items dari kedua transaksi
-        $refundTxItems = $refundTx->listTransaksiDetail->sum('jumlah');
-        $currentTxItems = $currentTx->listTransaksiDetail->sum('jumlah');
-
-        $totalItemsGabungan = $refundTxItems + $currentTxItems;
-
-        // Jika total item <= 10, tidak ada biaya extra
-        if ($totalItemsGabungan <= $extraLimit) {
+        if ($totalItems <= $extraLimit) {
             return 0;
         }
 
-        // Case 1: Jika currentTx > 10, maka = refundTxItems * 500
-        if ($currentTxItems > 10) {
-            return $refundTxItems * $costPerExtra;
+        return ($totalItems - $extraLimit) * $costPerExtra;
+    }
+
+    private function calculateExtraFeeBayarSatu($currentItems, $refundItems)
+    {
+        $extraLimit = 10;
+        $costPerExtra = 500;
+
+        // Jika current items <= 10, extra fee hanya untuk kelebihan dari 10
+        if ($currentItems <= $extraLimit) {
+            return max(($currentItems + $refundItems - $extraLimit), 0) * $costPerExtra;
         }
 
-        // Case 2: Jika refundTx < 10, maka = (totalItemsGabungan - 10) * 500
-        if ($refundTxItems < 10) {
-            return ($totalItemsGabungan - $extraLimit) * $costPerExtra;
-        }
-
-        // Case 3: Jika keduanya > 10, maka = refundTxItems * 500
-        if ($refundTxItems > 10 && $currentTxItems > 10) {
-            return $refundTxItems * $costPerExtra;
-        }
-
-        // Case 4: Default (jika keduanya < 10 tapi total > 10)
-        return $refundTxItems * $costPerExtra;
+        // Jika current items > 10, semua item kena extra fee
+        return $currentItems * $costPerExtra;
     }
 }
