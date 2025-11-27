@@ -672,31 +672,31 @@ class PesananController extends Controller
                     // 🔹 1. LOGIKA REFUND MULTITENANT
                     // ===============================
                     if ($related && $related->status === 'refund_selesai') {
-                        // gunakan transaksi yang refunded sebagai sumber data refund
-                        $refundTx = $related;
-                        $currentTx = $transaksi; // transaksi yang sedang diproses
+                        $refundTx = $related;    // Transaksi yang di-refund
+                        $currentTx = $transaksi; // Transaksi yang sedang diproses
 
                         $ongkirMulti = $refundTx->ruangan->gedung->ongkir_multitenant ?? 0;
                         $baseOngkir = $refundTx->ruangan->gedung->ongkir ?? 0;
                         $priorityOngkir = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
 
-                        // Hitung biaya extra item
-                        $extraFee = $this->calculateExtraFee($refundTx, $currentTx);
+                        // Hitung biaya extra item yang benar
+                        $extraFee = $this->calculateExtraFeeConsistent($refundTx, $currentTx);
 
-                        if ($refundTx->isPriority) {
-                            if ($refundTx->ongkos_kirim == $ongkirMulti) {
-                                $refundAmount = $refundTx->total + $extraFee;
-                            } else {
-                                $refundAmount = max(($refundTx->total - ($baseOngkir + $priorityOngkir)) + $ongkirMulti + $extraFee, 0);
-                            }
+                        // Hitung refund amount berdasarkan kondisi ongkir
+                        if ($refundTx->ongkos_kirim == $ongkirMulti) {
+                            // Case: Sudah pakai ongkir multitenant
+                            $refundAmount = $refundTx->total + $extraFee;
                         } else {
-                            if ($refundTx->ongkos_kirim == $ongkirMulti) {
-                                $refundAmount = $refundTx->total + $extraFee;
+                            // Case: Masih pakai ongkir normal
+                            if ($refundTx->isPriority) {
+                                $hargaMakanan = $refundTx->total - ($baseOngkir + $priorityOngkir);
+                                $refundAmount = max($hargaMakanan + $ongkirMulti + $extraFee, 0);
                             } else {
-                                $refundAmount = max($refundTx->total - $ongkirMulti + $extraFee, 0);
+                                $hargaMakanan = $refundTx->total - $baseOngkir;
+                                $refundAmount = max($hargaMakanan + $ongkirMulti + $extraFee, 0);
                             }
                         }
-
+                        
                         // Lakukan refund ke user pemilik transaksi yang di-refund (refundTx->user)
                         $user = $refundTx->user;
                         $saldo = SaldoKoin::firstOrCreate(['user_id' => $user->id], ['jumlah' => 0]);
@@ -1114,12 +1114,11 @@ class PesananController extends Controller
     /**
      * Calculate extra fee based on the business rules
      */
-    private function calculateExtraFee($refundTx, $currentTx)
+    private function calculateExtraFeeConsistent($refundTx, $currentTx)
     {
         $extraLimit = 10;
         $costPerExtra = 500;
 
-        // Total items dari kedua transaksi
         $refundTxItems = $refundTx->listTransaksiDetail->sum('jumlah');
         $currentTxItems = $currentTx->listTransaksiDetail->sum('jumlah');
 
@@ -1130,26 +1129,22 @@ class PesananController extends Controller
             return 0;
         }
 
-        // Case 1: Jika currentTx > 10, maka = refundTxItems * 500
-        if ($currentTxItems > 10) {
-            return $refundTxItems * $costPerExtra;
+        // LOGIKA KONSISTEN: Selalu kembalikan biaya extra berdasarkan item yang di-refund
+        // karena yang di-refund adalah transaksi tertentu, bukan gabungan
+
+        $exceedItems = $totalItemsGabungan - $extraLimit;
+
+        // Distribusi biaya extra: proporsional berdasarkan kontribusi item
+        if ($exceedItems > 0) {
+            // Hitung berapa banyak item dari refundTx yang berkontribusi pada kelebihan
+            $refundTxContribution = min($refundTxItems, $exceedItems);
+            return $refundTxContribution * $costPerExtra;
         }
 
-        // Case 2: Jika refundTx < 10, maka = (totalItemsGabungan - 10) * 500
-        if ($refundTxItems < 10) {
-            return ($totalItemsGabungan - $extraLimit) * $costPerExtra;
-        }
-
-        // Case 3: Jika keduanya > 10, maka = refundTxItems * 500
-        if ($refundTxItems > 10 && $currentTxItems > 10) {
-            return $refundTxItems * $costPerExtra;
-        }
-
-        // Case 4: Default (jika keduanya < 10 tapi total > 10)
-        return $refundTxItems * $costPerExtra;
+        return 0;
     }
 
-    private function generateReduceExtra($refundTx, $currentTx)
+    private function calculateExtraFeeSimple($refundTx, $currentTx)
     {
         $extraLimit = 10;
         $costPerExtra = 500;
@@ -1163,19 +1158,9 @@ class PesananController extends Controller
             return 0;
         }
 
-        $ongkirMulti = $refundTx->ruangan->gedung->ongkir_multitenant ?? 0;
-
-        // Jika ongkir tidak sama dengan ongkir multi
-        if ($refundTx->ongkos_kirim != $ongkirMulti) {
-            if ($refundTxItems > 10 || ($refundTxItems > 10 && $currentTxItems > 10)) {
-                return $refundTxItems * $costPerExtra;
-            }
-
-            if ($refundTxItems < 10 || ($refundTxItems < 10 && $currentTxItems < 10)) {
-                return ($totalItemsGabungan - $extraLimit) * $costPerExtra;
-            }
-        }
-
-        return 0;
+        // LOGIKA SEDERHANA: Selalu hitung berdasarkan kelebihan dari gabungan
+        // dan berikan ke transaksi yang di-refund
+        $exceedItems = $totalItemsGabungan - $extraLimit;
+        return $exceedItems * $costPerExtra;
     }
 }
