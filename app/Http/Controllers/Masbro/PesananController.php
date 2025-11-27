@@ -468,6 +468,18 @@ class PesananController extends Controller
 
                 // Jika pesanan biasa (non-prioritas)
                 if ($transaksi->isPriority == 0) {
+                    if ($transaksi->driver_id === null) {
+                        $transaksiAktifDriver = Transaksi::where('driver_id', $user->id)
+                            ->whereIn('status', ['diantar', 'siap_diantar'])
+                            ->count();
+
+                        if ($transaksiAktifDriver >= 5) {
+                            return response()->json([
+                                "status" => "failed",
+                                "message" => "Maksimal 5 pesanan aktif. Selesaikan dulu pengantaran"
+                            ], 400);
+                        }
+                    }
                     if (in_array($transaksi->status, ['refund_selesai', 'selesai'])) {
                         return response()->json([
                             "status" => "forbidden",

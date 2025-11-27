@@ -2531,7 +2531,9 @@ class TransaksiController extends Controller
         // transaksi detail (list)
         $transaksiQuery = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
             $q->where('user_id', $tenantId);
-        })->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
+        })
+        ->whereIn('status', ['selesai', 'refund_selesai'])
+        ->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
             $q->whereBetween('updated_at', [$dateStart, $dateEnd]);
         })
             ->orderBy('updated_at', 'asc')
