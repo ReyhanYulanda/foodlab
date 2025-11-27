@@ -1146,12 +1146,13 @@ class PesananController extends Controller
         $extraLimit = 10;
         $costPerExtra = 500;
 
-        // Jika current items <= 10, extra fee hanya untuk kelebihan dari 10
-        if ($currentItems <= $extraLimit) {
-            return max(($currentItems + $refundItems - $extraLimit), 0) * $costPerExtra;
+        // Jika current items > 10, hanya kelebihan dari 10 yang kena extra fee
+        if ($currentItems > $extraLimit) {
+            return ($currentItems - $extraLimit) * $costPerExtra;
         }
 
-        // Jika current items > 10, semua item kena extra fee
-        return $currentItems * $costPerExtra;
+        // Jika current items <= 10, tapi total dengan refund > 10, maka kelebihan kena extra fee
+        $totalItems = $currentItems + $refundItems;
+        return max(($totalItems - $extraLimit), 0) * $costPerExtra;
     }
 }
