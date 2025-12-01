@@ -1267,7 +1267,7 @@ class PesananController extends Controller
             $totalItems = $currentItems + $refundItems;
             return max(($totalItems - $extraLimit), 0) * $costPerExtra;
         } else {
-            return max(($currentItems + $refundItems) - $extraLimit) * $costPerExtra;
+            return (($currentItems + $refundItems) - $extraLimit) * $costPerExtra;
         }
     }
 }
