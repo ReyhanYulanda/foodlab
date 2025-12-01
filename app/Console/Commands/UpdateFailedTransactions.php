@@ -81,17 +81,23 @@ class UpdateFailedTransactions extends Command
         // 2. HANDLE CHECKOUT DARI CALLBACK (FAILED)
         // ==================================
 
-        $failedCheckouts = Checkout::with('transaksi')
+        $failedCheckouts = Checkout::with('transaksi', 'cashier')
             ->where('status_bayar', 'failed')
             ->get();
 
         foreach ($failedCheckouts as $checkout) {
 
             $transaksi = $checkout->transaksi;
+            $cashier = $checkout->cashier;
 
             if ($transaksi && $transaksi->status === 'pending') {
                 $transaksi->update(['status' => 'gagal_bayar']);
                 $this->info("Transaksi #{$transaksi->id} updated to gagal_bayar (callback failed).");
+            }
+
+            if ($cashier && $cashier->status === 'pending') {
+                $cashier->update(['status' => 'gagal_bayar']);
+                $this->info("Cashier #{$cashier->id} updated to gagal_bayar (callback failed).");
             }
         }
 
