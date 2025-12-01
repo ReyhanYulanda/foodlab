@@ -124,7 +124,7 @@ class UserController extends Controller
             'name' => ['string', 'nullable'],
             'email' => ['nullable', Rule::unique('users')->ignore($user->id)],
             'password' => 'nullable',
-            'phone' => 'nullable',
+            'phone' => ['nullable', 'digits_between:10,15'],
             'isOnline' => ['nullable', 'boolean'],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
         ]);
