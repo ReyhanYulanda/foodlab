@@ -71,9 +71,10 @@ class TenantOrderService
             return ResponseApi::error('Pesanan sudah dalam proses sebelumnya.', 403);
         }
 
-        if ($transaksi->status === 'pesanan_diproses' && $request->status === 'pesanan_ditolak') {
-            return ResponseApi::error('Pesanan sedang diproses, tidak bisa ditolak.', 403);
-        }
+        // if ($transaksi->status === 'pesanan_diproses' && $request->status === 'pesanan_ditolak') {
+        //     return ResponseApi::error('Pesanan sedang diproses, tidak bisa ditolak.', 403);
+        // }
+        
 
         if ($transaksi->status === 'siap_diantar' && $request->status === 'siap_diantar') {
             return ResponseApi::error('Pesanan sudah siap diantar sebelumnya.', 403);
