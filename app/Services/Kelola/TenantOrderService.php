@@ -180,47 +180,6 @@ class TenantOrderService
             }
         }
 
-        $groupTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
-
-        // Cek jika masih ada pesanan_masuk lain pada grup (NON PRIORITY)
-        $stillHasPending = $groupTransaksi
-            ->where('status', 'pesanan_masuk')
-            ->where('id', '!=', $transaksi->id)
-            ->where('isPriority', 0)
-            ->isNotEmpty();
-
-        // Cek apakah grup punya minimal satu transaksi siap_diantar
-        $hasReadyToDeliver = $groupTransaksi
-            ->where('status', 'siap_diantar')
-            ->isNotEmpty();
-
-        $shouldSendNotif = true;
-
-        if ($stillHasPending || !$hasReadyToDeliver) {
-            // ❌ Jangan kirim notif, tapi tetap lanjut proses lainnya
-            $shouldSendNotif = false;
-        }
-
-        if (
-            $transaksi->status === 'pesanan_diproses' &&
-            $request->status === 'siap_diantar' &&
-            $transaksi->isPriority == 0
-        ) {
-            if ($transaksi->driver_id === null) {
-                $driver = User::with('fcmTokens')->find($transaksi->driver_id);
-                $fcmDriverToken = $driver ? $driver->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
-                if (!empty($fcmDriverToken)) {
-                    $firebases
-                        ->withNotification('Ada Pesanan Siap Diantar', "Pesanan {$transaksi->multitenant_id} siap diantar")
-                        ->withData([
-                            'title' => 'Ada Pesanan Siap Diantar',
-                            'body' => "Pesanan {$transaksi->multitenant_id} siap diantar",
-                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                        ])->sendToDriver($fcmDriverToken);
-                }
-            }
-        }
-
         if (
             $request->status === 'selesai' &&
             $transaksi->cashback_amount > 0 &&
@@ -492,12 +451,17 @@ class TenantOrderService
         }
 
         $groupTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
+        $isMultiTenant = !empty($transaksi->multitenant_id);
+        $stillHasPending = false;
 
-        $stillHasPending = $groupTransaksi
-            ->where('status', 'pesanan_masuk')
-            ->where('id', '!=', $transaksi->id)
-            ->where('isPriority', 0)
-            ->isNotEmpty();
+        if ($isMultiTenant) {
+            // Hitung pending hanya untuk multitenant
+            $stillHasPending = $groupTransaksi
+                ->where('status', 'pesanan_masuk')
+                ->where('id', '!=', $transaksi->id)
+                ->where('isPriority', 0)
+                ->isNotEmpty();
+        }
 
         if ($transaksi->status === 'siap_diantar') {
             $sendToUser(
@@ -506,7 +470,7 @@ class TenantOrderService
                 'siap_diantar'
             );
 
-            if (!$stillHasPending) {
+            if (!$stillHasPending || !$isMultiTenant) {
                 $sendToDrivers(
                     'Ada Pesanan Siap Diantar',
                     "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!",
