@@ -255,7 +255,7 @@ class TenantOrderService
                 $transaksi->listTransaksiDetail()->update(['status' => $transaksi->status]);
             }
 
-            $this->sendNotifications($transaksi, $firebases);
+            $this->sendNotifications($transaksi, $firebases, $request);
 
             return ResponseApi::success(null, "Pesanan $transaksi->status");
         } catch (Throwable $e) {
@@ -347,7 +347,7 @@ class TenantOrderService
         return ResponseApi::success(null, "Status pesanan kasir berhasil diperbarui menjadi {$cashier->status}");
     }
 
-    private function sendNotifications($transaksi, $firebases)
+    private function sendNotifications($transaksi, $firebases, $request)
     {
         $masbroTokens = User::role('masbro')
             ->where('isOnline', 1)
@@ -451,10 +451,15 @@ class TenantOrderService
                 ->where('id', '!=', $transaksi->id)
                 ->where('isPriority', 0)
                 ->isNotEmpty();
+            $stillHasNotPesananMasuk = $groupTransaksi
+                ->where('status', '=', 'siap_diantar')
+                ->where('id', '!=', $transaksi->id)
+                ->where('isPriority', 0)
+                ->isNotEmpty();
         }
 
-        if ($transaksi->status === 'pesanan_masuk') {
-            if ($stillHasPending && $isMultiTenant) {
+        if ($transaksi->status === 'pesanan_masuk' && $request->status === 'pesanan_diproses') {
+            if ($stillHasNotPesananMasuk && $isMultiTenant) {
                 $sendToDrivers(
                     'Ada Pesanan Siap Diantar',
                     "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!",
