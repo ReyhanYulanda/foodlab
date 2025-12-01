@@ -74,7 +74,7 @@ class TenantOrderService
         // if ($transaksi->status === 'pesanan_diproses' && $request->status === 'pesanan_ditolak') {
         //     return ResponseApi::error('Pesanan sedang diproses, tidak bisa ditolak.', 403);
         // }
-        
+
 
         if ($transaksi->status === 'siap_diantar' && $request->status === 'siap_diantar') {
             return ResponseApi::error('Pesanan sudah siap diantar sebelumnya.', 403);
@@ -194,22 +194,18 @@ class TenantOrderService
             ->where('status', 'siap_diantar')
             ->isNotEmpty();
 
+        $shouldSendNotif = true;
+
+        if ($stillHasPending || !$hasReadyToDeliver) {
+            // ❌ Jangan kirim notif, tapi tetap lanjut proses lainnya
+            $shouldSendNotif = false;
+        }
+
         if (
             $transaksi->status === 'pesanan_diproses' &&
             $request->status === 'siap_diantar' &&
             $transaksi->isPriority == 0
         ) {
-            // 🚫 CASE 1: Masih ada pesanan_masuk (nonprio) → NO NOTIF
-            if ($stillHasPending) {
-                return; // stop, jangan kirim notif
-            }
-
-            // 🚫 CASE 2: Tidak ada yang siap_diantar di grup → NO NOTIF
-            if (!$hasReadyToDeliver) {
-                return;
-            }
-
-            // Ada yang siap_diantar di grup → KIRIM NOTIF
             if ($transaksi->driver_id === null) {
                 $driver = User::with('fcmTokens')->find($transaksi->driver_id);
                 $fcmDriverToken = $driver ? $driver->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
