@@ -1259,15 +1259,13 @@ class PesananController extends Controller
             return ($currentItems - $extraLimit) * $costPerExtra;
         }
 
-        // if ($currentItems <= $extraLimit) {
-        //     return 0;
-        // }
-
-        if ($currentItems > $extraLimit) {
-            $totalItems = $currentItems + $refundItems;
-            return max(($totalItems - $extraLimit), 0) * $costPerExtra;
-        } else {
-            return (($currentItems + $refundItems) - $extraLimit) * $costPerExtra;
+        // Jika current items ≤ 10, hitung dari total (current + refund)
+        $totalItems = $currentItems + $refundItems;
+        if ($totalItems > $extraLimit) {
+            return ($totalItems - $extraLimit) * $costPerExtra;
         }
+
+        // Jika tidak ada yang melebihi limit, return 0
+        return 0;
     }
 }
