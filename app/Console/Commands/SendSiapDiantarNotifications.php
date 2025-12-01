@@ -17,7 +17,10 @@ class SendSiapDiantarNotifications extends Command
 
     public function handle(Firebases $firebases)
     {
-        $transaksi = Transaksi::where('status', 'siap_diantar')->first();
+        $transaksi = Transaksi::whereNull('driver_id')
+            ->where('isAntar', 1)
+            ->whereNotIn('status', ['refund_selesai', 'gagal_bayar', 'pending'])
+            ->get();
 
         if (!$transaksi) {
             $this->info('Tidak ada pesanan siap diantar.');
@@ -75,10 +78,12 @@ class SendSiapDiantarNotifications extends Command
         /** ------------------------------------------------------------------
          *  3. NON MULTITENANT → selalu kirim notif
          * ------------------------------------------------------------------*/
-        $this->kirimNotif($firebases, $tokens);
+        if ($transaksi->status === 'siap_diantar') {
+            $this->kirimNotif($firebases, $tokens);
 
-        $this->info('Notifikasi terkirim ke driver.');
-        Log::info('Notifikasi siap diantar terkirim pada ' . now('Asia/Jakarta'));
+            $this->info('Notifikasi terkirim ke driver.');
+            Log::info('Notifikasi siap diantar terkirim pada ' . now('Asia/Jakarta'));
+        }
 
         return Command::SUCCESS;
     }
