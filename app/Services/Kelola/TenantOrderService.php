@@ -440,16 +440,6 @@ class TenantOrderService
                     ->sendToFallback($masbroOfflineTokens);
             }
         };
-
-        // === LOGIKA NOTIFIKASI BERDASARKAN STATUS ===
-        if ($transaksi->status === 'pesanan_diproses') {
-            $sendToUser(
-                'Pesanan Sedang Diproses',
-                "Pesanan {$transaksi->id} sedang dibuat oleh tenant. Mohon ditunggu, ya!",
-                'pesanan_diproses'
-            );
-        }
-
         $groupTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
         $isMultiTenant = !empty($transaksi->multitenant_id);
         $stillHasPending = false;
@@ -462,6 +452,33 @@ class TenantOrderService
                 ->where('isPriority', 0)
                 ->isNotEmpty();
         }
+
+        if ($transaksi->status === 'pesanan_masuk') {
+            if ($stillHasPending && $isMultiTenant) {
+                $sendToDrivers(
+                    'Ada Pesanan Siap Diantar',
+                    "Pesanan {$transaksi->id} sudah siap. Yuk, ambil dan antar sekarang!",
+                    'siap_diantar_driver'
+                );
+
+                $sendToOfflineDrivers(
+                    'Ada Pesanan Siap Diantar Loh',
+                    "Pesanan ke {$transaksi->id}. Yuk, nyalain status drivermu!",
+                    'siap_diantar_driver'
+                );
+            }
+        }
+
+        // === LOGIKA NOTIFIKASI BERDASARKAN STATUS ===
+        if ($transaksi->status === 'pesanan_diproses') {
+            $sendToUser(
+                'Pesanan Sedang Diproses',
+                "Pesanan {$transaksi->id} sedang dibuat oleh tenant. Mohon ditunggu, ya!",
+                'pesanan_diproses'
+            );
+        }
+
+
 
         if ($transaksi->status === 'siap_diantar') {
             $sendToUser(
