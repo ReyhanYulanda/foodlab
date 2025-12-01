@@ -435,6 +435,29 @@ class PesananController extends Controller
                                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                                 ])->sendToFallback($fcmUserToken);
 
+                            if ($transaksi->isPriority) {
+                                $detail = $transaksi->listTransaksiDetail()
+                                    ->with('menus.tenants.pemilik.fcmTokens')
+                                    ->first();
+
+                                $pemilikUser = optional($detail->menus->tenants)->pemilik ?? null;
+
+                                $fcmTenantToken = $pemilikUser
+                                    ? $pemilikUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray()
+                                    : [];
+
+                                if (!empty($fcmTenantToken)) {
+                                    $firebases
+                                        ->withNotification('Pesanan Prioritas', "Driver telah mengganti status pesanan {$transaksi->id} ke diantar!")
+                                        ->withData([
+                                            'title' => 'Pesanan Prioritas',
+                                            'body' => "Driver telah mengganti status pesanan {$transaksi->id} ke diantar!",
+                                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                        ])
+                                        ->sendToTenant($fcmTenantToken);
+                                }
+                            }
+
                             return response()->json([
                                 "status" => "success",
                                 "message" => "Driver berhasil mengubah status diproses ke diantar",
@@ -455,6 +478,29 @@ class PesananController extends Controller
                                 $transaksi->driver_id = $user->id;
                                 $transaksi->status = 'diantar';
                                 $transaksi->save();
+
+                                if ($transaksi->isPriority) {
+                                    $detail = $transaksi->listTransaksiDetail()
+                                        ->with('menus.tenants.pemilik.fcmTokens')
+                                        ->first();
+
+                                    $pemilikUser = optional($detail->menus->tenants)->pemilik ?? null;
+
+                                    $fcmTenantToken = $pemilikUser
+                                        ? $pemilikUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray()
+                                        : [];
+
+                                    if (!empty($fcmTenantToken)) {
+                                        $firebases
+                                            ->withNotification('Pesanan Prioritas', "Driver telah mengganti status pesanan {$transaksi->id} ke diantar!")
+                                            ->withData([
+                                                'title' => 'Pesanan Prioritas',
+                                                'body' => "Driver telah mengganti status pesanan {$transaksi->id} ke diantar!",
+                                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                            ])
+                                            ->sendToTenant($fcmTenantToken);
+                                    }
+                                }
                             }
 
                             $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
@@ -483,6 +529,30 @@ class PesananController extends Controller
                                 $transaksi->driver_id = $user->id;
                                 $transaksi->status = 'diantar';
                                 $transaksi->save();
+
+                                if ($transaksi->isPriority) {
+
+                                    $detail = $transaksi->listTransaksiDetail()
+                                        ->with('menus.tenants.pemilik.fcmTokens')
+                                        ->first();
+
+                                    $pemilikUser = optional($detail->menus->tenants)->pemilik ?? null;
+
+                                    $fcmTenantToken = $pemilikUser
+                                        ? $pemilikUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray()
+                                        : [];
+
+                                    if (!empty($fcmTenantToken)) {
+                                        $firebases
+                                            ->withNotification('Pesanan Prioritas', "Driver telah mengganti status pesanan {$transaksi->id} ke diantar!")
+                                            ->withData([
+                                                'title' => 'Pesanan Prioritas',
+                                                'body' => "Driver telah mengganti status pesanan {$transaksi->id} ke diantar!",
+                                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                            ])
+                                            ->sendToTenant($fcmTenantToken);
+                                    }
+                                }
 
                                 $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
                                 $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
