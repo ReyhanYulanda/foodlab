@@ -248,7 +248,6 @@ class PesananController extends Controller
                                         'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                                     ])->sendToFallback($fcmUserToken);
 
-
                                 return response()->json([
                                     "status" => "success",
                                     "message" => "Driver berhasil ditetapkan ke pesanan prioritas tanpa mengubah status",
@@ -271,6 +270,27 @@ class PesananController extends Controller
                                 }
                                 $transaksi->status = 'pesanan_diproses';
                                 $transaksi->save();
+
+                                $detail = $transaksi->listTransaksiDetail()
+                                    ->with('menus.tenants.pemilik.fcmTokens')
+                                    ->first();
+
+                                $pemilikUser = optional($detail->menus->tenants)->pemilik ?? null;
+
+                                $fcmTenantToken = $pemilikUser
+                                    ? $pemilikUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray()
+                                    : [];
+
+                                if (!empty($fcmTenantToken)) {
+                                    $firebases
+                                        ->withNotification('Pesanan Prioritas', "Driver telah mengganti status pesanan {$transaksi->id} ke diproses!")
+                                        ->withData([
+                                            'title' => 'Pesanan Prioritas',
+                                            'body' => "Driver telah mengganti status pesanan {$transaksi->id} ke diproses!",
+                                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                        ])
+                                        ->sendToTenant($fcmTenantToken);
+                                }
                             }
                             $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
                             $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
