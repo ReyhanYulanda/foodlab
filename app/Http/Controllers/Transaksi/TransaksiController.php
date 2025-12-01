@@ -660,6 +660,18 @@ class TransaksiController extends Controller
                 }
 
                 if ($request->boolean('isPriority')) {
+                    // === Kirim notifikasi ke masbro ===
+                    $masbroTokens = User::role('masbro')
+                        // ->where('isOnline', 1)
+                        ->with('fcmTokens')
+                        ->get()
+                        ->flatMap(fn($user) => $user->fcmTokens->pluck('fcm_token'))
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->toArray();
+
+                    $fcmMasbroToken = $masbroTokens;
                     if (!empty($fcmMasbroToken)) {
                         $firebases
                             ->withNotification('Ada Pesanan Prioritas multitenant', 'Gasin yuk ada ongkir tambahannya loh')
