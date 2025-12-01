@@ -81,7 +81,9 @@ class SendSiapDiantarNotifications extends Command
         /** ------------------------------------------------------------------
          *  3. NON MULTITENANT → selalu kirim notif
          * ------------------------------------------------------------------*/
-        if ($transaksi->status === 'siap_diantar') {
+        $siapDiantar = $transaksi->firstWhere('status', 'siap_diantar');
+
+        if ($siapDiantar) {
             $this->kirimNotif($firebases, $tokens);
 
             $this->info('Notifikasi terkirim ke driver.');
