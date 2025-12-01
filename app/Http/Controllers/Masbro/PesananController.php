@@ -1249,23 +1249,36 @@ class PesananController extends Controller
         return ($totalItems - $extraLimit) * $costPerExtra;
     }
 
+    // private function calculateExtraFeeBayarSatu($currentItems, $refundItems)
+    // {
+    //     $extraLimit = 10;
+    //     $costPerExtra = 500;
+
+    //     // Jika current items > 10, hanya kelebihan dari 10 yang kena extra fee
+    //     if ($currentItems > $extraLimit) {
+    //         return ($currentItems - $extraLimit) * $costPerExtra;
+    //     }
+
+    //     // Jika current items ≤ 10, hitung dari total (current + refund)
+    //     $totalItems = $currentItems + $refundItems;
+    //     if ($totalItems > $extraLimit) {
+    //         return ($totalItems - $extraLimit) * $costPerExtra;
+    //     }
+
+    //     // Jika tidak ada yang melebihi limit, return 0
+    //     return 0;
+    // }
     private function calculateExtraFeeBayarSatu($currentItems, $refundItems)
     {
         $extraLimit = 10;
         $costPerExtra = 500;
 
-        // Jika current items > 10, hanya kelebihan dari 10 yang kena extra fee
+        // HANYA hitung berdasarkan currentItems (transaksi yang aktif)
+        // Jangan pedulikan refundItems sama sekali
         if ($currentItems > $extraLimit) {
             return ($currentItems - $extraLimit) * $costPerExtra;
         }
 
-        // Jika current items ≤ 10, hitung dari total (current + refund)
-        $totalItems = $currentItems + $refundItems;
-        if ($totalItems > $extraLimit) {
-            return ($totalItems - $extraLimit) * $costPerExtra;
-        }
-
-        // Jika tidak ada yang melebihi limit, return 0
         return 0;
     }
 }
