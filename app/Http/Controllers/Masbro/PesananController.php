@@ -110,6 +110,24 @@ class PesananController extends Controller
             // 🚀 Jalankan query utama
             $transaksi = $transaksiQuery->get();
 
+            $transaksi = $transaksi->filter(function ($trx) {
+
+                // Abaikan transaksi tanpa multitenant
+                if (!$trx->multitenant_id) return true;
+
+                // Cek apakah masih ada pesanan_masuk non-prioritas dalam grup
+                $adaPesananMasuk = Transaksi::where('multitenant_id', $trx->multitenant_id)
+                    ->where('isPriority', 0)
+                    ->where('status', 'pesanan_masuk')
+                    ->exists();
+
+                if ($adaPesananMasuk) {
+                    return false;
+                }
+
+                return true;
+            })->values();
+
             // 🔁 Ambil semua multitenant_id yang muncul
             $multiIds = $transaksi->pluck('multitenant_id')->filter()->unique();
 
