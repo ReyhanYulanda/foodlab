@@ -46,7 +46,10 @@ class SendSiapDiantarNotifications extends Command
         /** ------------------------------------------------------------------
          *  1. HANDLE PRIORITAS
          * ------------------------------------------------------------------*/
-        if ($transaksi->isPriority == 1 && $transaksi->driver_id == null) {
+        $prioritas = $transaksi->where('isPriority', 1)
+            ->whereNull('driver_id')
+            ->first();
+        if ($prioritas) {
             $this->kirimNotif($firebases, $tokens);
             $this->info('Notifikasi PRIORITAS terkirim.');
             return Command::SUCCESS;
