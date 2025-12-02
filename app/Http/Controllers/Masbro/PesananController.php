@@ -1133,12 +1133,12 @@ class PesananController extends Controller
                                     // Hitung X berdasarkan rumus
                                     $totalItems = $selesaiItems + $refundItems;
 
-                                    if ($selesaiItems > 10) {
+                                    if ($selesaiItems <= 10) {
                                         // Case: selesaiAntar ≤ 10
                                         $x = ($totalItems - 10) * 500;
                                     } else {
                                         // Case: selesaiAntar > 10  
-                                        $x = ($totalItems - 10) * 500 - (max($refundItems - 10, 0) * 500);
+                                        $x = ($totalItems - 10) * 500 - (($selesaiItems - 10) * 500);
                                     }
 
                                     // Tukar ongkir
