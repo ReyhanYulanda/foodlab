@@ -797,7 +797,7 @@ class PesananController extends Controller
                         if ($transaksi->isPriority) {
                             $hargaMakananRefundTx = ($refundTx->sub_total + $baseOngkir + $priorityOngkir + $this->calculateExtraFee($totalItemsGabungan)) - ($baseOngkir + $priorityOngkir + $this->calculateExtraFee($totalItemsGabungan));
                         } else {
-                            $hargaMakananRefundTx = ($refundTx->sub_total + $baseOngkir + $this->calculateExtraFee($totalItemsGabungan)) + ($baseOngkir + $this->calculateExtraFee($totalItemsGabungan));
+                            $hargaMakananRefundTx = ($refundTx->sub_total + $baseOngkir + $this->calculateExtraFee($totalItemsGabungan)) - ($baseOngkir + $this->calculateExtraFee($totalItemsGabungan));
                         }
                         $hargaMakananCurrentTx = $currentTx->sub_total + $ongkirMulti;
 
