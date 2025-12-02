@@ -1323,6 +1323,7 @@ class TransaksiController extends Controller
                 }
 
                 // 🔹 Jika ada multitenant_id, lakukan pengecekan tambahan
+                // 🔹 Jika ada multitenant_id, lakukan pengecekan tambahan
                 if ($transaksi->multitenant_id) {
                     Log::info("Transaksi #{$transaksi->id} membatalkan pesanan multitenant #{$transaksi->multitenant_id}.");
 
@@ -1331,9 +1332,106 @@ class TransaksiController extends Controller
                         ->whereIn('status', ['pesanan_masuk', 'pesanan_diproses', 'siap_diantar', 'diantar'])
                         ->exists();
 
-                    // Jika semua transaksi sudah refund/selesai → tenant terakhir yang cancel
+                    // === NEW: cek apakah ini adalah tenant PERTAMA yang melakukan refund (first-cancel) ===
+                    $otherRefundCount = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                        ->where('id', '!=', $transaksi->id)
+                        ->where('status', 'refund_selesai')
+                        ->count();
+
+                    $isFirstCancel = ($otherRefundCount === 0);
+
+                    if ($isFirstCancel) {
+                        Log::info("Transaksi #{$transaksi->id} adalah tenant pertama yang cancel pada multitenant #{$transaksi->multitenant_id}. Menjalankan flow SWAP jika cocok.");
+
+                        // Cari related transaksi lain dalam grup untuk dipasangkan swap (prioritaskan status selesai)
+                        $related = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                            ->where('id', '!=', $transaksi->id)
+                            ->whereIn('status', ['selesai', 'diantar', 'siap_diantar'])
+                            ->orderByRaw("FIELD(status, 'selesai','diantar','siap_diantar')") // prioritas 'selesai'
+                            ->first();
+
+                        if ($related) {
+                            // ---- Mulai logic swap (ambil dari kode swap-mu, sedikit dirapikan) ----
+                            // Tentukan mana selesai & mana refund (transaksi sudah diset ke refund_selesai sebelumnya)
+                            if ($transaksi->status === 'selesai') {
+                                $selesaiTx = $transaksi;
+                                $refundTx = $related;
+                            } else {
+                                $selesaiTx = $related;
+                                $refundTx = $transaksi;
+                            }
+
+                            // Hitung items
+                            $selesaiItems = $selesaiTx->listTransaksiDetail->sum('jumlah');  // selesaiAntar
+                            $refundItems  = $refundTx->listTransaksiDetail->sum('jumlah');   // items yang dicancel
+
+                            // Hitung X berdasarkan rumus
+                            $totalItems = $selesaiItems + $refundItems;
+                            if ($selesaiItems <= 10) {
+                                $x = ($totalItems - 10) * 500;
+                            } else {
+                                $x = ($totalItems - 10) * 500 - (($selesaiItems - 10) * 500);
+                            }
+                            $x = max($x, 0);
+
+                            // Pastikan belum swap sebelumnya (logika awal kamu)
+                            $alreadySwapped = (
+                                ($transaksi->ongkos_kirim < $related->ongkos_kirim && $transaksi->status === 'refund_selesai') ||
+                                ($related->ongkos_kirim < $transaksi->ongkos_kirim && $related->status === 'refund_selesai')
+                            );
+
+                            // Lakukan swap hanya jika kondisi refund/selesai cocok dan belum diswap
+                            $refundCondition = (
+                                ($transaksi->status === 'refund_selesai' && $related->status === 'selesai') ||
+                                ($transaksi->status === 'selesai' && $related->status === 'refund_selesai')
+                            );
+
+                            if ($refundCondition && !$alreadySwapped && $transaksi->ongkos_kirim !== $related->ongkos_kirim) {
+                                // Tukar ongkir
+                                $tempOngkir = $transaksi->ongkos_kirim;
+                                $transaksi->ongkos_kirim = $related->ongkos_kirim;
+                                $related->ongkos_kirim = $tempOngkir;
+
+                                // Kurangi X untuk transaksi yang SELESAI
+                                if ($selesaiTx->id === $transaksi->id) {
+                                    // transaksi saat ini adalah selesai (kemungkinan jarang karena kita set refund pada $transaksi), hanya contoh
+                                    $transaksi->ongkos_kirim = max($transaksi->ongkos_kirim - $x, 0);
+                                } else {
+                                    // related adalah selesai
+                                    $related->ongkos_kirim = max($related->ongkos_kirim - $x, 0);
+                                }
+
+                                $transaksi->save();
+                                $related->save();
+
+                                Log::info("🔄 [SWAP WITH X] Applied X during swap for multitenant #{$transaksi->multitenant_id}, transaksi #{$transaksi->id} <-> #{$related->id}");
+                            } else {
+                                // Tidak swap; namun jika totalItems > 10 tetap kurangi X pada transaksi yang SELESAI
+                                Log::info("ℹ️ No swap needed for multitenant #{$transaksi->multitenant_id}, checking X application (first-cancel).");
+
+                                if ($totalItems > 10) {
+                                    if ($selesaiTx->id === $transaksi->id) {
+                                        $transaksi->ongkos_kirim = max($transaksi->ongkos_kirim - $x, 0);
+                                        $transaksi->save();
+                                        Log::info("✅ [FIRST-CANCEL NO SWAP] Applied X to transaksi #{$transaksi->id}, new ongkir: {$transaksi->ongkos_kirim}");
+                                    } else {
+                                        $related->ongkos_kirim = max($related->ongkos_kirim - $x, 0);
+                                        $related->save();
+                                        Log::info("✅ [FIRST-CANCEL NO SWAP] Applied X to related transaksi #{$related->id}, new ongkir: {$related->ongkos_kirim}");
+                                    }
+                                } else {
+                                    Log::info("ℹ️ [FIRST-CANCEL NO SWAP] Total items ≤ 10, no X to apply");
+                                }
+                            }
+                            // ---- selesai swap logic ----
+                        } else {
+                            Log::info("ℹ️ Tidak menemukan related transaksi yang eligible untuk swap pada multitenant #{$transaksi->multitenant_id}.");
+                        }
+                    } // end if isFirstCancel
+
+                    // Jika semua transaksi sudah refund/selesai → tenant terakhir yang cancel (flow existing)
                     if (!$stillActive) {
-                        // Hitung total refund semua transaksi dalam grup multitenant
+                        // --- existing flow kamu (total refund, kembalikan voucher/cashback, tambah saldo koin) ---
                         $totalRefund = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->sum('total');
 
                         // Tambahkan ke saldo koin user
@@ -1349,7 +1447,7 @@ class TransaksiController extends Controller
                             'deskripsi' => 'Refund pesanan multitenant #' . $transaksi->multitenant_id,
                         ]);
 
-                        // ✅ Tambahan: kembalikan voucher & cashback jika semua refund
+                        // Kembalikan voucher & cashback jika semua refund
                         $transaksiDenganVoucher = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
                             ->whereNotNull('voucher_id')
                             ->first();
@@ -1373,7 +1471,7 @@ class TransaksiController extends Controller
                             }
                         }
 
-                        // Kirim notifikasi ke user
+                        // Kirim notifikasi ke user (pakai token yang sudah disiapkan sebelumnya)
                         if (!empty($fcmUserToken)) {
                             $firebases
                                 ->withNotification(
