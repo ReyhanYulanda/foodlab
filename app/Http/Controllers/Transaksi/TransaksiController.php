@@ -1572,7 +1572,7 @@ class TransaksiController extends Controller
                 return ResponseApi::success(null, "Pesanan berhasil dibatalkan (refund_selesai)");
             } catch (\Throwable $e) {
                 DB::rollBack();
-                $transaksi->status = 'refund_gagal';
+                $transaksi->status = 'refund_selesai';
                 $transaksi->save();
                 Log::warning("Refund gagal: " . $e->getMessage());
                 return ResponseApi::error("Transaksi dibatalkan, tapi refund gagal. Silakan hubungi admin.");
@@ -1582,6 +1582,19 @@ class TransaksiController extends Controller
             Log::error("Gagal membatalkan transaksi: " . $th->getMessage());
             return ResponseApi::serverError();
         }
+    }
+
+    private function extraFee($totalItems)
+    {
+        $extraLimit = 10;
+        $costPerExtra = 500;
+
+        // Jika current items > 10, hanya kelebihan dari 10 yang kena extra fee
+        if ($totalItems > $extraLimit) {
+            return ($totalItems - $extraLimit) * $costPerExtra;
+        }
+
+        return 0;
     }
 
     public function generateKodePemesanan(Transaksi $transaksi)

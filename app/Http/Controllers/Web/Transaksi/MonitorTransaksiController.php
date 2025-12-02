@@ -119,7 +119,7 @@ class MonitorTransaksiController extends Controller
                     DB::commit();
                     return redirect()->back()->with('success', "Transaksi #{$transaksi->id} dibatalkan dan refund berhasil.");
                 } catch (\Throwable $e) {
-                    $transaksi->status = 'refund_gagal';
+                    $transaksi->status = 'refund_selesai';
                     $transaksi->save();
 
                     DB::commit();
