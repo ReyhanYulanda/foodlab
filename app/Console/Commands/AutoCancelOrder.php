@@ -50,6 +50,114 @@ class AutoCancelOrder extends Command
                     $transaksi->status = 'refund_selesai';
                     $transaksi->save();
 
+                    // ========== LOGIKA SWAP ONGKIR UNTUK TENANT PERTAMA YANG CANCEL ==========
+                    // === cek apakah ini adalah tenant PERTAMA yang melakukan refund (first-cancel) ===
+                    $otherRefundCount = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                        ->where('id', '!=', $transaksi->id)
+                        ->where('status', 'refund_selesai')
+                        ->count();
+
+                    $isFirstCancel = ($otherRefundCount === 0);
+
+                    if ($isFirstCancel) {
+                        Log::info("⚡ [AUTO CANCEL] Transaksi #{$transaksi->id} adalah tenant pertama yang cancel pada multitenant #{$transaksi->multitenant_id}.");
+
+                        // Cari related transaksi lain dalam grup yang MASIH AKTIF (bukan refund)
+                        $related = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                            ->where('id', '!=', $transaksi->id)
+                            ->where('status', '!=', 'refund_selesai') // Yang belum refund
+                            ->first();
+
+                        if ($related) {
+                            Log::info("🔄 [AUTO CANCEL] Found related transaction #{$related->id} (status: {$related->status})");
+
+                            // Tentukan mana yang cancel dan mana yang tetap aktif
+                            $cancelTx = $transaksi;      // status sudah refund_selesai
+                            $activeTx = $related;        // status masih aktif (pesanan_masuk/diproses/dll)
+
+                            // Hitung items
+                            $activeItems = $activeTx->listTransaksiDetail->sum('jumlah');  // items yang tetap aktif
+                            $cancelItems = $cancelTx->listTransaksiDetail->sum('jumlah');  // items yang dicancel
+
+                            // Hitung X berdasarkan rumus
+                            $totalItems = $activeItems + $cancelItems;
+
+                            if ($activeItems <= 10) {
+                                // Case: activeItems ≤ 10
+                                $x = ($totalItems - 10) * 500;
+                            } else {
+                                // Case: activeItems > 10  
+                                $x = ($totalItems - 10) * 500 - (($activeItems - 10) * 500);
+                            }
+                            $x = max($x, 0); // Pastikan X tidak negatif
+
+                            Log::info("📊 [AUTO CANCEL] Items calculation: active={$activeItems}, cancel={$cancelItems}, total={$totalItems}, X={$x}");
+
+                            // PERBAIKAN: Cek kondisi untuk menentukan perlu swap atau tidak
+                            // Swap hanya dilakukan jika ongkir cancel > ongkir active
+                            $needSwap = ($cancelTx->ongkos_kirim > $activeTx->ongkos_kirim);
+
+                            if ($needSwap && $cancelTx->ongkos_kirim !== $activeTx->ongkos_kirim) {
+                                // 🔄 SWAP ONGKIR: Hanya jika ongkir cancel lebih besar
+                                $tempOngkir = $cancelTx->ongkos_kirim;
+                                $cancelTx->ongkos_kirim = $activeTx->ongkos_kirim;
+                                $activeTx->ongkos_kirim = $tempOngkir;
+
+                                Log::info("🔄 [AUTO CANCEL] SWAP: transaksi #{$cancelTx->id} ({$tempOngkir}) <-> #{$activeTx->id} ({$activeTx->ongkos_kirim})");
+
+                                // Jika totalItems > 10, kurangi ongkir activeTx dengan X
+                                if ($totalItems > 10) {
+                                    $newOngkir = max($activeTx->ongkos_kirim - $x, 0);
+                                    Log::info("📉 [AUTO CANCEL] Kurangi X={$x} untuk transaksi aktif #{$activeTx->id}: {$activeTx->ongkos_kirim} -> {$newOngkir}");
+                                    $activeTx->ongkos_kirim = $newOngkir;
+                                }
+
+                                $cancelTx->save();
+                                $activeTx->save();
+
+                                Log::info("✅ [AUTO CANCEL SWAP DONE] Swap completed for multitenant #{$transaksi->multitenant_id}");
+                                Log::info("   Cancel #{$cancelTx->id} ongkir: {$cancelTx->ongkos_kirim}");
+                                Log::info("   Active #{$activeTx->id} ongkir: {$activeTx->ongkos_kirim}");
+                            } else {
+                                Log::info("ℹ️ [AUTO CANCEL] Tidak perlu swap, cek kondisi:");
+                                Log::info("   - Cancel ongkir (#{$cancelTx->id}): {$cancelTx->ongkos_kirim}");
+                                Log::info("   - Active ongkir (#{$activeTx->id}): {$activeTx->ongkos_kirim}");
+                                Log::info("   - Need swap: " . ($needSwap ? 'YES' : 'NO'));
+
+                                // PERBAIKAN: JIKA TIDAK SWAP, tetap kurangi X dari ongkir active jika totalItems > 10
+                                if ($totalItems > 10) {
+                                    // Tapi tunggu! Jika tidak swap, mungkin X perlu dikurangi dari ongkir yang lebih besar?
+                                    // Sesuai case 2: ongkir besar ada di cancel (10500), kecil di active (0)
+                                    // Maka kurangi X dari ongkir cancel karena dia yang lebih besar
+
+                                    if ($cancelTx->ongkos_kirim > $activeTx->ongkos_kirim) {
+                                        // Ongkir besar di cancel, kecil di active
+                                        // Kurangi X dari cancel karena dialah yang lebih besar
+                                        $newOngkir = max($cancelTx->ongkos_kirim - $x, 0);
+                                        Log::info("📉 [AUTO CANCEL] Kurangi X={$x} dari cancel (besar) #{$cancelTx->id}: {$cancelTx->ongkos_kirim} -> {$newOngkir}");
+                                        $cancelTx->ongkos_kirim = $newOngkir;
+                                    } else {
+                                        // Ongkir besar di active, kecil di cancel
+                                        // Kurangi X dari active karena dialah yang lebih besar
+                                        $newOngkir = max($activeTx->ongkos_kirim - $x, 0);
+                                        Log::info("📉 [AUTO CANCEL] Kurangi X={$x} dari active (besar) #{$activeTx->id}: {$activeTx->ongkos_kirim} -> {$newOngkir}");
+                                        $activeTx->ongkos_kirim = $newOngkir;
+                                    }
+
+                                    $cancelTx->save();
+                                    $activeTx->save();
+                                } else {
+                                    Log::info("ℹ️ [AUTO CANCEL] Total items ≤ 10, no X to apply");
+                                }
+                            }
+                        } else {
+                            Log::info("ℹ️ [AUTO CANCEL] Tidak ada transaksi aktif lain dalam multitenant #{$transaksi->multitenant_id}");
+                        }
+                    } else {
+                        Log::info("ℹ️ [AUTO CANCEL] Transaksi #{$transaksi->id} bukan tenant pertama yang cancel");
+                    }
+                    // ========== END LOGIKA SWAP ==========
+
                     // === Notifikasi ke user bahwa salah satu tenant dibatalkan ===
                     if (!empty($fcmUserToken)) {
                         $firebases
