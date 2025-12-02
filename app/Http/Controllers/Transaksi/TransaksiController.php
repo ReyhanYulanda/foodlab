@@ -1397,7 +1397,8 @@ class TransaksiController extends Controller
                                     $activeTx->ongkos_kirim = $newOngkir;
                                 }
 
-                                $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti;
+                                $cancelTx->ongkos_kirim = $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems);
+                                $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems);
                                 if ($transaksi->isPriority) {
                                     $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems)) - $x;
                                 } else {
@@ -1436,7 +1437,8 @@ class TransaksiController extends Controller
                                         $activeTx->ongkos_kirim = $newOngkir;
                                     }
 
-                                    $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti;
+                                    $cancelTx->ongkos_kirim = $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems);
+                                    $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems);
                                     if ($transaksi->isPriority) {
                                         $activeTx->total = $activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems);
                                     } else {
@@ -1592,6 +1594,19 @@ class TransaksiController extends Controller
         // Jika current items > 10, hanya kelebihan dari 10 yang kena extra fee
         if ($totalItems > $extraLimit) {
             return ($totalItems - $extraLimit) * $costPerExtra;
+        }
+
+        return 0;
+    }
+
+    private function extraFeeRefundSalahSatu($cancelItems)
+    {
+        $extraLimit = 10;
+        $costPerExtra = 500;
+
+        // Jika current items > 10, hanya kelebihan dari 10 yang kena extra fee
+        if ($cancelItems > $extraLimit) {
+            return ($cancelItems) * $costPerExtra;
         }
 
         return 0;
