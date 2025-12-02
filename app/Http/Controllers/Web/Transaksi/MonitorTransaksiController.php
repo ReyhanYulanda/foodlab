@@ -195,6 +195,7 @@ class MonitorTransaksiController extends Controller
                         $cancelOngkirMulti = $cancelTx->ruangan->gedung->ongkir_multitenant ?? 0;
                         $activeOngkirMulti = $activeTx->ruangan->gedung->ongkir_multitenant ?? 0;
                         $activeOngkirPriority = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
+                        $activeBaseOngkir = $activeTx->ruangan->gedung->ongkir ?? 0;
 
                         if ($needSwap && $cancelTx->ongkos_kirim !== $activeTx->ongkos_kirim) {
                             // 🔄 SWAP ONGKIR: Hanya jika ongkir cancel lebih besar
@@ -213,9 +214,9 @@ class MonitorTransaksiController extends Controller
 
                             $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFee($totalItems);
                             if ($transaksi->isPriority) {
-                                $activeTx->total = ($activeTx->sub_total + $activeOngkirMulti + $activeOngkirPriority + $this->extraFee($totalItems)) - $x;
+                                $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems)) - $x;
                             } else {
-                                $activeTx->total = ($activeTx->sub_total + $activeOngkirMulti + $this->extraFee($totalItems)) - $x;
+                                $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $this->extraFee($totalItems)) - $x;
                             }
 
                             $cancelTx->save();
@@ -252,9 +253,9 @@ class MonitorTransaksiController extends Controller
 
                                 $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFee($totalItems);
                                 if ($transaksi->isPriority) {
-                                    $activeTx->total = $activeTx->sub_total + $activeOngkirMulti + $activeOngkirPriority + $this->extraFee($totalItems);
+                                    $activeTx->total = $activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems);
                                 } else {
-                                    $activeTx->total = $activeTx->sub_total + $activeOngkirMulti + $this->extraFee($totalItems);
+                                    $activeTx->total = $activeTx->sub_total + $activeBaseOngkir + $this->extraFee($totalItems);
                                 }
 
                                 $cancelTx->save();
