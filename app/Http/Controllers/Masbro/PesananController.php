@@ -792,8 +792,10 @@ class PesananController extends Controller
                         $totalItemsGabungan = $refundTxItems + $currentTxItems;
 
                         // DEBUG: Hitung harga makanan (total - ongkos_kirim)
-                        $hargaMakananRefundTx = $refundTx->total - $refundTx->ongkos_kirim;
-                        $hargaMakananCurrentTx = $currentTx->total - $currentTx->ongkos_kirim;
+                        // $hargaMakananRefundTx = $refundTx->total - $refundTx->ongkos_kirim;
+                        // $hargaMakananCurrentTx = $currentTx->total - $currentTx->ongkos_kirim;
+                        $hargaMakananRefundTx = $refundTx->sub_total + $baseOngkir + $priorityOngkir + $this->calculateExtraFee($totalItemsGabungan);
+                        $hargaMakananCurrentTx = $currentTx->sub_total + $ongkirMulti;
 
                         // Hitung extra fees
                         $extraFeeBayarSemua = $this->calculateExtraFeeBayarSemua($totalItemsGabungan);
@@ -1332,6 +1334,18 @@ class PesananController extends Controller
         }
 
         return ($totalItems - $extraLimit) * $costPerExtra;
+    }
+
+    private function calculateExtraFee($totalItems) {
+        $extraLimit = 10;
+        $costPerExtra = 500;
+
+        // Jika current items > 10, hanya kelebihan dari 10 yang kena extra fee
+        if ($totalItems > $extraLimit) {
+            return ($totalItems - $extraLimit) * $costPerExtra;
+        }
+
+        return 0;
     }
 
     // private function calculateExtraFeeBayarSatu($currentItems, $refundItems)

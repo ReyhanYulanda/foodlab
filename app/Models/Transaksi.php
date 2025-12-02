@@ -76,6 +76,11 @@ class Transaksi extends Model
         return (int)$this->listTransaksiDetail()->sum(DB::raw('harga'));
     }
 
+    public function getExtraTotalAttribute()
+    {
+        return (int)$this->listTransaksiDetail()->sum(DB::raw('harga * jumlah'));
+    }
+
     public function getGedungAttribute()
     {
         return @$this->ruangan->gedung->nama;
