@@ -624,9 +624,17 @@ class MonitorTransaksiController extends Controller
         $costPerExtra = 500;
 
         // 20 20 (cancel)
-        if ($cancelItems > $extraLimit && $activeItems > $extraLimit) {
+        if ($cancelItems > $extraLimit && $activeItems > $extraLimit && $totalItems > $extraLimit) {
             return ($cancelItems) * $costPerExtra;
         }
+
+        // if ($cancelItems > $extraLimit && $activeItems > $extraLimit && $totalItems <= $extraLimit) {
+        //     return ($cancelItems) * $costPerExtra;
+        // }
+
+        // if ($cancelItems > $extraLimit && $activeItems <= $extraLimit && $totalItems <= $extraLimit) {
+        //     return ($cancelItems) * $costPerExtra;
+        // }
 
         // 7 (12 cancel)
         if ($cancelItems > $extraLimit && $activeItems <= $extraLimit && $totalItems > $extraLimit) {
@@ -639,8 +647,14 @@ class MonitorTransaksiController extends Controller
         }
 
         // 7 (7 cancel)
+        if ($cancelItems <= $extraLimit && $activeItems <= $extraLimit && $totalItems > $extraLimit) {
+            return ($cancelItems) * $costPerExtra;
+        }
 
         // 3 (7 cancel)
+        if ($cancelItems <= $extraLimit && $activeItems <= $extraLimit && $totalItems <= $extraLimit) {
+            return ($cancelItems) * $costPerExtra;
+        }
 
         return 0;
     }
