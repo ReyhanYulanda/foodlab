@@ -1349,7 +1349,7 @@ class TransaksiController extends Controller
                             ->first();
 
                         if ($related) {
-                            Log::info("🔄 Found related transaction #{$related->id} (status: {$related->status}) for swap");
+                            Log::info("🔄 Found related transaction #{$related->id} (status: {$related->status})");
 
                             // Tentukan mana yang cancel dan mana yang tetap aktif
                             $cancelTx = $transaksi;      // status sudah refund_selesai
@@ -1373,9 +1373,12 @@ class TransaksiController extends Controller
 
                             Log::info("📊 Items calculation: active={$activeItems}, cancel={$cancelItems}, total={$totalItems}, X={$x}");
 
-                            // Cek apakah ongkir berbeda dan perlu di-swap
-                            if ($cancelTx->ongkos_kirim !== $activeTx->ongkos_kirim) {
-                                // 🔄 SWAP ONGKIR: Tukar ongkir antara cancel dan active
+                            // PERBAIKAN: Cek kondisi untuk menentukan perlu swap atau tidak
+                            // Swap hanya dilakukan jika ongkir cancel > ongkir active
+                            $needSwap = ($cancelTx->ongkos_kirim > $activeTx->ongkos_kirim);
+
+                            if ($needSwap && $cancelTx->ongkos_kirim !== $activeTx->ongkos_kirim) {
+                                // 🔄 SWAP ONGKIR: Hanya jika ongkir cancel lebih besar
                                 $tempOngkir = $cancelTx->ongkos_kirim;
                                 $cancelTx->ongkos_kirim = $activeTx->ongkos_kirim;
                                 $activeTx->ongkos_kirim = $tempOngkir;
@@ -1384,8 +1387,9 @@ class TransaksiController extends Controller
 
                                 // Jika totalItems > 10, kurangi ongkir activeTx dengan X
                                 if ($totalItems > 10) {
-                                    $activeTx->ongkos_kirim = max($activeTx->ongkos_kirim - $x, 0);
-                                    Log::info("📉 Kurangi X={$x} untuk transaksi aktif #{$activeTx->id}");
+                                    $newOngkir = max($activeTx->ongkos_kirim - $x, 0);
+                                    Log::info("📉 Kurangi X={$x} untuk transaksi aktif #{$activeTx->id}: {$activeTx->ongkos_kirim} -> {$newOngkir}");
+                                    $activeTx->ongkos_kirim = $newOngkir;
                                 }
 
                                 $cancelTx->save();
@@ -1395,19 +1399,39 @@ class TransaksiController extends Controller
                                 Log::info("   Cancel #{$cancelTx->id} ongkir: {$cancelTx->ongkos_kirim}");
                                 Log::info("   Active #{$activeTx->id} ongkir: {$activeTx->ongkos_kirim}");
                             } else {
-                                Log::info("ℹ️ Ongkir sama, tidak perlu swap");
+                                Log::info("ℹ️ Tidak perlu swap, cek kondisi:");
+                                Log::info("   - Cancel ongkir (#{$cancelTx->id}): {$cancelTx->ongkos_kirim}");
+                                Log::info("   - Active ongkir (#{$activeTx->id}): {$activeTx->ongkos_kirim}");
+                                Log::info("   - Need swap: " . ($needSwap ? 'YES' : 'NO'));
 
-                                // Jika tidak swap tapi totalItems > 10, kurangi ongkir activeTx dengan X
+                                // PERBAIKAN: JIKA TIDAK SWAP, tetap kurangi X dari ongkir active jika totalItems > 10
                                 if ($totalItems > 10) {
-                                    $activeTx->ongkos_kirim = max($activeTx->ongkos_kirim - $x, 0);
+                                    // Tapi tunggu! Jika tidak swap, mungkin X perlu dikurangi dari ongkir yang lebih besar?
+                                    // Sesuai case 2: ongkir besar ada di cancel (10500), kecil di active (0)
+                                    // Maka kurangi X dari ongkir cancel karena dia yang lebih besar
+
+                                    if ($cancelTx->ongkos_kirim > $activeTx->ongkos_kirim) {
+                                        // Ongkir besar di cancel, kecil di active
+                                        // Kurangi X dari cancel karena dialah yang lebih besar
+                                        $newOngkir = max($cancelTx->ongkos_kirim - $x, 0);
+                                        Log::info("📉 Kurangi X={$x} dari cancel (besar) #{$cancelTx->id}: {$cancelTx->ongkos_kirim} -> {$newOngkir}");
+                                        $cancelTx->ongkos_kirim = $newOngkir;
+                                    } else {
+                                        // Ongkir besar di active, kecil di cancel
+                                        // Kurangi X dari active karena dialah yang lebih besar
+                                        $newOngkir = max($activeTx->ongkos_kirim - $x, 0);
+                                        Log::info("📉 Kurangi X={$x} dari active (besar) #{$activeTx->id}: {$activeTx->ongkos_kirim} -> {$newOngkir}");
+                                        $activeTx->ongkos_kirim = $newOngkir;
+                                    }
+
+                                    $cancelTx->save();
                                     $activeTx->save();
-                                    Log::info("✅ [NO SWAP] Applied X to active transaction #{$activeTx->id}, new ongkir: {$activeTx->ongkos_kirim}");
                                 } else {
                                     Log::info("ℹ️ Total items ≤ 10, no X to apply");
                                 }
                             }
                         } else {
-                            Log::info("ℹ️ Tidak ada transaksi aktif lain dalam multitenant #{$transaksi->multitenant_id} untuk swap");
+                            Log::info("ℹ️ Tidak ada transaksi aktif lain dalam multitenant #{$transaksi->multitenant_id}");
                         }
                     } else {
                         Log::info("ℹ️ Transaksi #{$transaksi->id} bukan tenant pertama yang cancel");
@@ -1417,7 +1441,7 @@ class TransaksiController extends Controller
                     if (!$stillActive) {
                         Log::info("🎯 All transactions in multitenant #{$transaksi->multitenant_id} are now refunded/completed");
 
-                        // --- existing flow kamu (total refund, kembalikan voucher/cashback, tambah saldo koin) ---
+                        // --- existing flow (total refund, kembalikan voucher/cashback, tambah saldo koin) ---
                         $totalRefund = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->sum('total');
 
                         // Tambahkan ke saldo koin user
