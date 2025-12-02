@@ -1141,22 +1141,42 @@ class PesananController extends Controller
                                         $x = ($totalItems - 10) * 500 - (($selesaiItems - 10) * 500);
                                     }
 
-                                    // Tukar ongkir
-                                    $tempOngkir = $transaksi->ongkos_kirim;
-                                    $transaksi->ongkos_kirim = $related->ongkos_kirim;
-                                    $related->ongkos_kirim = $tempOngkir;
+                                    if (!$alreadySwapped && $transaksi->ongkos_kirim !== $related->ongkos_kirim) {
+                                        // Tukar ongkir
+                                        $tempOngkir = $transaksi->ongkos_kirim;
+                                        $transaksi->ongkos_kirim = $related->ongkos_kirim;
+                                        $related->ongkos_kirim = $tempOngkir;
 
-                                    // ⭐ LANGSUNG KURANGI dengan X untuk transaksi yang SELESAI
-                                    if ($transaksi->status === 'selesai') {
-                                        $transaksi->ongkos_kirim = max($transaksi->ongkos_kirim - $x, 0);
+                                        // ⭐ LANGSUNG KURANGI dengan X untuk transaksi yang SELESAI
+                                        if ($transaksi->status === 'selesai') {
+                                            $transaksi->ongkos_kirim = max($transaksi->ongkos_kirim - $x, 0);
+                                        } else {
+                                            $related->ongkos_kirim = max($related->ongkos_kirim - $x, 0);
+                                        }
+
+                                        $transaksi->save();
+                                        $related->save();
+
+                                        Log::info("🔄 [SWAP WITH X] Applied X during swap");
                                     } else {
-                                        $related->ongkos_kirim = max($related->ongkos_kirim - $x, 0);
+                                        Log::info("ℹ️ No swap needed, checking if X should be applied...");
+
+                                        // ⭐ KURANGI X jika totalItems > 10
+                                        if ($totalItems > 10) {
+                                            // Kurangi transaksi yang SELESAI dengan X
+                                            if ($transaksi->status === 'selesai') {
+                                                $transaksi->ongkos_kirim = max($transaksi->ongkos_kirim - $x, 0);
+                                                $transaksi->save();
+                                                Log::info("✅ [NO SWAP] Applied X to transaksi #{$transaksi->id}, new ongkir: {$transaksi->ongkos_kirim}");
+                                            } else {
+                                                $related->ongkos_kirim = max($related->ongkos_kirim - $x, 0);
+                                                $related->save();
+                                                Log::info("✅ [NO SWAP] Applied X to related transaksi #{$related->id}, new ongkir: {$related->ongkos_kirim}");
+                                            }
+                                        } else {
+                                            Log::info("ℹ️ [NO SWAP] Total items ≤ 10, no X to apply");
+                                        }
                                     }
-
-                                    $transaksi->save();
-                                    $related->save();
-
-                                    Log::info("🔄 [SWAP WITH X] selesaiItems={$selesaiItems}, refundItems={$refundItems}, X={$x}");
                                 }
                             }
 
