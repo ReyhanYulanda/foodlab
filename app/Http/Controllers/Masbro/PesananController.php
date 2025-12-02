@@ -1130,7 +1130,7 @@ class PesananController extends Controller
                                     $selesaiItems = $selesaiTx->listTransaksiDetail->sum('jumlah');  // selesaiAntar
                                     $refundItems = $refundTx->listTransaksiDetail->sum('jumlah');    // items yang dicancel
 
-                                    // Hitung X berdasarkan rumus Anda
+                                    // Hitung X berdasarkan rumus
                                     $totalItems = $selesaiItems + $refundItems;
 
                                     if ($selesaiItems <= 10) {
@@ -1146,8 +1146,12 @@ class PesananController extends Controller
                                     $transaksi->ongkos_kirim = $related->ongkos_kirim;
                                     $related->ongkos_kirim = $tempOngkir;
 
-                                    // Simpan X ke transaksi yang SELESAI (untuk dikurangi nanti)
-                                    // $selesaiTx->ongkir_adjustment = $x;
+                                    // ⭐ LANGSUNG KURANGI dengan X untuk transaksi yang SELESAI
+                                    if ($transaksi->status === 'selesai') {
+                                        $transaksi->ongkos_kirim = max($transaksi->ongkos_kirim - $x, 0);
+                                    } else {
+                                        $related->ongkos_kirim = max($related->ongkos_kirim - $x, 0);
+                                    }
 
                                     $transaksi->save();
                                     $related->save();
