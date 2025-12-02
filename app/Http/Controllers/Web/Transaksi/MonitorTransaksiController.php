@@ -212,7 +212,7 @@ class MonitorTransaksiController extends Controller
                                 $activeTx->ongkos_kirim = $newOngkir;
                             }
 
-                            $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFee($totalItems);
+                            $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti;
                             if ($transaksi->isPriority) {
                                 $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems)) - $x;
                             } else {
@@ -251,7 +251,7 @@ class MonitorTransaksiController extends Controller
                                     $activeTx->ongkos_kirim = $newOngkir;
                                 }
 
-                                $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFee($totalItems);
+                                $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti;
                                 if ($transaksi->isPriority) {
                                     $activeTx->total = $activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems);
                                 } else {

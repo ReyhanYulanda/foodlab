@@ -1377,6 +1377,11 @@ class TransaksiController extends Controller
                             // Swap hanya dilakukan jika ongkir cancel > ongkir active
                             $needSwap = ($cancelTx->ongkos_kirim > $activeTx->ongkos_kirim);
 
+                            $cancelOngkirMulti = $cancelTx->ruangan->gedung->ongkir_multitenant ?? 0;
+                            $activeOngkirMulti = $activeTx->ruangan->gedung->ongkir_multitenant ?? 0;
+                            $activeOngkirPriority = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
+                            $activeBaseOngkir = $activeTx->ruangan->gedung->ongkir ?? 0;
+
                             if ($needSwap && $cancelTx->ongkos_kirim !== $activeTx->ongkos_kirim) {
                                 // 🔄 SWAP ONGKIR: Hanya jika ongkir cancel lebih besar
                                 $tempOngkir = $cancelTx->ongkos_kirim;
@@ -1390,6 +1395,13 @@ class TransaksiController extends Controller
                                     $newOngkir = max($activeTx->ongkos_kirim - $x, 0);
                                     Log::info("📉 Kurangi X={$x} untuk transaksi aktif #{$activeTx->id}: {$activeTx->ongkos_kirim} -> {$newOngkir}");
                                     $activeTx->ongkos_kirim = $newOngkir;
+                                }
+
+                                $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti;
+                                if ($transaksi->isPriority) {
+                                    $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems)) - $x;
+                                } else {
+                                    $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $this->extraFee($totalItems)) - $x;
                                 }
 
                                 $cancelTx->save();
@@ -1422,6 +1434,13 @@ class TransaksiController extends Controller
                                         $newOngkir = max($activeTx->ongkos_kirim - $x, 0);
                                         Log::info("📉 Kurangi X={$x} dari active (besar) #{$activeTx->id}: {$activeTx->ongkos_kirim} -> {$newOngkir}");
                                         $activeTx->ongkos_kirim = $newOngkir;
+                                    }
+
+                                    $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti;
+                                    if ($transaksi->isPriority) {
+                                        $activeTx->total = $activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems);
+                                    } else {
+                                        $activeTx->total = $activeTx->sub_total + $activeBaseOngkir + $this->extraFee($totalItems);
                                     }
 
                                     $cancelTx->save();
