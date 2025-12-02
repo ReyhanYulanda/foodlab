@@ -628,17 +628,19 @@ class MonitorTransaksiController extends Controller
             return ($cancelItems) * $costPerExtra;
         }
 
+        // gabisa
         // if ($cancelItems > $extraLimit && $activeItems > $extraLimit && $totalItems <= $extraLimit) {
         //     return ($cancelItems) * $costPerExtra;
         // }
 
+        // gabisa
         // if ($cancelItems > $extraLimit && $activeItems <= $extraLimit && $totalItems <= $extraLimit) {
         //     return ($cancelItems) * $costPerExtra;
         // }
 
-        // 7 (12 cancel)
-        if ($cancelItems > $extraLimit && $activeItems <= $extraLimit && $totalItems > $extraLimit) {
-            return (($activeItems + $cancelItems) - $extraLimit) * $costPerExtra;
+        // 3 (7 cancel)
+        if ($cancelItems <= $extraLimit && $activeItems <= $extraLimit && $totalItems <= $extraLimit) {
+            return ($cancelItems) * $costPerExtra;
         }
 
         // 12 (7 cancel)
@@ -646,15 +648,20 @@ class MonitorTransaksiController extends Controller
             return ($cancelItems) * $costPerExtra;
         }
 
-        // 7 (7 cancel)
-        if ($cancelItems <= $extraLimit && $activeItems <= $extraLimit && $totalItems > $extraLimit) {
+         // 7 (7 cancel)
+         if ($cancelItems <= $extraLimit && $activeItems <= $extraLimit && $totalItems > $extraLimit) {
             return ($cancelItems) * $costPerExtra;
         }
 
-        // 3 (7 cancel)
-        if ($cancelItems <= $extraLimit && $activeItems <= $extraLimit && $totalItems <= $extraLimit) {
-            return ($cancelItems) * $costPerExtra;
+        // 7 (12 cancel)
+        if ($cancelItems > $extraLimit && $activeItems <= $extraLimit && $totalItems > $extraLimit) {
+            return (($activeItems + $cancelItems) - $extraLimit) * $costPerExtra;
         }
+
+        // gabisa
+        // if ($cancelItems <= $extraLimit && $activeItems > $extraLimit && $totalItems <= $extraLimit) {
+        //     return (($activeItems + $cancelItems) - $extraLimit) * $costPerExtra;
+        // }        
 
         return 0;
     }
