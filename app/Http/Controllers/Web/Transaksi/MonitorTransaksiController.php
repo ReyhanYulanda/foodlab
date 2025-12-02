@@ -192,6 +192,10 @@ class MonitorTransaksiController extends Controller
                         // Swap hanya dilakukan jika ongkir cancel > ongkir active
                         $needSwap = ($cancelTx->ongkos_kirim > $activeTx->ongkos_kirim);
 
+                        $cancelOngkirMulti = $cancelTx->ruangan->gedung->ongkir_multitenant ?? 0;
+                        $activeOngkirMulti = $activeTx->ruangan->gedung->ongkir_multitenant ?? 0;
+                        $activeOngkirPriority = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
+
                         if ($needSwap && $cancelTx->ongkos_kirim !== $activeTx->ongkos_kirim) {
                             // 🔄 SWAP ONGKIR: Hanya jika ongkir cancel lebih besar
                             $tempOngkir = $cancelTx->ongkos_kirim;
@@ -205,6 +209,13 @@ class MonitorTransaksiController extends Controller
                                 $newOngkir = max($activeTx->ongkos_kirim - $x, 0);
                                 Log::info("📉 Kurangi X={$x} untuk transaksi aktif #{$activeTx->id}: {$activeTx->ongkos_kirim} -> {$newOngkir}");
                                 $activeTx->ongkos_kirim = $newOngkir;
+                            }
+
+                            $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFee($totalItems);
+                            if ($transaksi->isPriority) {
+                                $activeTx->total = ($activeTx->sub_total + $activeOngkirMulti + $activeOngkirPriority + $this->extraFee($totalItems)) - $x;
+                            } else {
+                                $activeTx->total = ($activeTx->sub_total + $activeOngkirMulti + $this->extraFee($totalItems)) - $x;
                             }
 
                             $cancelTx->save();
@@ -237,6 +248,13 @@ class MonitorTransaksiController extends Controller
                                     $newOngkir = max($activeTx->ongkos_kirim - $x, 0);
                                     Log::info("📉 Kurangi X={$x} dari active (besar) #{$activeTx->id}: {$activeTx->ongkos_kirim} -> {$newOngkir}");
                                     $activeTx->ongkos_kirim = $newOngkir;
+                                }
+
+                                $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFee($totalItems);
+                                if ($transaksi->isPriority) {
+                                    $activeTx->total = $activeTx->sub_total + $activeOngkirMulti + $activeOngkirPriority + $this->extraFee($totalItems);
+                                } else {
+                                    $activeTx->total = $activeTx->sub_total + $activeOngkirMulti + $this->extraFee($totalItems);
                                 }
 
                                 $cancelTx->save();
@@ -582,5 +600,18 @@ class MonitorTransaksiController extends Controller
             Log::error("Reset driver gagal: " . $e->getMessage());
             return redirect()->back()->with('error', 'Reset driver gagal.');
         }
+    }
+
+    private function extraFee($totalItems)
+    {
+        $extraLimit = 10;
+        $costPerExtra = 500;
+
+        // Jika current items > 10, hanya kelebihan dari 10 yang kena extra fee
+        if ($totalItems > $extraLimit) {
+            return ($totalItems - $extraLimit) * $costPerExtra;
+        }
+
+        return 0;
     }
 }
