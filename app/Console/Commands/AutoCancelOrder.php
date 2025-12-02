@@ -256,6 +256,55 @@ class AutoCancelOrder extends Command
                         Log::info("Refund penuh multitenant #{$transaksi->multitenant_id} sebesar {$totalRefund} berhasil dilakukan.");
                     }
 
+                    if ($transaksi->isPriority) {
+                        // Kirim FCM saldo kembalian
+                        if ($transaksi->driver_id == null) {
+                            $masbroTokens = User::role('masbro')
+                                // ->where('isOnline', 1)
+                                ->with('fcmTokens')
+                                ->get()
+                                ->flatMap(fn($user) => $user->fcmTokens->pluck('fcm_token'))
+                                ->filter()
+                                ->unique()
+                                ->values()
+                                ->toArray();
+
+                            $fcmMasbroToken = $masbroTokens;
+                            if (!empty($fcmMasbroToken)) {
+                                $firebases
+                                    ->withNotification('Pesanan prioritas', "Salah satu pesanan prioritas  dibatalkan #{$transaksi->id}")
+                                    ->withData([
+                                        'title' => 'Pesanan Prioritas',
+                                        'body' => "Salah satu pesanan prioritas  dibatalkan #{$transaksi->id}",
+                                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                    ])->sendToFallback($fcmMasbroToken);
+                                Log::info('Sending FCM to driver', ['tokens' => $fcmMasbroToken]);
+                            }
+                        } else {
+                            $masbroTokens = User::role('masbro')
+                                ->where('isOnline', 1)
+                                ->with('fcmTokens')
+                                ->get()
+                                ->flatMap(fn($user) => $user->fcmTokens->pluck('fcm_token'))
+                                ->filter()
+                                ->unique()
+                                ->values()
+                                ->toArray();
+
+                            $fcmMasbroToken = $masbroTokens;
+                            if (!empty($fcmMasbroToken)) {
+                                $firebases
+                                    ->withNotification('Pesanan prioritas', "Salah satu pesanan prioritas  dibatalkan #{$transaksi->id}")
+                                    ->withData([
+                                        'title' => 'Pesanan Prioritas',
+                                        'body' => "Salah satu pesanan prioritas  dibatalkan #{$transaksi->id}",
+                                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                    ])->sendToDriver($fcmMasbroToken);
+                                Log::info('Sending FCM to driver', ['tokens' => $fcmMasbroToken]);
+                            }
+                        }
+                    }
+
                     DB::commit();
                     continue;
                 }
