@@ -1381,6 +1381,7 @@ class TransaksiController extends Controller
                             $activeOngkirMulti = $activeTx->ruangan->gedung->ongkir_multitenant ?? 0;
                             $activeOngkirPriority = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
                             $activeBaseOngkir = $activeTx->ruangan->gedung->ongkir ?? 0;
+                            $cancelLessThanExtraFee = $cancelTx->listTransaksiDetail->sum('jumlah') <= 10;
 
                             if ($needSwap && $cancelTx->ongkos_kirim !== $activeTx->ongkos_kirim) {
                                 // 🔄 SWAP ONGKIR: Hanya jika ongkir cancel lebih besar
@@ -1397,8 +1398,8 @@ class TransaksiController extends Controller
                                     $activeTx->ongkos_kirim = $newOngkir;
                                 }
 
-                                $cancelTx->ongkos_kirim = $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems);
-                                $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems);
+                                $cancelTx->ongkos_kirim = $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems);
+                                $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems);
                                 if ($transaksi->isPriority) {
                                     $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems)) - $x;
                                 } else {
@@ -1437,8 +1438,8 @@ class TransaksiController extends Controller
                                         $activeTx->ongkos_kirim = $newOngkir;
                                     }
 
-                                    $cancelTx->ongkos_kirim = $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems);
-                                    $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems);
+                                    $cancelTx->ongkos_kirim = $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems);
+                                    $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems);
                                     if ($transaksi->isPriority) {
                                         $activeTx->total = $activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems);
                                     } else {
@@ -1599,14 +1600,18 @@ class TransaksiController extends Controller
         return 0;
     }
 
-    private function extraFeeRefundSalahSatu($cancelItems)
+    private function extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems)
     {
         $extraLimit = 10;
         $costPerExtra = 500;
 
         // Jika current items > 10, hanya kelebihan dari 10 yang kena extra fee
-        if ($cancelItems > $extraLimit) {
+        if ($cancelItems > $extraLimit && $activeItems > $extraLimit) {
             return ($cancelItems) * $costPerExtra;
+        }
+
+        if ($cancelItems > $extraLimit && $activeItems <= $extraLimit) {
+            return ($activeItems) * $costPerExtra;
         }
 
         return 0;
