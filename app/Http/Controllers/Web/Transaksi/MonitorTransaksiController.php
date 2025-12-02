@@ -623,14 +623,24 @@ class MonitorTransaksiController extends Controller
         $extraLimit = 10;
         $costPerExtra = 500;
 
-        // Jika current items > 10, hanya kelebihan dari 10 yang kena extra fee
+        // 20 20 (cancel)
         if ($cancelItems > $extraLimit && $activeItems > $extraLimit) {
             return ($cancelItems) * $costPerExtra;
         }
 
+        // 7 (12 cancel)
         if ($cancelItems > $extraLimit && $activeItems <= $extraLimit && $totalItems > $extraLimit) {
             return (($activeItems + $cancelItems) - $extraLimit) * $costPerExtra;
         }
+
+        // 12 (7 cancel)
+        if ($cancelItems <= $extraLimit && $activeItems > $extraLimit && $totalItems > $extraLimit) {
+            return ($cancelItems) * $costPerExtra;
+        }
+
+        // 7 (7 cancel)
+
+        // 3 (7 cancel)
 
         return 0;
     }
