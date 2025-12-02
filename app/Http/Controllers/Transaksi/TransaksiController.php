@@ -1346,19 +1346,18 @@ class TransaksiController extends Controller
                         // Cari related transaksi lain dalam grup untuk dipasangkan swap (prioritaskan status selesai)
                         $related = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
                             ->where('id', '!=', $transaksi->id)
-                            ->whereIn('status', ['selesai', 'diantar', 'siap_diantar'])
-                            ->orderByRaw("FIELD(status, 'selesai','diantar','siap_diantar')") // prioritas 'selesai'
+                            // ->whereIn('status', ['selesai', 'diantar', 'siap_diantar'])
+                            // ->orderByRaw("FIELD(status, 'selesai','diantar','siap_diantar')") // prioritas 'selesai'
                             ->first();
 
                         if ($related) {
                             // ---- Mulai logic swap (ambil dari kode swap-mu, sedikit dirapikan) ----
                             // Tentukan mana selesai & mana refund (transaksi sudah diset ke refund_selesai sebelumnya)
-                            if ($transaksi->status === 'selesai') {
-                                $selesaiTx = $transaksi;
-                                $refundTx = $related;
+                            if ($related->status === 'refund_selesai') {
+                                Log::info("❌ Tidak bisa swap. Related transaksi juga refund_selesai.");
                             } else {
-                                $selesaiTx = $related;
                                 $refundTx = $transaksi;
+                                $selesaiTx = $related;
                             }
 
                             // Hitung items
