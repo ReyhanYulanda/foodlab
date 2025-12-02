@@ -1610,8 +1610,8 @@ class TransaksiController extends Controller
             return ($cancelItems) * $costPerExtra;
         }
 
-        if ($cancelItems > $extraLimit && $activeItems <= $extraLimit) {
-            return ($activeItems) * $costPerExtra;
+        if ($cancelItems > $extraLimit && $activeItems <= $extraLimit && $totalItems > $extraLimit) {
+            return (($activeItems + $cancelItems) - $extraLimit) * $costPerExtra;
         }
 
         return 0;
