@@ -1109,14 +1109,50 @@ class PesananController extends Controller
                                 );
 
                                 if ($refundCondition && !$alreadySwapped && $transaksi->ongkos_kirim !== $related->ongkos_kirim) {
+                                    // $tempOngkir = $transaksi->ongkos_kirim;
+                                    // $transaksi->ongkos_kirim = $related->ongkos_kirim;
+                                    // $related->ongkos_kirim = $tempOngkir;
+
+                                    // $transaksi->save();
+                                    // $related->save();
+
+                                    // Log::info("🔄 [SWAP ONCE] Ongkir ditukar antara transaksi #{$transaksi->id} dan #{$related->id}");
+                                    // Tentukan mana yang selesai dan mana yang refund
+                                    if ($transaksi->status === 'selesai') {
+                                        $selesaiTx = $transaksi;
+                                        $refundTx = $related;
+                                    } else {
+                                        $selesaiTx = $related;
+                                        $refundTx = $transaksi;
+                                    }
+
+                                    // Hitung items
+                                    $selesaiItems = $selesaiTx->listTransaksiDetail->sum('jumlah');  // selesaiAntar
+                                    $refundItems = $refundTx->listTransaksiDetail->sum('jumlah');    // items yang dicancel
+
+                                    // Hitung X berdasarkan rumus Anda
+                                    $totalItems = $selesaiItems + $refundItems;
+
+                                    if ($selesaiItems <= 10) {
+                                        // Case: selesaiAntar ≤ 10
+                                        $x = ($totalItems - 10) * 500;
+                                    } else {
+                                        // Case: selesaiAntar > 10  
+                                        $x = ($totalItems - 10) * 500 - (max($refundItems - 10, 0) * 500);
+                                    }
+
+                                    // Tukar ongkir
                                     $tempOngkir = $transaksi->ongkos_kirim;
                                     $transaksi->ongkos_kirim = $related->ongkos_kirim;
                                     $related->ongkos_kirim = $tempOngkir;
 
+                                    // Simpan X ke transaksi yang SELESAI (untuk dikurangi nanti)
+                                    $selesaiTx->ongkir_adjustment = $x;
+
                                     $transaksi->save();
                                     $related->save();
 
-                                    Log::info("🔄 [SWAP ONCE] Ongkir ditukar antara transaksi #{$transaksi->id} dan #{$related->id}");
+                                    Log::info("🔄 [SWAP WITH X] selesaiItems={$selesaiItems}, refundItems={$refundItems}, X={$x}");
                                 }
                             }
 
