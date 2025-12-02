@@ -1605,14 +1605,45 @@ class TransaksiController extends Controller
         $extraLimit = 10;
         $costPerExtra = 500;
 
-        // Jika current items > 10, hanya kelebihan dari 10 yang kena extra fee
-        if ($cancelItems > $extraLimit && $activeItems > $extraLimit) {
+        // 20 20 (cancel)
+        if ($cancelItems > $extraLimit && $activeItems > $extraLimit && $totalItems > $extraLimit) {
             return ($cancelItems) * $costPerExtra;
         }
 
+        // gabisa
+        // if ($cancelItems > $extraLimit && $activeItems > $extraLimit && $totalItems <= $extraLimit) {
+        //     return ($cancelItems) * $costPerExtra;
+        // }
+
+        // gabisa
+        // if ($cancelItems > $extraLimit && $activeItems <= $extraLimit && $totalItems <= $extraLimit) {
+        //     return ($cancelItems) * $costPerExtra;
+        // }
+
+        // 3 (7 cancel)
+        if ($cancelItems <= $extraLimit && $activeItems <= $extraLimit && $totalItems <= $extraLimit) {
+            return ($cancelItems) * $costPerExtra;
+        }
+
+        // 12 (7 cancel)
+        if ($cancelItems <= $extraLimit && $activeItems > $extraLimit && $totalItems > $extraLimit) {
+            return ($cancelItems) * $costPerExtra;
+        }
+
+        // 7 (7 cancel)
+        if ($cancelItems <= $extraLimit && $activeItems <= $extraLimit && $totalItems > $extraLimit) {
+            return ($cancelItems) * $costPerExtra;
+        }
+
+        // 7 (12 cancel)
         if ($cancelItems > $extraLimit && $activeItems <= $extraLimit && $totalItems > $extraLimit) {
             return (($activeItems + $cancelItems) - $extraLimit) * $costPerExtra;
         }
+
+        // gabisa
+        // if ($cancelItems <= $extraLimit && $activeItems > $extraLimit && $totalItems <= $extraLimit) {
+        //     return (($activeItems + $cancelItems) - $extraLimit) * $costPerExtra;
+        // }        
 
         return 0;
     }
