@@ -1147,7 +1147,7 @@ class PesananController extends Controller
                                     $related->ongkos_kirim = $tempOngkir;
 
                                     // Simpan X ke transaksi yang SELESAI (untuk dikurangi nanti)
-                                    $selesaiTx->ongkir_adjustment = $x;
+                                    // $selesaiTx->ongkir_adjustment = $x;
 
                                     $transaksi->save();
                                     $related->save();
