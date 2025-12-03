@@ -97,6 +97,11 @@ class AutoCancelOrder extends Command
                             // Swap hanya dilakukan jika ongkir cancel > ongkir active
                             $needSwap = ($cancelTx->ongkos_kirim > $activeTx->ongkos_kirim);
 
+                            $cancelOngkirMulti = $cancelTx->ruangan->gedung->ongkir_multitenant ?? 0;
+                            $activeOngkirMulti = $activeTx->ruangan->gedung->ongkir_multitenant ?? 0;
+                            $activeOngkirPriority = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
+                            $activeBaseOngkir = $activeTx->ruangan->gedung->ongkir ?? 0;
+
                             if ($needSwap && $cancelTx->ongkos_kirim !== $activeTx->ongkos_kirim) {
                                 // 🔄 SWAP ONGKIR: Hanya jika ongkir cancel lebih besar
                                 $tempOngkir = $cancelTx->ongkos_kirim;
@@ -110,6 +115,14 @@ class AutoCancelOrder extends Command
                                     $newOngkir = max($activeTx->ongkos_kirim - $x, 0);
                                     Log::info("📉 [AUTO CANCEL] Kurangi X={$x} untuk transaksi aktif #{$activeTx->id}: {$activeTx->ongkos_kirim} -> {$newOngkir}");
                                     $activeTx->ongkos_kirim = $newOngkir;
+                                }
+
+                                $cancelTx->ongkos_kirim = $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems);
+                                $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems);
+                                if ($transaksi->isPriority) {
+                                    $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems)) - $x;
+                                } else {
+                                    $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $this->extraFee($totalItems)) - $x;
                                 }
 
                                 $cancelTx->save();
@@ -142,6 +155,14 @@ class AutoCancelOrder extends Command
                                         $newOngkir = max($activeTx->ongkos_kirim - $x, 0);
                                         Log::info("📉 [AUTO CANCEL] Kurangi X={$x} dari active (besar) #{$activeTx->id}: {$activeTx->ongkos_kirim} -> {$newOngkir}");
                                         $activeTx->ongkos_kirim = $newOngkir;
+                                    }
+
+                                    $cancelTx->ongkos_kirim = $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems);
+                                    $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems);
+                                    if ($transaksi->isPriority) {
+                                        $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems)) - $x;
+                                    } else {
+                                        $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $this->extraFee($totalItems)) - $x;
                                     }
 
                                     $cancelTx->save();
@@ -334,6 +355,67 @@ class AutoCancelOrder extends Command
         }
 
         $this->info("Auto cancel executed with timeout $timeout minutes.");
+    }
+
+    private function extraFee($totalItems)
+    {
+        $extraLimit = 10;
+        $costPerExtra = 500;
+
+        // Jika current items > 10, hanya kelebihan dari 10 yang kena extra fee
+        if ($totalItems > $extraLimit) {
+            return ($totalItems - $extraLimit) * $costPerExtra;
+        }
+
+        return 0;
+    }
+
+    private function extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems)
+    {
+        $extraLimit = 10;
+        $costPerExtra = 500;
+
+        // 20 20 (cancel)
+        if ($cancelItems > $extraLimit && $activeItems > $extraLimit && $totalItems > $extraLimit) {
+            return ($cancelItems) * $costPerExtra;
+        }
+
+        // gabisa
+        // if ($cancelItems > $extraLimit && $activeItems > $extraLimit && $totalItems <= $extraLimit) {
+        //     return ($cancelItems) * $costPerExtra;
+        // }
+
+        // gabisa
+        // if ($cancelItems > $extraLimit && $activeItems <= $extraLimit && $totalItems <= $extraLimit) {
+        //     return ($cancelItems) * $costPerExtra;
+        // }
+
+        // 3 (7 cancel)
+        // if ($cancelItems <= $extraLimit && $activeItems <= $extraLimit && $totalItems <= $extraLimit) {
+        //     return ($cancelItems) * $costPerExtra;
+        // }
+
+        // 12 (7 cancel)
+        if ($cancelItems <= $extraLimit && $activeItems > $extraLimit && $totalItems > $extraLimit) {
+            return ($cancelItems) * $costPerExtra;
+        }
+
+        // 7 (7 cancel)
+        if ($cancelItems <= $extraLimit && $activeItems <= $extraLimit && $totalItems > $extraLimit) {
+            return ($cancelItems) * $costPerExtra;
+        }
+
+        // 7 (12 cancel)
+        if ($cancelItems > $extraLimit && $activeItems <= $extraLimit && $totalItems > $extraLimit) {
+            return (($activeItems + $cancelItems) - $extraLimit) * $costPerExtra;
+        }
+
+        // gabisa
+        // if ($cancelItems <= $extraLimit && $activeItems > $extraLimit && $totalItems <= $extraLimit) {
+        //     return (($activeItems + $cancelItems) - $extraLimit) * $costPerExtra;
+        // }        
+
+        return 0;
     }
 
     private function refundKoin(Transaksi $transaksi)
