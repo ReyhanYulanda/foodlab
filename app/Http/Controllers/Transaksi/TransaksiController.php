@@ -68,22 +68,30 @@ class TransaksiController extends Controller
             ->orderByDesc('created_at')
             ->paginate($perPage, ['*'], 'page', $page);
 
-        // mapping biar ada merge dari checkout
-        $transaksi->getCollection()->transform(function ($item) {
-            $checkout = $item->checkout;
+        // Transformasi data untuk konsistensi dengan orderUserById
+        $transaksiData = $transaksi->toArray();
 
-            $item->midtrans_request_id = $checkout->midtrans_request_id ?? null;
-            $item->qr_url            = $checkout->kode_bayar ?? null;
-            $item->expiry            = $checkout->tgl_akhir_tagihan ?? null;
-            $item->biaya_admin       = $checkout->total_biaya_admin ?? null;
+        // Tambahkan data checkout ke setiap item transaksi
+        $transaksiData['data'] = collect($transaksiData['data'])->map(function ($item) {
+            $transaksiModel = Transaksi::find($item['id']);
+            $checkout = $transaksiModel->checkout;
+
+            if ($checkout) {
+                $item['midtrans_request_id'] = $checkout->midtrans_request_id ?? null;
+                $item['qr_url'] = $checkout->kode_bayar ?? null;
+                $item['expiry'] = $checkout->tgl_akhir_tagihan ?? null;
+                $item['biaya_admin'] = $checkout->total_biaya_admin ?? null;
+                $item['order_id_midtrans'] = $checkout->midtrans_request_id ?? null;
+                $item['grand_total'] = $checkout->total_bayar_user ?? null;
+            }
 
             return $item;
-        });
+        })->toArray();
 
         return response()->json([
             'status'  => 'success',
             'message' => 'data berhasil didapatkan',
-            'data'    => $transaksi
+            'data'    => $transaksiData
         ]);
     }
 
