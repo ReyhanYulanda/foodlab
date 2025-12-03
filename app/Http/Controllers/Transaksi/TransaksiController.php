@@ -1623,9 +1623,9 @@ class TransaksiController extends Controller
         // }
 
         // 3 (7 cancel)
-        if ($cancelItems <= $extraLimit && $activeItems <= $extraLimit && $totalItems <= $extraLimit) {
-            return ($cancelItems) * $costPerExtra;
-        }
+        // if ($cancelItems <= $extraLimit && $activeItems <= $extraLimit && $totalItems <= $extraLimit) {
+        //     return ($cancelItems) * $costPerExtra;
+        // }
 
         // 12 (7 cancel)
         if ($cancelItems <= $extraLimit && $activeItems > $extraLimit && $totalItems > $extraLimit) {
