@@ -422,6 +422,8 @@ class TransaksiController extends Controller
                     $totalExtraGlobal = ($totalSemuaItem - 10) * $biayaExtra;
                 }
 
+                $grandTotal += $totalExtraGlobal;
+
                 // Jika metode pembayaran koin -> cek saldo user mencukupi GRAND TOTAL
                 if ($request->metode_pembayaran === 'koin') {
                     $saldo = SaldoKoin::where('user_id', $user->id)->first();
