@@ -762,15 +762,29 @@ class TransaksiController extends Controller
                     ->whereIn('id', collect($createdTransaksi)->pluck('id'))
                     ->get();
 
+                $allTransaksi = Transaksi::with(['listTransaksiDetail.menus', 'user', 'checkout'])
+                    ->whereIn('id', collect($createdTransaksi)->pluck('id'))
+                    ->orderBy('id', 'asc') // Urutkan berdasarkan ID untuk konsistensi
+                    ->get();
+
+                // Transform semua transaksi untuk menambahkan QRIS info jika ada
+                $transaksiWithQris = $allTransaksi->map(function ($trans) use ($qrisInfo) {
+                    $transData = $trans->toArray();
+
+                    // Tambahkan QRIS info ke setiap transaksi
+                    if (!empty($qrisInfo)) {
+                        $transData = array_merge($transData, $qrisInfo);
+                    }
+
+                    return $transData;
+                });
+
                 return response()->json([
                     'status' => 'success',
                     'messages' => 'Transaksi multitenant berhasil dibuat',
                     'multitenant_id' => $multitenantId,
                     'data' => [
-                        'transaksi' => array_merge(
-                            $transaksi->toArray(),
-                            $qrisInfo ?? []
-                        ),
+                        'transaksi' => $transaksiWithQris->toArray() // Array semua transaksi
                     ]
                 ], 201);
             }
