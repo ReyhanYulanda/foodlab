@@ -1381,22 +1381,21 @@ class TransaksiController extends Controller
 
                 // 🔹 Jika ada multitenant_id, lakukan pengecekan tambahan
                 if ($transaksi->multitenant_id) {
+                    Log::info("Transaksi #{$transaksi->id} membatalkan pesanan multitenant #{$transaksi->multitenant_id}.");
+
+                    // Cek apakah masih ada transaksi aktif dalam grup multitenant
+                    $stillActive = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                        ->whereIn('status', ['pesanan_masuk', 'pesanan_diproses', 'siap_diantar', 'diantar'])
+                        ->exists();
+
+                    // === cek apakah ini adalah tenant PERTAMA yang melakukan refund (first-cancel) ===
+                    $otherRefundCount = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                        ->where('id', '!=', $transaksi->id)
+                        ->where('status', 'refund_selesai')
+                        ->count();
+
+                    $isFirstCancel = ($otherRefundCount === 0);
                     if ($transaksi->isAntar == 1) {
-                        Log::info("Transaksi #{$transaksi->id} membatalkan pesanan multitenant #{$transaksi->multitenant_id}.");
-
-                        // Cek apakah masih ada transaksi aktif dalam grup multitenant
-                        $stillActive = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
-                            ->whereIn('status', ['pesanan_masuk', 'pesanan_diproses', 'siap_diantar', 'diantar'])
-                            ->exists();
-
-                        // === cek apakah ini adalah tenant PERTAMA yang melakukan refund (first-cancel) ===
-                        $otherRefundCount = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
-                            ->where('id', '!=', $transaksi->id)
-                            ->where('status', 'refund_selesai')
-                            ->count();
-
-                        $isFirstCancel = ($otherRefundCount === 0);
-
                         if ($isFirstCancel) {
                             Log::info("Transaksi #{$transaksi->id} adalah tenant pertama yang cancel pada multitenant #{$transaksi->multitenant_id}.");
 
@@ -1634,8 +1633,8 @@ class TransaksiController extends Controller
                 return ResponseApi::success(null, "Pesanan berhasil dibatalkan (refund_selesai)");
             } catch (\Throwable $e) {
                 DB::rollBack();
-                $transaksi->status = 'refund_selesai';
-                $transaksi->save();
+                // $transaksi->status = 'refund_selesai';
+                // $transaksi->save();
                 Log::warning("Refund gagal: " . $e->getMessage());
                 return ResponseApi::error("Transaksi dibatalkan, tapi refund gagal. Silakan hubungi admin.");
             }
