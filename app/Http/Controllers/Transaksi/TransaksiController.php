@@ -68,13 +68,43 @@ class TransaksiController extends Controller
             ->orderByDesc('created_at')
             ->paginate($perPage, ['*'], 'page', $page);
 
-        // Transformasi data untuk konsistensi dengan orderUserById
+        // Ambil semua multitenant_id yang ada dalam hasil query
+        $multitenantIds = $transaksi->pluck('multitenant_id')->filter()->unique()->values();
+
+        // Cari checkout untuk setiap multitenant (ambil dari transaksi pertama dengan multitenant_id tersebut)
+        $checkoutByMultitenant = [];
+
+        if ($multitenantIds->isNotEmpty()) {
+            // Ambil checkout untuk setiap multitenant group
+            $checkouts = Checkout::whereIn('transaksi_id', function ($query) use ($multitenantIds) {
+                $query->select('id')
+                    ->from('transaksi')
+                    ->whereIn('multitenant_id', $multitenantIds)
+                    ->orderBy('id', 'asc'); // Ambil transaksi pertama
+            })
+                ->get()
+                ->groupBy(function ($checkout) {
+                    // Group by multitenant_id dari transaksi
+                    return $checkout->transaksi->multitenant_id;
+                });
+
+            foreach ($checkouts as $multitenantId => $checkoutGroup) {
+                $checkoutByMultitenant[$multitenantId] = $checkoutGroup->first();
+            }
+        }
+
+        // Transformasi data
         $transaksiData = $transaksi->toArray();
 
         // Tambahkan data checkout ke setiap item transaksi
-        $transaksiData['data'] = collect($transaksiData['data'])->map(function ($item) {
+        $transaksiData['data'] = collect($transaksiData['data'])->map(function ($item) use ($checkoutByMultitenant) {
             $transaksiModel = Transaksi::find($item['id']);
             $checkout = $transaksiModel->checkout;
+
+            // Jika transaksi ini tidak punya checkout langsung, cari berdasarkan multitenant_id
+            if (!$checkout && !empty($item['multitenant_id'])) {
+                $checkout = $checkoutByMultitenant[$item['multitenant_id']] ?? null;
+            }
 
             if ($checkout) {
                 $item['midtrans_request_id'] = $checkout->midtrans_request_id ?? null;
