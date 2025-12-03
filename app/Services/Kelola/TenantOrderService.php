@@ -184,7 +184,8 @@ class TenantOrderService
         if (
             $request->status === 'selesai' &&
             $transaksi->cashback_amount > 0 &&
-            $transaksi->status !== 'selesai'
+            $transaksi->status !== 'selesai' &&
+            $transaksi->multitenant_id === null
         ) {
             $user = $transaksi->user;
 
@@ -543,7 +544,7 @@ class TenantOrderService
                 'user_id'   => $user->id,
                 'jumlah'    => $transaksi->cashback_amount,
                 'tipe'      => 'masuk',
-                'deskripsi' => "Pengembalian cashback refund multitenant pesanan {$transaksi->kode_pemesanan}",
+                'deskripsi' => "Cashback pesanan {$transaksi->kode_pemesanan} telah masuk",
             ]);
 
             // Kirim notifikasi untuk pengembalian cashback
@@ -551,15 +552,13 @@ class TenantOrderService
             $tokens = $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() ?? [];
 
             if (!empty($tokens)) {
-                $title = 'Cashback dikembalikan';
-                $body  = "Cashback sebanyak {$transaksi->cashback_amount} telah dikembalikan ke akunmu karena refund.";
+                $title = 'Cashback telah masuk ke akunmu';
+                $body  = "Cashback sebanyak {$transaksi->cashback_amount} telah masuk ke akunmu.";
 
                 $firebases->withNotification($title, $body)
                     ->withData([
                         'title' => $title,
                         'body' => $body,
-                        'type' => 'cashback_refund',
-                        'transaksi_id' => $transaksi->id,
                         'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                     ])
                     ->sendToFallback($tokens);

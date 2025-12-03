@@ -1227,7 +1227,7 @@ class PesananController extends Controller
                                     'user_id' => $transaksi->driver_id,
                                     'jumlah' => $ongkirBersih,
                                     'tipe' => 'masuk',
-                                    'deskripsi' => "Ongkir multitenant #{$transaksi->multitenant_id} | base: {$baseOngkir}, priority: {$priorityOngkir}, multi: {$ongkirMulti}, pajak: {$pajakPersen}%",
+                                    'deskripsi' => "Ongkir multitenant #{$transaksi->multitenant_id} telah masuk",
                                 ]);
 
                                 // Update saldo driver
@@ -1251,7 +1251,7 @@ class PesananController extends Controller
                                 'user_id' => $transaksi->driver_id,
                                 'jumlah' => $ongkirBersih,
                                 'tipe' => 'masuk',
-                                'deskripsi' => "Ongkir dari pesanan #{$transaksi->id}, potongan {$persentasePotongan}% dari {$ongkirAsli}, total masuk: {$ongkirBersih}",
+                                'deskripsi' => "Ongkir dari pesanan #{$transaksi->id} telah masuk",
                             ]);
 
                             // Update saldo driver
