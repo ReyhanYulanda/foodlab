@@ -2417,12 +2417,22 @@ class TransaksiController extends Controller
                         $transaksi->status = 'pesanan_masuk';
                         $transaksi->save();
 
-                        TransaksiSaldoKoin::create([
-                            'user_id' => $transaksi->user_id,
-                            'jumlah' => -$transaksi->total,
-                            'tipe' => 'keluar',
-                            'deskripsi' => 'Pembayaran pesanan (QRIS) #' . $transaksi->id,
-                        ]);
+                        if ($transaksi->multitenant_id) {
+                            TransaksiSaldoKoin::create([
+                                'user_id' => $transaksi->user_id,
+                                'jumlah' => -$checkout->total_bayar_user,
+                                'tipe' => 'keluar',
+                                'deskripsi' => 'Pembayaran pesanan (QRIS) #' . $transaksi->id,
+                            ]);
+                        } else {
+                            TransaksiSaldoKoin::create([
+                                'user_id' => $transaksi->user_id,
+                                'jumlah' => -$transaksi->total,
+                                'tipe' => 'keluar',
+                                'deskripsi' => 'Pembayaran pesanan (QRIS) #' . $transaksi->id,
+                            ]);
+                        }
+
 
                         if ($transaksi->multitenant_id) {
 
