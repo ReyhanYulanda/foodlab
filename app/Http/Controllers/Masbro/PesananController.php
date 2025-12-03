@@ -54,9 +54,19 @@ class PesananController extends Controller
                 // === CASE: siap_diantar ===
                 if ($request->status === 'siap_diantar') {
                     $transaksiQuery = $transaksiQuery->where(function ($q) use ($user) {
-                        $q->where('status', 'siap_diantar')
-                            ->orWhere(function ($sub) use ($user) {
-                                $sub->where('isPriority', 1)
+                        $q->where(function ($inner) use ($user) {
+                            // Transaksi siap_diantar TANPA driver
+                            $inner->where('status', 'siap_diantar')
+                                ->whereNull('driver_id');
+                        })
+                            ->orWhere(function ($inner) use ($user) {
+                                // Transaksi siap_diantar dengan driver_id = user saat ini
+                                $inner->where('status', 'siap_diantar')
+                                    ->where('driver_id', $user->id);
+                            })
+                            ->orWhere(function ($inner) use ($user) {
+                                // Priority order
+                                $inner->where('isPriority', 1)
                                     ->whereIn('status', ['pesanan_masuk', 'pesanan_diproses'])
                                     ->where(function ($sub2) use ($user) {
                                         $sub2->whereNull('driver_id')
@@ -64,11 +74,34 @@ class PesananController extends Controller
                                     });
                             });
                     })
-                        // 🧩 Perbaikan utama:
-                        // Ambil juga transaksi yang multitenant_id-nya null (non-multitenant)
-                        // tapi exclude multitenant group yang sudah diantar/selesai
+                        // Filter multitenant: hanya ambil jika semua anggota grup belum punya driver
+                        // atau user saat ini adalah driver untuk grup tersebut
+                        ->where(function ($q) use ($user) {
+                            $q->whereNull('multitenant_id') // transaksi tunggal
+                                ->orWhere(function ($or) use ($user) {
+                                    // Multitenant yang belum ada drivernya sama sekali
+                                    $or->whereNotIn('multitenant_id', function ($sub) {
+                                        $sub->select('multitenant_id')
+                                            ->from('transaksi')
+                                            ->whereNotNull('driver_id')
+                                            ->whereNotNull('multitenant_id')
+                                            ->whereIn('status', ['siap_diantar', 'diantar']);
+                                    });
+                                })
+                                ->orWhere(function ($or) use ($user) {
+                                    // Multitenant yang user saat ini adalah drivernya
+                                    $or->whereIn('multitenant_id', function ($sub) use ($user) {
+                                        $sub->select('multitenant_id')
+                                            ->from('transaksi')
+                                            ->where('driver_id', $user->id)
+                                            ->whereNotNull('multitenant_id')
+                                            ->whereIn('status', ['siap_diantar', 'diantar']);
+                                    });
+                                });
+                        })
+                        // Exclude multitenant yang sudah diantar/selesai
                         ->where(function ($q) {
-                            $q->whereNull('multitenant_id') // include transaksi tunggal
+                            $q->whereNull('multitenant_id')
                                 ->orWhereNotIn('multitenant_id', function ($sub) {
                                     $sub->select('multitenant_id')
                                         ->from('transaksi')
@@ -110,12 +143,33 @@ class PesananController extends Controller
             // 🚀 Jalankan query utama
             $transaksi = $transaksiQuery->get();
 
-            $transaksi = $transaksi->filter(function ($trx) {
+            // Filter tambahan untuk mengecualikan transaksi multitenant
+            // yang sudah punya driver berbeda dari user saat ini
+            $transaksi = $transaksi->filter(function ($trx) use ($user) {
+                // Jika transaksi ini sudah punya driver yang berbeda
+                if ($trx->driver_id && $trx->driver_id != $user->id) {
+                    return false;
+                }
 
-                // Abaikan transaksi tanpa multitenant
+                // Jika ini multitenant, cek apakah ada anggota lain yang sudah punya driver berbeda
+                if ($trx->multitenant_id) {
+                    $adaDriverLain = Transaksi::where('multitenant_id', $trx->multitenant_id)
+                        ->whereNotNull('driver_id')
+                        ->where('driver_id', '!=', $user->id)
+                        ->exists();
+
+                    if ($adaDriverLain) {
+                        return false;
+                    }
+                }
+
+                return true;
+            })->values();
+
+            // 🔁 Filter untuk mengecualikan transaksi yang masih ada pesanan_masuk non-prioritas
+            $transaksi = $transaksi->filter(function ($trx) {
                 if (!$trx->multitenant_id) return true;
 
-                // Cek apakah masih ada pesanan_masuk non-prioritas dalam grup
                 $adaPesananMasuk = Transaksi::where('multitenant_id', $trx->multitenant_id)
                     ->where('isPriority', 0)
                     ->where('status', 'pesanan_masuk')
@@ -139,6 +193,16 @@ class PesananController extends Controller
                     ->get();
 
                 $transaksi = $transaksi->merge($extraTransaksi)->unique('id')->values();
+
+                // Filter sekali lagi untuk pastikan tidak ada driver lain
+                $transaksi = $transaksi->filter(function ($trx) use ($user) {
+                    // Jika transaksi ini sudah punya driver yang berbeda
+                    if ($trx->driver_id && $trx->driver_id != $user->id) {
+                        return false;
+                    }
+
+                    return true;
+                })->values();
             }
 
             return response()->json([
