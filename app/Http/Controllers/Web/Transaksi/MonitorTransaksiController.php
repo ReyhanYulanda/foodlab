@@ -255,9 +255,9 @@ class MonitorTransaksiController extends Controller
                                 $cancelTx->ongkos_kirim = $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems);
                                 $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems);
                                 if ($transaksi->isPriority) {
-                                    $activeTx->total = $activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems);
+                                    $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems)) - $x;
                                 } else {
-                                    $activeTx->total = $activeTx->sub_total + $activeBaseOngkir + $this->extraFee($totalItems);
+                                    $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $this->extraFee($totalItems)) - $x;
                                 }
 
                                 $cancelTx->save();
