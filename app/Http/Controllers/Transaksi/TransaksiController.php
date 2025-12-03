@@ -622,65 +622,67 @@ class TransaksiController extends Controller
                     $createdTransaksi[] = $transaksi;
                 }
 
-                // === Kirim notifikasi ke tenant ===
-                foreach ($createdTransaksi as $transaksiTenant) {
-                    $tenantUser = User::with('fcmTokens')
-                        ->whereHas('tenant', function ($tenant) use ($transaksiTenant) {
-                            $tenant->where('user_id', $transaksiTenant->tenant_id);
-                        })
-                        ->first();
+                if ($transaksi->status === 'pesanan_masuk') {
+                    // === Kirim notifikasi ke tenant ===
+                    foreach ($createdTransaksi as $transaksiTenant) {
+                        $tenantUser = User::with('fcmTokens')
+                            ->whereHas('tenant', function ($tenant) use ($transaksiTenant) {
+                                $tenant->where('user_id', $transaksiTenant->tenant_id);
+                            })
+                            ->first();
 
-                    if ($tenantUser && $tenantUser->fcmTokens->isNotEmpty()) {
-                        $fcmTokens = $tenantUser->fcmTokens->pluck('fcm_token')
+                        if ($tenantUser && $tenantUser->fcmTokens->isNotEmpty()) {
+                            $fcmTokens = $tenantUser->fcmTokens->pluck('fcm_token')
+                                ->filter()
+                                ->unique()
+                                ->values()
+                                ->toArray();
+
+                            if (!empty($fcmTokens)) {
+                                $firebases
+                                    ->withNotification('Pesanan Masuk', 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!')
+                                    ->withData([
+                                        'title' => 'Pesanan Masuk',
+                                        'body' => 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!',
+                                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                    ])
+                                    ->sendToTenant($fcmTokens);
+
+                                Log::info('FCM dikirim ke tenant', [
+                                    'tenant_id' => $transaksiTenant->tenant_id,
+                                    'tokens' => $fcmTokens
+                                ]);
+                            }
+                        } else {
+                            Log::warning('Tenant tidak punya FCM token atau user tidak ditemukan', [
+                                'tenant_id' => $transaksiTenant->tenant_id
+                            ]);
+                        }
+                    }
+
+                    if ($request->boolean('isPriority')) {
+                        // === Kirim notifikasi ke masbro ===
+                        $masbroTokens = User::role('masbro')
+                            // ->where('isOnline', 1)
+                            ->with('fcmTokens')
+                            ->get()
+                            ->flatMap(fn($user) => $user->fcmTokens->pluck('fcm_token'))
                             ->filter()
                             ->unique()
                             ->values()
                             ->toArray();
 
-                        if (!empty($fcmTokens)) {
+                        $fcmMasbroToken = $masbroTokens;
+                        if (!empty($fcmMasbroToken)) {
                             $firebases
-                                ->withNotification('Pesanan Masuk', 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!')
+                                ->withNotification('Ada Pesanan Prioritas multitenant', 'Gasin yuk ada ongkir tambahannya loh')
                                 ->withData([
-                                    'title' => 'Pesanan Masuk',
-                                    'body' => 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!',
+                                    'title' => 'Ada Pesanan Prioritas',
+                                    'body' => 'Gasin yuk ada ongkir tambahannya loh',
                                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                                ])
-                                ->sendToTenant($fcmTokens);
-
-                            Log::info('FCM dikirim ke tenant', [
-                                'tenant_id' => $transaksiTenant->tenant_id,
-                                'tokens' => $fcmTokens
-                            ]);
+                                ])->sendToDriver($fcmMasbroToken);
+                            Log::info('Sending FCM to driver', ['tokens' => $fcmMasbroToken]);
                         }
-                    } else {
-                        Log::warning('Tenant tidak punya FCM token atau user tidak ditemukan', [
-                            'tenant_id' => $transaksiTenant->tenant_id
-                        ]);
-                    }
-                }
-
-                if ($request->boolean('isPriority')) {
-                    // === Kirim notifikasi ke masbro ===
-                    $masbroTokens = User::role('masbro')
-                        // ->where('isOnline', 1)
-                        ->with('fcmTokens')
-                        ->get()
-                        ->flatMap(fn($user) => $user->fcmTokens->pluck('fcm_token'))
-                        ->filter()
-                        ->unique()
-                        ->values()
-                        ->toArray();
-
-                    $fcmMasbroToken = $masbroTokens;
-                    if (!empty($fcmMasbroToken)) {
-                        $firebases
-                            ->withNotification('Ada Pesanan Prioritas multitenant', 'Gasin yuk ada ongkir tambahannya loh')
-                            ->withData([
-                                'title' => 'Ada Pesanan Prioritas',
-                                'body' => 'Gasin yuk ada ongkir tambahannya loh',
-                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                            ])->sendToDriver($fcmMasbroToken);
-                        Log::info('Sending FCM to driver', ['tokens' => $fcmMasbroToken]);
                     }
                 }
 
