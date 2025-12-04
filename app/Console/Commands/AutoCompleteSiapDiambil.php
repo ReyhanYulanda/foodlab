@@ -213,8 +213,8 @@ class AutoCompleteSiapDiambil extends Command
             $tokens = $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() ?? [];
 
             if (!empty($tokens)) {
-                $title = 'Cashback dikembalikan';
-                $body  = "Cashback sebanyak {$transaksi->cashback_amount} telah dikembalikan ke akunmu karena refund.";
+                $title = 'Cashback telah masuk ke akunmu';
+                $body  = "Cashback sebanyak {$transaksi->cashback_amount} telah masuk ke akunmu.";
 
                 $firebases->withNotification($title, $body)
                     ->withData([
