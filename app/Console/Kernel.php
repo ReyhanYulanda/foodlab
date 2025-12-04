@@ -31,9 +31,9 @@ class Kernel extends ConsoleKernel
         $schedule->command('transactions:update-failed')->everyMinute();
     }
 
-    protected $commands = [
-        \App\Console\Commands\AutoCompleteSiapDiambil::class,
-    ];
+    // protected $commands = [
+    //     \App\Console\Commands\AutoCompleteSiapDiambil::class,
+    // ];
 
     protected function commands()
     {
