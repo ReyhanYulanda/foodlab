@@ -11,7 +11,7 @@ use Illuminate\Console\Command;
 use App\Services\Firebases;
 use Illuminate\Support\Facades\Log;
 
-class AutoCompleteSiapDiambil extends Command
+class AutoCompleteCashier extends Command
 {
     protected $signature = 'kasir:auto-complete-pesanan-diproses';
     protected $description = 'Otomatis mengubah status pesanan_diproses kasir menjadi selesai jika sudah lebih dari 1 jam';
