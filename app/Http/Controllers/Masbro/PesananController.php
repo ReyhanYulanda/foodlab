@@ -428,6 +428,11 @@ class PesananController extends Controller
                             $relatedTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
                             foreach ($relatedTransaksi as $t) {
                                 $t->driver_id = $user->id;
+
+                                if ($t->status === 'siap_diantar') {
+                                    $t->status = 'diantar';
+                                }
+
                                 $t->save();
                             }
                         } else {
@@ -456,6 +461,11 @@ class PesananController extends Controller
                             $relatedTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
                             foreach ($relatedTransaksi as $t) {
                                 $t->driver_id = $user->id;
+
+                                if ($t->status === 'siap_diantar') {
+                                    $t->status = 'diantar';
+                                }
+
                                 $t->save();
                             }
                         } else {
@@ -535,7 +545,9 @@ class PesananController extends Controller
                                 $relatedTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
                                 foreach ($relatedTransaksi as $t) {
                                     $t->driver_id = $user->id;
-                                    $t->status = 'diantar';
+                                    if ($t->status === 'siap_diantar') {
+                                        $t->status = 'diantar';
+                                    }
                                     $t->save();
                                 }
                             } else {
