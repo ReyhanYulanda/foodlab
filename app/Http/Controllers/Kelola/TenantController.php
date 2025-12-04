@@ -2,267 +2,102 @@
 
 namespace App\Http\Controllers\Kelola;
 
+
 use App\Http\Controllers\Controller;
-use App\Models\Menus;
-use App\Models\Tenants;
-use App\Models\TransaksiDetail;
 use App\Response\ResponseApi;
-use Carbon\Carbon;
+use App\Services\Tenant\Actions\CreateMenuAction;
+use App\Services\Tenant\Actions\UpdateMenuAction;
+use App\Services\Tenant\Actions\DeleteMenuAction;
+use App\Services\Tenant\Actions\ShowHistoryAction;
+use App\Services\Tenant\Actions\InteruptBusyAction;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
-use App\Helper\ValidationHelper;
-use App\Services\Kelola\TenantService;
+
 
 class TenantController extends Controller
 {
-    protected $tenantService;
-
-    public function __construct(TenantService $tenantService)
-    {
-        $this->tenantService = $tenantService;
-    }
-
     public function index(Request $request)
     {
         $user = $request->user();
+
 
         if (!$user->can('read kelola tenant')) {
             return ResponseApi::forbidden('tidak memiliki akses');
         }
 
-        $tenant = $this->tenantService->getTenantData($user);
+
+        $tenant = $user->tenant;
         return ResponseApi::success(compact('tenant'), 'berhasil mengambil data');
     }
 
-    public function storeMenu(Request $request)
+
+    public function storeMenu(Request $request, CreateMenuAction $action)
     {
-        $user = $request->user();
+        $this->authorize('create katalog');
 
-        if (!$user->can('create katalog')) {
-            return ResponseApi::forbidden('tidak memiliki akses',   403);
-        }
 
-        $validation = ValidationHelper::validate($request->all(), [
-            'harga' => 'required|numeric',
-            'nama_menu' => 'required',
-            'deskripsi_menu' => 'nullable',
-            'kategori_id' => 'required',
-            'gambar' => 'nullable|mimes:png,jpg|max:2048',
-        ]);
+        $menu = $action->execute($request);
 
-        if ($validation) {
-            return $validation;
-        }
 
-        try {
-            $newMenu = $this->tenantService->storeMenu($request, $user);
-            return ResponseApi::success(compact('newMenu'), 'menu makanan berhasil ditambahkan');
-        } catch (\Throwable $th) {
-            Log::error($th->getMessage());
-            return ResponseApi::serverError();
-        }
+        return ResponseApi::success(compact('menu'), 'menu berhasil ditambahkan');
     }
 
-    public function updateMenu(Request $request, $id)
+
+    public function updateMenu(Request $request, $id, UpdateMenuAction $action)
     {
-        $user = $request->user();
+        $this->authorize('update katalog');
 
-        if (!$user->can('update katalog')) {
-            return ResponseApi::forbidden('tidak memiliki akses',   403);
-        }
 
-        $tenant = Tenants::where("user_id", $request->user()->id)->first();
-        $menu = Menus::find($id);
+        $menu = $action->execute($id, $request);
 
-        if (!Gate::allows('update-tenant-menu', [$menu, $tenant])) {
-            return ResponseApi::error('Anda Bukan Pemilik Tenant Ini', 403);
-        }
 
-        $validationError = ValidationHelper::validate($request->all(), [
-            'harga' => 'nullable|numeric|gt:0',
-            'gambar' => 'nullable|mimes:png,jpg|max:2048',
-            'nama_menu' => 'nullable',
-            'deskripsi' => 'nullable',
-            'kategori_id' => 'nullable',
-            'isReady' => 'nullable'
-        ]);
-
-        if ($validationError) {
-            return $validationError;
-        }
-
-        $url = $menu->gambar;
-        if ($request->hasFile('gambar')) {
-            $gambar = $request->file('gambar');
-
-            $path = $gambar->store('public/images');
-
-            $url = Storage::url($path);
-        }
-
-        try {
-            $menu->update([
-                "tenant_id" => @$tenant->id ?? $menu->tenant_id,
-                "kategori_id" => @$request->kategori_id ?? $menu->kategori_id,
-                "harga" => @$request->harga ?? $menu->harga,
-                "gambar" => @$url ?? $menu->gambar,
-                "nama" => @$request->nama_menu ?? $menu->nama,
-                "deskripsi" => @$request->deskripsi ?? $menu->deskripsi,
-                "isReady" => @$request->isReady ?? $menu->isReady
-            ]);
-
-            return ResponseApi::success(compact('menu'), 'menu makanan berhasil diupdate');
-        } catch (\Throwable $th) {
-            Log::error($th->getMessage());
-            return ResponseApi::serverError();
-        }
+        return ResponseApi::success(compact('menu'), 'menu berhasil diupdate');
     }
 
-    public function updateMenuWeb(Request $request, $id)
+
+    public function updateMenuWeb(Request $request, $id, UpdateMenuAction $action)
     {
-        $user = Auth::id();
-        $tenant = Tenants::where("user_id", $user)->first();
-        $menu = Menus::find($id);
+        // route for web where response format is different
+        $this->authorize('update katalog');
 
-        // if (!Gate::allows('update-tenant-menu', [$menu, $tenant])) {
-        //     return ResponseApi::error('Anda Bukan Pemilik Tenant Ini', 403);
-        // }
 
-        $validator = Validator::make($request->all(), [
-            'harga' => 'nullable|numeric|gt:0',
-            'gambar' => 'nullable|mimes:png,jpg|max:2048',
-            'nama_menu' => 'nullable',
-            'deskripsi_menu' => 'nullable',
-            'kategori_id' => 'nullable',
-            'isReady' => 'nullable'
-        ]);
+        $menu = $action->execute($id, $request);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'messages' => $validator->errors()->all()
-            ]);
-        }
-
-        $url = $menu->gambar;
-        if ($request->hasFile('gambar')) {
-            $gambar = $request->file('gambar');
-
-            $path = $gambar->store('public/images');
-
-            $url = Storage::url($path);
-        }
-
-        try {
-            $menu->update([
-                "tenant_id" => @$tenant->id ?? $menu->tenant_id,
-                "kategori_id" => @$request->kategori_id ?? $menu->kategori_id,
-                "harga" => @$request->harga ?? $menu->harga,
-                "gambar" => @$url ?? $menu->gambar,
-                "nama" => @$request->nama_menu ?? $menu->nama,
-                "deskripsi" => @$request->deskripsi_menu,
-                "isReady" => @$request->isReady ?? $menu->isReady
-            ]);
-
-            return response()->json([
-                'status' => 'success',
-                'messages' => 'berhasil update menu',
-            ]);
-        } catch (\Throwable $th) {
-            Log::error($th->getMessage());
-            return response()->json([
-                'status' => 'gagal',
-                "messages" => "Terjadi Kesalahan Pada Server"
-            ], 500);
-        }
-    }
-
-    public function destroyMenu(Request $request, $id)
-    {
-        $user = $request->user();
-
-        if (!$user->can('delete katalog')) {
-            return ResponseApi::forbidden('tidak memiliki akses', 403);
-        }
-
-        try {
-            $menu = $this->tenantService->destroyMenu($id);
-            return ResponseApi::success(null, $menu);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return ResponseApi::error('Menu makanan tidak ditemukan', 404);
-        } catch (\Exception $e) {
-            return ResponseApi::error($e->getMessage(), 404);
-        } catch (\Throwable $th) {
-            return ResponseApi::serverError();
-        }
-    }
-
-    public function showHistoryTransaksiTenant(Request $request)
-    {
-        $user = auth()->user();
-
-        $tenantId = optional($user->tenant)->id;
-
-        if (!$tenantId) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'User tidak memiliki tenant terkait.'
-            ], 403);
-        }
-
-        $filterDate = $request->input('filter_date');
-        $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
-
-        $query = TransaksiDetail::selectRaw("
-                tenants.nama_tenant,
-                tenants.id,
-                SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga * transaksi_detail.jumlah ELSE 0 END) as pendapatan_kotor_1,
-                SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga * transaksi_detail.jumlah ELSE 0 END) as pendapatan_kotor_2,
-                (SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga * transaksi_detail.jumlah ELSE 0 END) - 
-                (0.1 * SUM(CASE WHEN transaksi.isAntar = 1 THEN transaksi_detail.harga * transaksi_detail.jumlah ELSE 0 END))) as pendapatan_bersih_1,
-                (SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga * transaksi_detail.jumlah ELSE 0 END) - 
-                (0.1 * SUM(CASE WHEN transaksi.isAntar = 0 THEN transaksi_detail.harga * transaksi_detail.jumlah ELSE 0 END))) as pendapatan_bersih_2
-            ")
-            ->join('menus', 'transaksi_detail.menu_id', '=', 'menus.id')
-            ->join('tenants', 'menus.tenant_id', '=', 'tenants.id')
-            ->join('transaksi', 'transaksi_detail.transaksi_id', '=', 'transaksi.id')
-            ->where('transaksi.status', 'selesai')
-            ->where('tenants.id', $tenantId);
-
-        if ($filterDate) {
-            $query->whereDate('transaksi.updated_at', $filterDate);
-        } elseif ($startDate && $endDate) {
-            $query->whereBetween('transaksi.updated_at', [$startDate, $endDate]);
-        }
-
-        $transaksiTenant = $query->groupBy('tenants.id', 'tenants.nama_tenant')->get();
 
         return response()->json([
             'status' => 'success',
-            'data' => $transaksiTenant
+            'messages' => 'berhasil update menu',
+            'data' => $menu
         ]);
     }
 
-    public function interuptBusy(Request $request)
+
+    public function destroyMenu($id, DeleteMenuAction $action)
     {
-        $user = Auth::user();
-        $tenant = $user->tenant;
+        $this->authorize('delete katalog');
 
-        if (!$tenant) {
-            return response()->json([
-                'message' => 'Tenant tidak ditemukan untuk user ini'
-            ], 404);
-        }
 
-        $tenant = $this->tenantService->interuptBusy($tenant);
+        $action->execute($id);
 
-        return response()->json([
-            'message' => 'Tenant berhasil interupt busy',
-            'tenant'  => $tenant,
-        ]);
+
+        return ResponseApi::success(null, 'menu dihapus');
+    }
+
+
+    public function showHistoryTransaksiTenant(Request $request, ShowHistoryAction $action)
+    {
+        $history = $action->execute($request);
+
+
+        return ResponseApi::success(compact('history'), 'berhasil mengambil data');
+    }
+
+
+    public function interuptBusy(Request $request, InteruptBusyAction $action)
+    {
+        $tenant = $action->execute($request->user());
+
+
+        return ResponseApi::success(compact('tenant'), 'Tenant berhasil interupt busy');
     }
 }
