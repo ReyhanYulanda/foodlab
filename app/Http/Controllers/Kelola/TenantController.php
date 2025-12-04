@@ -101,3 +101,5 @@ class TenantController extends Controller
         return ResponseApi::success(compact('tenant'), 'Tenant berhasil interupt busy');
     }
 }
+
+?>
