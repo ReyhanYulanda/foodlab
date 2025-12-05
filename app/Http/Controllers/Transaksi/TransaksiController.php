@@ -1482,10 +1482,12 @@ class TransaksiController extends Controller
                                     Log::info("   - Active ongkir (#{$activeTx->id}): {$activeTx->ongkos_kirim}");
                                     Log::info("   - Need swap: " . ($needSwap ? 'YES' : 'NO'));
 
-                                    if ($transaksi->isPriority) {
-                                        $activeTx->total += $multitenantOngkir; //new code
-                                        $activeTx->ongkos_kirim += $multitenantOngkir; //new code
-                                        $activeTx->save();
+                                    if ($totalItems < 10) {
+                                        if ($transaksi->isPriority) {
+                                            $activeTx->total += $multitenantOngkir; //new code
+                                            $activeTx->ongkos_kirim += $multitenantOngkir; //new code
+                                            $activeTx->save();
+                                        }
                                     }
 
                                     // PERBAIKAN: JIKA TIDAK SWAP, tetap kurangi X dari ongkir active jika totalItems > 10
