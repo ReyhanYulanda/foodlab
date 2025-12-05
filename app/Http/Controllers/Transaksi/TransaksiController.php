@@ -1464,8 +1464,10 @@ class TransaksiController extends Controller
                                     $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems);
                                     if ($transaksi->isPriority) {
                                         $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems)) - $x;
-                                        // $activeTx->total += $multitenantOngkir; //new code
-                                        // $activeTx->ongkos_kirim += $multitenantOngkir; //new code
+                                        if ($totalItems <= 10) {
+                                            $activeTx->total += $multitenantOngkir; //new code
+                                            $activeTx->ongkos_kirim += $multitenantOngkir; //new code
+                                        }
                                     } else {
                                         $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $this->extraFee($totalItems)) - $x;
                                     }
@@ -1482,7 +1484,7 @@ class TransaksiController extends Controller
                                     Log::info("   - Active ongkir (#{$activeTx->id}): {$activeTx->ongkos_kirim}");
                                     Log::info("   - Need swap: " . ($needSwap ? 'YES' : 'NO'));
 
-                                    if ($totalItems < 10) {
+                                    if ($totalItems <= 10) {
                                         if ($transaksi->isPriority) {
                                             $activeTx->total += $multitenantOngkir; //new code
                                             $activeTx->ongkos_kirim += $multitenantOngkir; //new code
