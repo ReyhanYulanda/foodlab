@@ -1485,6 +1485,7 @@ class TransaksiController extends Controller
                                     if ($transaksi->isPriority) {
                                         $activeTx->total += $multitenantOngkir; //new code
                                         $activeTx->ongkos_kirim += $multitenantOngkir; //new code
+                                        $activeTx->save();
                                     }
 
                                     // PERBAIKAN: JIKA TIDAK SWAP, tetap kurangi X dari ongkir active jika totalItems > 10
