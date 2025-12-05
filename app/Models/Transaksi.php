@@ -29,6 +29,7 @@ class Transaksi extends Model
         'catatan',
         'driver_id',
         'kode_pemesanan',
+        'verification_code',
         'catatan_lokasi_pengantaran',
         'catatan_penolakan',
         'bukti_pengantaran',

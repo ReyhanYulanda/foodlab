@@ -609,7 +609,10 @@ class TransaksiController extends Controller
                         $kodePemesanan = TransaksiCek::generateKodePemesanan($transaksi->id);
                     } while (Transaksi::where('kode_pemesanan', $kodePemesanan)->exists());
 
+                    $verificationCode = TransaksiCek::generateVerificationCode($transaksi);
+
                     $transaksi->kode_pemesanan = $kodePemesanan;
+                    $transaksi->verification_code = $verificationCode;
                     $transaksi->save();
 
                     // Simpan detail transaksi (kirim menus lengkap dgn catatan)
@@ -1009,8 +1012,11 @@ class TransaksiController extends Controller
                 $kodePemesanan = TransaksiCek::generateKodePemesanan($transaksi->id);
             } while (Transaksi::where('kode_pemesanan', $kodePemesanan)->exists());
 
+            $verificationCode = TransaksiCek::generateVerificationCode($transaksi->id);
+
             // SIMPAN ke database
             $transaksi->kode_pemesanan = $kodePemesanan;
+            $transaksi->verification_code = $verificationCode;
             $transaksi->save();
 
             if ($voucherId) {
@@ -1759,6 +1765,21 @@ class TransaksiController extends Controller
             Log::info("Transaksi setelah save: ", $transaksi->toArray());
         } catch (Exception $e) {
             Log::error("Gagal membuat kode pemesanan: " . $e->getMessage());
+        }
+    }
+
+    public function generateVerificationCode(Transaksi $transaksi)
+    {
+        try {
+            $verificationCode = TransaksiCek::generateVerificationCode($transaksi->id);
+            Log::info("Verification code generated: " . $verificationCode);
+
+            $transaksi->verification_code = $verificationCode;
+            $transaksi->save();
+
+            Log::info("Transaksi setelah save: ", $transaksi->toArray());
+        } catch (Exception $e) {
+            Log::error("Gagal membuat verification code: " . $e->getMessage());
         }
     }
 
