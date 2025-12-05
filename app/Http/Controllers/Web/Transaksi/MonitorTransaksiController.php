@@ -290,8 +290,8 @@ class MonitorTransaksiController extends Controller
                         }
                     } else {
                         $related = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
-                            // ->where('id', '!=', $transaksi->id)
-                            ->where('status', '!=', 'refund_selesai') // Yang belum refund
+                            ->where('id', '!=', $transaksi->id)
+                            // ->where('status', '!=', 'refund_selesai') // Yang belum refund
                             ->first();
                         // Tentukan mana yang cancel dan mana yang tetap aktif
                         $cancelTx = $transaksi;      // status sudah refund_selesai
