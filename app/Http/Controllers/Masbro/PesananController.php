@@ -860,7 +860,11 @@ class PesananController extends Controller
 
                         $ongkirMulti = $refundTx->ruangan->gedung->ongkir_multitenant ?? 0;
                         $baseOngkir = $refundTx->ruangan->gedung->ongkir ?? 0;
-                        $priorityOngkir = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
+                        if ($transaksi->isPriority) {
+                            $priorityOngkir = Pengaturan::where('nama', 'ongkos_kirim_prioritas_multitenant')->value('nilai') ?? 4000;
+                        } else {
+                            $priorityOngkir = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
+                        }
 
                         // Hitung total items
                         $refundTxItems = $refundTx->listTransaksiDetail->sum('jumlah');
@@ -1174,7 +1178,11 @@ class PesananController extends Controller
 
                             $ongkirMulti = $transaksi->ruangan->gedung->ongkir_multitenant ?? 0;
                             $baseOngkir = $transaksi->ruangan->gedung->ongkir ?? 0;
-                            $priorityOngkir = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
+                            if ($transaksi->isPriority) {
+                                $priorityOngkir = Pengaturan::where('nama', 'ongkos_kirim_prioritas_multitenant')->value('nilai') ?? 4000;
+                            } else {
+                                $priorityOngkir = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
+                            }
                             $pajakPersen = 10;
 
 
