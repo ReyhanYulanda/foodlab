@@ -1476,11 +1476,16 @@ class TransaksiController extends Controller
                                     Log::info("✅ [SWAP DONE] Swap completed for multitenant #{$transaksi->multitenant_id}");
                                     Log::info("   Cancel #{$cancelTx->id} ongkir: {$cancelTx->ongkos_kirim}");
                                     Log::info("   Active #{$activeTx->id} ongkir: {$activeTx->ongkos_kirim}");
-                                } else {
+                                } else { // Kondisi ketika tidak perlu swap
                                     Log::info("ℹ️ Tidak perlu swap, cek kondisi:");
                                     Log::info("   - Cancel ongkir (#{$cancelTx->id}): {$cancelTx->ongkos_kirim}");
                                     Log::info("   - Active ongkir (#{$activeTx->id}): {$activeTx->ongkos_kirim}");
                                     Log::info("   - Need swap: " . ($needSwap ? 'YES' : 'NO'));
+
+                                    if ($transaksi->isPriority) {
+                                        $activeTx->total += $multitenantOngkir; //new code
+                                        $activeTx->ongkos_kirim += $multitenantOngkir; //new code
+                                    }
 
                                     // PERBAIKAN: JIKA TIDAK SWAP, tetap kurangi X dari ongkir active jika totalItems > 10
                                     if ($totalItems > 10) {
