@@ -1512,6 +1512,8 @@ class TransaksiController extends Controller
                                         $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems);
                                         if ($transaksi->isPriority) {
                                             $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems)) - $x;
+                                            $activeTx->total += $multitenantOngkir; //new code
+                                            $activeTx->ongkos_kirim += $multitenantOngkir; //new code
                                         } else {
                                             $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $this->extraFee($totalItems)) - $x;
                                         }
