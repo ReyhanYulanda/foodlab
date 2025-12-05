@@ -609,10 +609,12 @@ class TransaksiController extends Controller
                         $kodePemesanan = TransaksiCek::generateKodePemesanan($transaksi->id);
                     } while (Transaksi::where('kode_pemesanan', $kodePemesanan)->exists());
 
-                    $verificationCode = TransaksiCek::generateVerificationCode($transaksi);
+                    if ($request->isPriority) {
+                        $verificationCode = TransaksiCek::generateVerificationCode($transaksi);
+                        $transaksi->verification_code = $verificationCode;
+                    }
 
                     $transaksi->kode_pemesanan = $kodePemesanan;
-                    $transaksi->verification_code = $verificationCode;
                     $transaksi->save();
 
                     // Simpan detail transaksi (kirim menus lengkap dgn catatan)
@@ -1012,11 +1014,13 @@ class TransaksiController extends Controller
                 $kodePemesanan = TransaksiCek::generateKodePemesanan($transaksi->id);
             } while (Transaksi::where('kode_pemesanan', $kodePemesanan)->exists());
 
-            $verificationCode = TransaksiCek::generateVerificationCode($transaksi->id);
+            if ($request->isPriority) {
+                $verificationCode = TransaksiCek::generateVerificationCode($transaksi->id);
+                $transaksi->verification_code = $verificationCode;
+            }
 
             // SIMPAN ke database
             $transaksi->kode_pemesanan = $kodePemesanan;
-            $transaksi->verification_code = $verificationCode;
             $transaksi->save();
 
             if ($voucherId) {
