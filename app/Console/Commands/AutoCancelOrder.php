@@ -105,6 +105,7 @@ class AutoCancelOrder extends Command
                                 $activeOngkirPriority = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
                             }
                             $activeBaseOngkir = $activeTx->ruangan->gedung->ongkir ?? 0;
+                            $multitenantOngkir = Pengaturan::where('nama', 'ongkos_kirim_multitenant')->value('nilai') ?? 2000;
 
                             if ($needSwap && $cancelTx->ongkos_kirim !== $activeTx->ongkos_kirim) {
                                 // 🔄 SWAP ONGKIR: Hanya jika ongkir cancel lebih besar
@@ -125,6 +126,10 @@ class AutoCancelOrder extends Command
                                 $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems);
                                 if ($transaksi->isPriority) {
                                     $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems)) - $x;
+                                    if ($totalItems <= 10) {
+                                        $activeTx->total += $multitenantOngkir; //new code
+                                        $activeTx->ongkos_kirim += $multitenantOngkir; //new code
+                                    }
                                 } else {
                                     $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $this->extraFee($totalItems)) - $x;
                                 }
@@ -140,6 +145,13 @@ class AutoCancelOrder extends Command
                                 Log::info("   - Cancel ongkir (#{$cancelTx->id}): {$cancelTx->ongkos_kirim}");
                                 Log::info("   - Active ongkir (#{$activeTx->id}): {$activeTx->ongkos_kirim}");
                                 Log::info("   - Need swap: " . ($needSwap ? 'YES' : 'NO'));
+                                if ($totalItems <= 10) {
+                                    if ($transaksi->isPriority) {
+                                        $activeTx->total += $multitenantOngkir; //new code
+                                        $activeTx->ongkos_kirim += $multitenantOngkir; //new code
+                                        $activeTx->save();
+                                    }
+                                }
 
                                 // PERBAIKAN: JIKA TIDAK SWAP, tetap kurangi X dari ongkir active jika totalItems > 10
                                 if ($totalItems > 10) {
@@ -179,6 +191,28 @@ class AutoCancelOrder extends Command
                             Log::info("ℹ️ [AUTO CANCEL] Tidak ada transaksi aktif lain dalam multitenant #{$transaksi->multitenant_id}");
                         }
                     } else {
+                        $related = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                            ->where('id', '!=', $transaksi->id)
+                            // ->where('status', '!=', 'refund_selesai') // Yang belum refund
+                            ->first();
+                        // Tentukan mana yang cancel dan mana yang tetap aktif
+                        $cancelTx = $transaksi;      // status sudah refund_selesai
+                        $activeTx = $related;        // status masih aktif (pesanan_masuk/diproses/dll)
+
+                        // Hitung items
+                        $activeItems = $activeTx->listTransaksiDetail->sum('jumlah');  // items yang tetap aktif
+                        $cancelItems = $cancelTx->listTransaksiDetail->sum('jumlah');  // items yang dicancel
+                        $multitenantOngkir = Pengaturan::where('nama', 'ongkos_kirim_multitenant')->value('nilai') ?? 2000;
+
+                        $totalItems = $activeItems + $cancelItems;
+
+                        if ($totalItems <= 10) {
+                            if ($transaksi->isPriority) {
+                                $activeTx->total -= $multitenantOngkir;
+                                $activeTx->ongkos_kirim -= $multitenantOngkir;
+                                $activeTx->save();
+                            }
+                        }
                         Log::info("ℹ️ [AUTO CANCEL] Transaksi #{$transaksi->id} bukan tenant pertama yang cancel");
                     }
                     // ========== END LOGIKA SWAP ==========
