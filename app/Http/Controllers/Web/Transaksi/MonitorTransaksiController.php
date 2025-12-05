@@ -200,6 +200,7 @@ class MonitorTransaksiController extends Controller
                             } else {
                                 $activeOngkirPriority = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
                             }
+                            $multitenantOngkir = Pengaturan::where('nama', 'ongkos_kirim_multitenant')->value('nilai') ?? 2000;
                             $activeBaseOngkir = $activeTx->ruangan->gedung->ongkir ?? 0;
 
                             if ($needSwap && $cancelTx->ongkos_kirim !== $activeTx->ongkos_kirim) {
@@ -221,6 +222,10 @@ class MonitorTransaksiController extends Controller
                                 $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems);
                                 if ($transaksi->isPriority) {
                                     $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems)) - $x;
+                                    if ($totalItems <= 10) {
+                                        $activeTx->total += $multitenantOngkir; //new code
+                                        $activeTx->ongkos_kirim += $multitenantOngkir; //new code
+                                    }
                                 } else {
                                     $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $this->extraFee($totalItems)) - $x;
                                 }
@@ -236,12 +241,21 @@ class MonitorTransaksiController extends Controller
                                 Log::info("   - Cancel ongkir (#{$cancelTx->id}): {$cancelTx->ongkos_kirim}");
                                 Log::info("   - Active ongkir (#{$activeTx->id}): {$activeTx->ongkos_kirim}");
                                 Log::info("   - Need swap: " . ($needSwap ? 'YES' : 'NO'));
+                                
+                                if ($totalItems <= 10) {
+                                    if ($transaksi->isPriority) {
+                                        $activeTx->total += $multitenantOngkir; //new code
+                                        $activeTx->ongkos_kirim += $multitenantOngkir; //new code
+                                        $activeTx->save();
+                                    }
+                                }
 
                                 // PERBAIKAN: JIKA TIDAK SWAP, tetap kurangi X dari ongkir active jika totalItems > 10
                                 if ($totalItems > 10) {
                                     // Tapi tunggu! Jika tidak swap, mungkin X perlu dikurangi dari ongkir yang lebih besar?
                                     // Sesuai case 2: ongkir besar ada di cancel (10500), kecil di active (0)
                                     // Maka kurangi X dari ongkir cancel karena dia yang lebih besar
+
 
                                     if ($cancelTx->ongkos_kirim > $activeTx->ongkos_kirim) {
                                         // Ongkir besar di cancel, kecil di active
