@@ -153,7 +153,7 @@ class MonitorTransaksiController extends Controller
                     ->count();
 
                 $isFirstCancel = ($otherRefundCount === 0);
-                
+
                 if ($transaksi->isAntar == 1) {
                     if ($isFirstCancel) {
                         Log::info("Transaksi #{$transaksi->id} adalah tenant pertama yang cancel pada multitenant #{$transaksi->multitenant_id}.");
@@ -195,7 +195,11 @@ class MonitorTransaksiController extends Controller
 
                             $cancelOngkirMulti = $cancelTx->ruangan->gedung->ongkir_multitenant ?? 0;
                             $activeOngkirMulti = $activeTx->ruangan->gedung->ongkir_multitenant ?? 0;
-                            $activeOngkirPriority = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
+                            if ($transaksi->isPriority) {
+                                $activeOngkirPriority = Pengaturan::where('nama', 'ongkos_kirim_prioritas_multitenant')->value('nilai') ?? 4000;
+                            } else {
+                                $activeOngkirPriority = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
+                            }
                             $activeBaseOngkir = $activeTx->ruangan->gedung->ongkir ?? 0;
 
                             if ($needSwap && $cancelTx->ongkos_kirim !== $activeTx->ongkos_kirim) {

@@ -420,7 +420,7 @@ class TransaksiController extends Controller
                         $isSecondOrMore = count($perTenantCalc) > 0;
                         $ongkosKirim = $this->getOngkirGedung($ruanganId, $isSecondOrMore);
                         if ($isPriority && !$isSecondOrMore) {
-                            $ongkirPrioritas = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
+                            $ongkirPrioritas = Pengaturan::where('nama', 'ongkos_kirim_prioritas_multitenant')->value('nilai') ?? 4000;
                             $ongkosKirim += $ongkirPrioritas;
                         }
 
@@ -1436,7 +1436,11 @@ class TransaksiController extends Controller
 
                                 $cancelOngkirMulti = $cancelTx->ruangan->gedung->ongkir_multitenant ?? 0;
                                 $activeOngkirMulti = $activeTx->ruangan->gedung->ongkir_multitenant ?? 0;
-                                $activeOngkirPriority = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
+                                if ($transaksi->isPriority) {
+                                    $activeOngkirPriority = Pengaturan::where('nama', 'ongkos_kirim_prioritas_multitenant')->value('nilai') ?? 4000;
+                                } else {
+                                    $activeOngkirPriority = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
+                                }
                                 $activeBaseOngkir = $activeTx->ruangan->gedung->ongkir ?? 0;
                                 $cancelLessThanExtraFee = $cancelTx->listTransaksiDetail->sum('jumlah') <= 10;
 
