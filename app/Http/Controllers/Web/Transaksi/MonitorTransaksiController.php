@@ -241,7 +241,7 @@ class MonitorTransaksiController extends Controller
                                 Log::info("   - Cancel ongkir (#{$cancelTx->id}): {$cancelTx->ongkos_kirim}");
                                 Log::info("   - Active ongkir (#{$activeTx->id}): {$activeTx->ongkos_kirim}");
                                 Log::info("   - Need swap: " . ($needSwap ? 'YES' : 'NO'));
-                                
+
                                 if ($totalItems <= 10) {
                                     if ($transaksi->isPriority) {
                                         $activeTx->total += $multitenantOngkir; //new code
@@ -289,12 +289,35 @@ class MonitorTransaksiController extends Controller
                             Log::info("ℹ️ Tidak ada transaksi aktif lain dalam multitenant #{$transaksi->multitenant_id}");
                         }
                     } else {
+                        $related = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                            // ->where('id', '!=', $transaksi->id)
+                            ->where('status', '!=', 'refund_selesai') // Yang belum refund
+                            ->first();
+                        // Tentukan mana yang cancel dan mana yang tetap aktif
+                        $cancelTx = $transaksi;      // status sudah refund_selesai
+                        $activeTx = $related;        // status masih aktif (pesanan_masuk/diproses/dll)
+
+                        // Hitung items
+                        $activeItems = $activeTx->listTransaksiDetail->sum('jumlah');  // items yang tetap aktif
+                        $cancelItems = $cancelTx->listTransaksiDetail->sum('jumlah');  // items yang dicancel
+                        $multitenantOngkir = Pengaturan::where('nama', 'ongkos_kirim_multitenant')->value('nilai') ?? 2000;
+
+                        $totalItems = $activeItems + $cancelItems;
+
+                        if ($totalItems <= 10) {
+                            if ($transaksi->isPriority) {
+                                $activeTx->total -= $multitenantOngkir;
+                                $activeTx->ongkos_kirim -= $multitenantOngkir;
+                                $activeTx->save();
+                            }
+                        }
                         Log::info("ℹ️ Transaksi #{$transaksi->id} bukan tenant pertama yang cancel");
                     }
                 }
 
                 // Jika semua transaksi sudah refund/selesai → tenant terakhir yang cancel (flow existing)
                 if (!$stillActive) {
+
                     Log::info("🎯 All transactions in multitenant #{$transaksi->multitenant_id} are now refunded/completed");
 
                     // --- existing flow (total refund, kembalikan voucher/cashback, tambah saldo koin) ---
