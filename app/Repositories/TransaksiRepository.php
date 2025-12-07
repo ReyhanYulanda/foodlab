@@ -8,7 +8,6 @@ use App\Models\TransaksiDetail;
 use Illuminate\Support\Facades\DB;
 use App\DTO\HistoryFilterDTO;
 use App\Models\Transaksi;
-use Illuminate\Database\Eloquent\Collection;
 
 class TransaksiRepository
 {
@@ -32,44 +31,35 @@ class TransaksiRepository
         return $query->groupBy('tenants.id', 'tenants.nama_tenant')->get();
     }
 
-    public function findWithUser(int $id): ?Transaksi
+    public function getPesananByTenantAndStatus(int $tenantId, ?string $status = null)
+    {
+        $query = Transaksi::with([
+            'listTransaksiDetail.menus.tenants' => function ($query) use ($tenantId) {
+                $query->where('id', $tenantId);
+            },
+            'user'
+        ])
+            ->whereHas('listTransaksiDetail.menus.tenants', function ($query) use ($tenantId) {
+                $query->where('id', $tenantId);
+            })
+            ->whereNotIn('status', ['pending', 'expire', 'cancel']);
+
+        $dataPesanan = $query->get();
+
+        if ($status) {
+            $dataPesanan = $dataPesanan->where('status', $status);
+        }
+
+        return $dataPesanan;
+    }
+
+    public function findWithUserById(int $id): ?Transaksi
     {
         return Transaksi::with('user')->find($id);
     }
 
-    public function getTenantOrders(?int $tenantId, ?string $status = null): Collection
+    public function save(Transaksi $transaksi): void
     {
-        if (!$tenantId) {
-            return collect();
-        }
-
-        $query = Transaksi::with([
-            'listTransaksiDetail.menus.tenants' => function ($q) use ($tenantId) {
-                $q->where('id', $tenantId);
-            },
-            'user',
-        ])
-            ->whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
-                $q->where('id', $tenantId);
-            })
-            ->whereNotIn('status', ['pending', 'expire', 'cancel']);
-
-        if ($status) {
-            $query->where('status', $status);
-        }
-
-        return $query->get();
-    }
-
-    /**
-     * Cek apakah ada transaksi lain di multitenant yang sudah diantar oleh driver lain.
-     */
-    public function hasAnotherDeliveredInMultitenant(int $multitenantId, int $excludeTransaksiId): bool
-    {
-        return Transaksi::where('multitenant_id', $multitenantId)
-            ->where('id', '!=', $excludeTransaksiId)
-            ->where('status', 'diantar')
-            ->whereNotNull('driver_id')
-            ->exists();
+        $transaksi->save();
     }
 }

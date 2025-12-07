@@ -9,23 +9,20 @@ class DriverRepository
     /**
      * Ambil token FCM untuk semua driver (role: masbro) berdasarkan status online.
      */
-    public function getMasbroTokensByOnlineStatus(int $isOnline): array
+    public function getDriverTokens(int $onlineStatus): array
     {
         return User::role('masbro')
-            ->where('isOnline', $isOnline)
+            ->where('isOnline', $onlineStatus)
             ->with('fcmTokens')
             ->get()
-            ->flatMap(fn($user) => $user->fcmTokens->pluck('fcm_token'))
+            ->flatMap(fn($u) => $u->fcmTokens->pluck('fcm_token'))
             ->filter()
             ->unique()
             ->values()
             ->toArray();
     }
 
-    /**
-     * Ambil token FCM untuk driver tertentu (berdasarkan driver_id).
-     */
-    public function getMasbroTokensByDriverId(?int $driverId): array
+    public function getDriverById(?int $driverId): array
     {
         if (!$driverId) {
             return [];

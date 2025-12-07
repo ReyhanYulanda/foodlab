@@ -1,35 +1,40 @@
 <?php
 
-namespace App\Actions;
+namespace App\Services\Kelola\Actions\Notifications;
 
-use App\Models\Transaksi;
 use App\Models\User;
-use App\Repositories\DriverRepository;
 use App\Services\Firebases;
 
-class SendOrderNotificationsAction
+class SendOrderNotificationAction
 {
-    public function __construct(
-        protected DriverRepository $driverRepository
-    ) {}
-
-    public function execute(Transaksi $transaksi, Firebases $firebases): void
+    public function execute($transaksi, Firebases $firebases): void
     {
-        // Driver tokens
-        $masbroTokens        = $this->driverRepository->getMasbroTokensByOnlineStatus(1);
-        $masbroOfflineTokens = $this->driverRepository->getMasbroTokensByOnlineStatus(0);
+        $masbroTokens = User::role('masbro')
+            ->where('isOnline', 1)
+            ->with('fcmTokens')
+            ->get()
+            ->flatMap(fn($user) => $user->fcmTokens->pluck('fcm_token'))
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
 
-        // User tokens
+        $masbroOfflineTokens = User::role('masbro')
+            ->where('isOnline', 0)
+            ->with('fcmTokens')
+            ->get()
+            ->flatMap(fn($user) => $user->fcmTokens->pluck('fcm_token'))
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
+
         $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
-        $fcmUserToken = $fcmUser
-            ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray()
-            : [];
+        $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
 
-        // Helper: send to user
-        $sendToUser = function (string $title, string $body, string $type) use ($firebases, $transaksi, $fcmUserToken) {
+        $sendToUser = function ($title, $body, $type) use ($firebases, $transaksi, $fcmUserToken) {
             if (!empty($fcmUserToken)) {
-                $firebases
-                    ->withNotification($title, $body)
+                $firebases->withNotification($title, $body)
                     ->withData([
                         'title'         => $title,
                         'body'          => $body,
@@ -41,16 +46,14 @@ class SendOrderNotificationsAction
             }
         };
 
-        // Helper: send to tenant (pemilik)
-        $sendToTenant = function (string $title, string $body, string $type) use ($firebases, $transaksi) {
+        $sendToTenant = function ($title, $body, $type) use ($firebases, $transaksi) {
             $pemilik = optional($transaksi->tenant)->pemilik;
 
             if ($pemilik) {
                 $tokens = $pemilik->fcmTokens()->pluck('fcm_token')->filter()->unique()->toArray();
 
                 if (!empty($tokens)) {
-                    $firebases
-                        ->withNotification($title, $body)
+                    $firebases->withNotification($title, $body)
                         ->withData([
                             'title'         => $title,
                             'body'          => $body,
@@ -63,11 +66,9 @@ class SendOrderNotificationsAction
             }
         };
 
-        // Helper: send to drivers online
-        $sendToDrivers = function (string $title, string $body, string $type) use ($firebases, $transaksi, $masbroTokens) {
+        $sendToDrivers = function ($title, $body, $type) use ($firebases, $transaksi, $masbroTokens) {
             if (!empty($masbroTokens)) {
-                $firebases
-                    ->withNotification($title, $body)
+                $firebases->withNotification($title, $body)
                     ->withData([
                         'title'         => $title,
                         'body'          => $body,
@@ -79,11 +80,9 @@ class SendOrderNotificationsAction
             }
         };
 
-        // Helper: send to drivers offline
-        $sendToOfflineDrivers = function (string $title, string $body, string $type) use ($firebases, $transaksi, $masbroOfflineTokens) {
+        $sendToOfflineDrivers = function ($title, $body, $type) use ($firebases, $transaksi, $masbroOfflineTokens) {
             if (!empty($masbroOfflineTokens)) {
-                $firebases
-                    ->withNotification($title, $body)
+                $firebases->withNotification($title, $body)
                     ->withData([
                         'title'         => $title,
                         'body'          => $body,
@@ -94,8 +93,6 @@ class SendOrderNotificationsAction
                     ->sendToFallback($masbroOfflineTokens);
             }
         };
-
-        // === LOGIKA NOTIFIKASI BERDASARKAN STATUS ===
 
         if ($transaksi->status === 'pesanan_diproses') {
             $sendToUser(
@@ -139,8 +136,6 @@ class SendOrderNotificationsAction
                 "Pesanan {$transaksi->id} sedang diantar oleh driver. Silakan tunggu sebentar.",
                 'diantar'
             );
-
-            // original code: sendToDrivers di-comment, tetap dipertahankan (tidak diaktifkan)
         }
 
         if ($transaksi->status === 'selesai') {
