@@ -11,24 +11,24 @@ use Illuminate\Http\Request;
 class TenantOrderService
 {
     public function __construct(
-        protected GetTenantOrdersAction $getTenantOrdersAction,
-        protected UpdateStatusPesananAction $updateStatusPesananAction,
-        protected UpdateStatusPesananCashierAction $updateStatusPesananCashierAction,
+        protected GetTenantOrdersAction $getTenantOrders,
+        protected UpdateStatusPesananAction $updateStatusPesanan,
+        protected UpdateStatusPesananCashierAction $updateStatusPesananCashier,
     ) {}
 
     public function getDataPesanan(int $userId, ?string $status = null)
     {
-        return $this->getTenantOrdersAction->execute($userId, $status);
+        return $this->getTenantOrders->execute($userId, $status);
     }
 
-    public function updateStatusPesanan(Request $request, Firebases $firebases, int $id)
+    public function updateStatusPesanan(Request $request, Firebases $firebases, int $idPesanan)
     {
-        return $this->updateStatusPesananAction->execute($request, $firebases, $id);
+        return $this->updateStatusPesanan->execute($request, $firebases, $idPesanan);
     }
 
-    public function updateStatusPesananCashier(Request $request, Firebases $firebases, int $id)
+    public function updateStatusPesananCashier(Request $request, Firebases $firebases, int $idPesanan)
     {
-        return $this->updateStatusPesananCashierAction->execute($request, $firebases, $id);
+        return $this->updateStatusPesananCashier->execute($request, $firebases, $idPesanan);
     }
 }
 ?>
