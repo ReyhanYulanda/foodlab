@@ -28,6 +28,7 @@ class InteruptBusyAction
 
         // Business logic: flip isBusy flag or set to false
         $tenant->isBusy = false;
+        $tenant->busy_until = now()->copy()->addMinutes(3);
         $tenant->save();
 
 

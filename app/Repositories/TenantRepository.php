@@ -19,4 +19,9 @@ class TenantRepository
     {
         return Tenants::find($id);
     }
+
+    public function findByUserId(int $userId): ?Tenants
+    {
+        return Tenants::where('user_id', $userId)->first();
+    }
 }
