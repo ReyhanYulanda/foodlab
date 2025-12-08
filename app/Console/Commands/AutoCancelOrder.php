@@ -16,3 +16,4 @@ class AutoCancelOrder extends Command
         $this->info("Auto cancel executed.");
     }
 }
+?>
