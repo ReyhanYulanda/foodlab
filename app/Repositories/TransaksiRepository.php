@@ -8,6 +8,7 @@ use App\Models\TransaksiDetail;
 use Illuminate\Support\Facades\DB;
 use App\DTO\HistoryFilterDTO;
 use App\Models\Transaksi;
+use DateTimeInterface;
 
 class TransaksiRepository
 {
@@ -61,5 +62,12 @@ class TransaksiRepository
     public function save(Transaksi $transaksi): void
     {
         $transaksi->save();
+    }
+
+    public function getExpiredPesananMasuk(DateTimeInterface $threshold)
+    {
+        return Transaksi::where('status', 'pesanan_masuk')
+            ->where('updated_at', '<=', $threshold)
+            ->get();
     }
 }

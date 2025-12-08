@@ -136,6 +136,38 @@ class TransaksiController extends Controller
         ]);
     }
 
+    public function orderGetAll(Request $request)
+    {
+        $perPage = $request->input('per_page', 10);
+        $page    = $request->input('page', 1);
+
+        $transaksi = Transaksi::with([
+            'listTransaksiDetail.menus.tenants',
+            'user',
+            'checkout'
+        ])
+            ->orderByDesc('created_at')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        // Mapping biar ada merge dari checkout
+        $transaksi->getCollection()->transform(function ($item) {
+            $checkout = $item->checkout;
+
+            $item->midtrans_request_id = $checkout->midtrans_request_id ?? null;
+            $item->qr_url              = $checkout->kode_bayar ?? null;
+            $item->expiry              = $checkout->tgl_akhir_tagihan ?? null;
+            $item->biaya_admin         = $checkout->total_biaya_admin ?? null;
+
+            return $item;
+        });
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'data berhasil didapatkan',
+            'data'    => $transaksi
+        ]);
+    }
+
     public function getOnlineDriver(Request $request)
     {
         $user = $request->user();

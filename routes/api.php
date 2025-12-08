@@ -53,6 +53,7 @@ Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function 
     Route::get('/menus/{id}', [TenantController::class, 'getMenusById']);
     Route::get('/order/user', [TransaksiController::class, 'orderUser']);
     Route::get('/order/user/{id}', [TransaksiController::class, 'orderUserById']);
+    Route::get('/all', [TransaksiController::class, 'orderGetAll']);
     Route::post('/order', [TransaksiController::class, 'store']);
     Route::get('/order/driver', [TransaksiController::class, 'getOnlineDriver']);
     Route::put('/order/{id}', [TransaksiUserController::class, 'updateStatusTransaksi']);
