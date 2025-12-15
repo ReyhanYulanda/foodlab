@@ -4,9 +4,8 @@
     @endpush
 
     <div class="main-content">
-        <div class="title">Dashboard 10/10=14:36</div>
-        <div class="content-wrapper">
-
+        <div class="title">Dashboard 15/12=14:58</div>
+        <div class="content-wrapper">5
             <div class="row mt-4">
                 {{-- CHART 1 --}}
                 <div class="col-md-6">
