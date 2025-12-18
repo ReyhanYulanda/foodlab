@@ -122,6 +122,10 @@ class CashierController extends Controller
                 'kode_pemesanan' => self::generateKodePemesanan(null),
                 'status' => 'pending', // ✅ default status
             ]);
+            
+            if($request->has('nama_pembeli')) {
+                $cashier->nama_pembeli = $request->input('nama_pembeli');
+            }
 
             $details = [];
             foreach ($request->menus as $menuItem) {

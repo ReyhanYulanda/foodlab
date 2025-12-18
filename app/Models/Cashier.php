@@ -17,6 +17,7 @@ class Cashier extends Model
         'tenant_id',
         'order_tenant',
         'kode_pemesanan',
+        'nama_pembeli',
         'total',
         'status',
     ];
