@@ -40,7 +40,7 @@ class AuthController extends Controller
         }
 
         // ✅ Daftar domain yang diperbolehkan
-        $allowedDomains = ['gmail.com', 'yahoo.com', 'pens.ac.id'];
+        $allowedDomains = ['gmail.com', 'yahoo.com', 'pens.ac.id', 'yopmail.com'];
 
         // Ambil domain dari email user
         $emailDomain = substr(strrchr($request->email, "@"), 1);
