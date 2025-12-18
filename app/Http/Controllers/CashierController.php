@@ -129,7 +129,6 @@ class CashierController extends Controller
                 if ($menu) {
                     $details[] = [
                         'cashier_id' => $cashier->id,
-                        'nama_tenant' => $menu->tenant->nama_tenant,
                         'menu_id' => $menu->id,
                         'jumlah' => $menuItem['jumlah'],
                         'harga' => $menu->harga * $menuItem['jumlah'],

@@ -20,6 +20,8 @@ class CashierDetail extends Model
         'catatan',
     ];
 
+    public $appends = ['nama_tenant'];
+
     /**
      * Relasi ke transaksi kasir induk
      */
@@ -41,5 +43,10 @@ class CashierDetail extends Model
         return Carbon::instance($date)
             ->timezone('Asia/Jakarta')
             ->format('Y-m-d\TH:i:sP');
+    }
+
+    public function getNamaTenantAttribute()
+    {
+        return $this->menu->tenant->nama_tenant;
     }
 }
