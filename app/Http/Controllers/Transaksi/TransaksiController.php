@@ -1640,7 +1640,7 @@ class TransaksiController extends Controller
                         'user_id'   => $transaksi->user_id,
                         'jumlah'    => $transaksi->total,
                         'tipe'      => 'masuk',
-                        'deskripsi' => 'Refund pesanan #' . $transaksi->multitenant_id,
+                        'deskripsi' => 'Refund pesanan #' . $transaksi->id,
                     ]);
 
                     // Kirim notifikasi ke user
