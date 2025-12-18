@@ -122,8 +122,15 @@ class CashierController extends Controller
                 'kode_pemesanan' => self::generateKodePemesanan(null),
                 'status' => 'pending', // ✅ default status
             ]);
-            
-            if($request->has('nama_pembeli')) {
+
+            if ($request->has('nama_pembeli')) {
+                //nama pembeli tidak boleh angka
+                if (preg_match('/\d/', $request->nama_pembeli)) {
+                    return response()->json([
+                        'message' => 'Nama pembeli tidak boleh mengandung angka'
+                    ], 400);
+                }
+
                 $cashier->nama_pembeli = $request->input('nama_pembeli');
             }
 
