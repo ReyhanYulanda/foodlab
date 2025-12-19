@@ -132,6 +132,7 @@ class CashierController extends Controller
                 }
 
                 $cashier->nama_pembeli = $request->input('nama_pembeli');
+                $cashier->save();
             }
 
             $details = [];
