@@ -20,6 +20,7 @@ class Cashier extends Model
         'nama_pembeli',
         'total',
         'status',
+        'fcm_token',
     ];
 
     /**

@@ -123,6 +123,11 @@ class CashierController extends Controller
                 'status' => 'pending', // ✅ default status
             ]);
 
+            if ($request->has('fcm_token')) {
+                $cashier->fcm_token = $request->input('fcm_token');
+                $cashier->save();
+            }
+
             if ($request->has('nama_pembeli')) {
                 //nama pembeli tidak boleh angka
                 if (preg_match('/\d/', $request->nama_pembeli)) {

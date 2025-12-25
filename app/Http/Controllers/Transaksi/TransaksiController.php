@@ -2643,6 +2643,8 @@ class TransaksiController extends Controller
                                 ])->sendToFallback($fcmUserToken);
                         }
                     }
+
+                    // Update Cashier
                     $cashier = Cashier::find($checkout->cashier_id);
                     if ($cashier && $cashier->status === 'pending') {
                         $cashier->status = 'pesanan_diproses';
@@ -2650,16 +2652,34 @@ class TransaksiController extends Controller
                         Log::info("Cashier ID {$cashier->id} sudah dibayar. Status cashier ganti ke pesanan_diproses.");
 
                         $tenantUser = User::with('fcmTokens')->find($cashier->user_id);
-                        $fcmTenantToken = $tenantUser ? $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+
+                        $fcmTenantToken = [];
+
+                        if (!empty($cashier->fcm_token)) {
+                            // 🔹 Kirim ke 1 device (token di cashiers)
+                            $fcmTenantToken = [$cashier->fcm_token];
+                        } else {
+                            // 🔹 Kirim ke semua device user
+                            $fcmTenantToken = $tenantUser->fcmTokens
+                                ->pluck('fcm_token')
+                                ->filter()
+                                ->unique()
+                                ->toArray();
+                        }
+
                         if (!empty($fcmTenantToken)) {
                             $firebases = new Firebases();
                             $firebases
-                                ->withNotification("Pesanan KASIR-{$cashier->order_tenant} Berhasil Dibayar", "Pesanan {$cashier->id}, segera diproses!")
+                                ->withNotification(
+                                    "Pesanan KASIR-{$cashier->order_tenant} Berhasil Dibayar",
+                                    "Pesanan {$cashier->id}, segera diproses!"
+                                )
                                 ->withData([
                                     'title' => "Pesanan KASIR-{$cashier->order_tenant} Berhasil Dibayar",
                                     'body' => "Pesanan {$cashier->id}, segera diproses!",
                                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                                ])->sendToTenant($fcmTenantToken);
+                                ])
+                                ->sendToTenant($fcmTenantToken);
                         }
                     }
                 } elseif ($transactionStatus === 'pending') {
