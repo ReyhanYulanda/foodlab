@@ -1089,7 +1089,7 @@ class PesananController extends Controller
                             ->where('id', '!=', $transaksi->id)
                             ->first();
 
-                        if ($related) {
+                        if ($related && $isMultiTenant) {
                             $bothRefund =
                                 in_array($transaksi->status, ['refund_selesai', 'refund']) &&
                                 in_array($related->status, ['refund_selesai', 'refund']);
