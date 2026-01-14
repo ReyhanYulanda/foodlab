@@ -1,0 +1,57 @@
+<?php
+
+namespace App\Models;
+
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Cashier extends Model
+{
+    use HasFactory;
+
+    protected $table = 'cashiers';
+
+    protected $fillable = [
+        'user_id',
+        'tenant_id',
+        'order_tenant',
+        'kode_pemesanan',
+        'nama_pembeli',
+        'total',
+        'status',
+        'fcm_token',
+    ];
+
+    /**
+     * Relasi ke user (kasir/pembuat transaksi)
+     */
+    protected function serializeDate(\DateTimeInterface $date)
+    {
+        return Carbon::instance($date)
+            ->timezone('Asia/Jakarta')
+            ->format('Y-m-d\TH:i:sP');
+    }
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Relasi ke detail transaksi kasir
+     */
+    public function details()
+    {
+        return $this->hasMany(CashierDetail::class, 'cashier_id');
+    }
+
+    public function tenant()
+    {
+        return $this->belongsTo(Tenants::class, 'tenant_id', 'id');
+    }
+
+    public function checkout()
+    {
+        return $this->hasOne(Checkout::class, 'cashier_id');
+    }
+}

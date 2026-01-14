@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\CekMidtransTopupStatusJob;
 use App\Jobs\CekTopupStatusJob;
 use App\Models\Cashback;
+use App\Models\Cashier;
 use App\Models\CatatVoucher;
 use App\Models\ChatMessage;
 use App\Models\Checkout;
@@ -67,22 +68,60 @@ class TransaksiController extends Controller
             ->orderByDesc('created_at')
             ->paginate($perPage, ['*'], 'page', $page);
 
-        // mapping biar ada merge dari checkout
-        $transaksi->getCollection()->transform(function ($item) {
-            $checkout = $item->checkout;
+        // Ambil semua multitenant_id yang ada dalam hasil query
+        $multitenantIds = $transaksi->pluck('multitenant_id')->filter()->unique()->values();
 
-            $item->midtrans_request_id = $checkout->midtrans_request_id ?? null;
-            $item->qr_url            = $checkout->kode_bayar ?? null;
-            $item->expiry            = $checkout->tgl_akhir_tagihan ?? null;
-            $item->biaya_admin       = $checkout->total_biaya_admin ?? null;
+        // Cari checkout untuk setiap multitenant (ambil dari transaksi pertama dengan multitenant_id tersebut)
+        $checkoutByMultitenant = [];
+
+        if ($multitenantIds->isNotEmpty()) {
+            // Ambil checkout untuk setiap multitenant group
+            $checkouts = Checkout::whereIn('transaksi_id', function ($query) use ($multitenantIds) {
+                $query->select('id')
+                    ->from('transaksi')
+                    ->whereIn('multitenant_id', $multitenantIds)
+                    ->orderBy('id', 'asc'); // Ambil transaksi pertama
+            })
+                ->get()
+                ->groupBy(function ($checkout) {
+                    // Group by multitenant_id dari transaksi
+                    return $checkout->transaksi->multitenant_id;
+                });
+
+            foreach ($checkouts as $multitenantId => $checkoutGroup) {
+                $checkoutByMultitenant[$multitenantId] = $checkoutGroup->first();
+            }
+        }
+
+        // Transformasi data
+        $transaksiData = $transaksi->toArray();
+
+        // Tambahkan data checkout ke setiap item transaksi
+        $transaksiData['data'] = collect($transaksiData['data'])->map(function ($item) use ($checkoutByMultitenant) {
+            $transaksiModel = Transaksi::find($item['id']);
+            $checkout = $transaksiModel->checkout;
+
+            // Jika transaksi ini tidak punya checkout langsung, cari berdasarkan multitenant_id
+            if (!$checkout && !empty($item['multitenant_id'])) {
+                $checkout = $checkoutByMultitenant[$item['multitenant_id']] ?? null;
+            }
+
+            if ($checkout) {
+                $item['midtrans_request_id'] = $checkout->midtrans_request_id ?? null;
+                $item['qr_url'] = $checkout->kode_bayar ?? null;
+                $item['expiry'] = $checkout->tgl_akhir_tagihan ?? null;
+                $item['biaya_admin'] = $checkout->total_biaya_admin ?? null;
+                $item['order_id_midtrans'] = $checkout->midtrans_request_id ?? null;
+                $item['grand_total'] = $checkout->total_bayar_user ?? null;
+            }
 
             return $item;
-        });
+        })->toArray();
 
         return response()->json([
             'status'  => 'success',
             'message' => 'data berhasil didapatkan',
-            'data'    => $transaksi
+            'data'    => $transaksiData
         ]);
     }
 
@@ -122,6 +161,7 @@ class TransaksiController extends Controller
                 'qr_url' => $transaksi->checkout->kode_bayar,
                 'expiry' => $transaksi->checkout->tgl_akhir_tagihan,
                 'biaya_admin' => $transaksi->checkout->total_biaya_admin,
+                'grand_total' => $transaksi->checkout->total_bayar_user
             ];
         }
 
@@ -231,7 +271,7 @@ class TransaksiController extends Controller
 
             $transaksi = Transaksi::where('isAntar', 1)
                 ->where('driver_id', $user->id)
-                ->whereIn('status', ['siap_diantar', 'diantar', 'selesai'])
+                ->whereIn('status', ['siap_diantar', 'diantar', 'selesai', 'refund_selesai', 'pesanan_masuk', 'pesanan_diproses'])
                 ->with(['listTransaksiDetail.menus.tenants', 'user'])
                 ->orderByDesc('created_at')
                 ->paginate($perPage, ['*'], 'page', $page);
@@ -249,6 +289,9 @@ class TransaksiController extends Controller
             ], 500);
         }
     }
+
+
+
 
     public function store(Request $request, Firebases $firebases)
     {
@@ -287,10 +330,10 @@ class TransaksiController extends Controller
             ->pluck('tenant_id')
             ->unique();
 
-        if ($tenants->count() > 1) {
+        if ($tenants->count() > 2) {
             return response()->json([
                 'status' => 'failed',
-                'message' => 'Semua menu harus berasal dari 1 tenant saja',
+                'message' => 'Maksimal pesan dari 2 toko',
             ], 400);
         }
 
@@ -341,15 +384,466 @@ class TransaksiController extends Controller
         }
 
         DB::beginTransaction();
+        // << START OF MULTITENANT FLOW >>
         try {
+            $isMultiTenant = $tenants->count() > 1;
+            $multitenantId = null;
+            if ($isMultiTenant) {
+
+                $multitenantId = (Transaksi::max('multitenant_id') ?? 0) + 1;
+
+                // Pisahkan menu berdasarkan tenant
+                $menusByTenant = collect($request->menus)->groupBy(function ($menu) {
+                    return Menus::find($menu['id'])->tenant_id;
+                });
+
+                // PRE-CALC: hitung total untuk tiap tenant dulu agar bisa cek saldo koin (grand total)
+                $perTenantCalc = [];
+                $grandTotal = 0;
+                foreach ($menusByTenant as $tenantId => $menus) {
+                    $totalHargaMenu = 0;
+                    $totalJumlahMenu = 0;
+                    foreach ($menus as $menu) {
+                        $menuModel = Menus::withTrashed()->find($menu['id']);
+                        $totalHargaMenu += $menuModel->harga * $menu['jumlah'];
+                        $totalJumlahMenu += $menu['jumlah'];
+                    }
+
+                    $ruanganId = $request->isAntar ? $request->ruangan_id : null;
+                    $ongkosKirim = 0;
+                    $isPriority = filter_var($request->input('isPriority'), FILTER_VALIDATE_BOOLEAN);
+
+                    if ($request->isAntar && $ruanganId) {
+                        // untuk pre-calc anggap jika sudah ada transaksi sebelumnya, nanti saat pembuatan kita gunakan flag yang benar
+                        // namun untuk fairness, kita hitung ongkir pertama = gedung->ongkir, selanjutnya = gedung->ongkir_multitenant
+                        // untuk pra-calc kita anggap ordering iterasi menusByTenant sama dengan pembuatan (deterministik)
+                        $isSecondOrMore = count($perTenantCalc) > 0;
+                        $ongkosKirim = $this->getOngkirGedung($ruanganId, $isSecondOrMore);
+                        if ($isPriority && !$isSecondOrMore) {
+                            $ongkirPrioritas = Pengaturan::where('nama', 'ongkos_kirim_prioritas_multitenant')->value('nilai') ?? 4000;
+                            $ongkosKirim += $ongkirPrioritas;
+                        }
+
+                        // $biayaExtra = Pengaturan::where('nama', 'biaya_extra')->value('nilai') ?? 500;
+                        // if ($totalJumlahMenu > 10) {
+                        //     $ongkosKirim += ($totalJumlahMenu - 10) * $biayaExtra;
+                        // }
+                    }
+
+                    $biayaLayanan = (int) (Pengaturan::where('nama', 'biaya_layanan')->value('nilai') ?? 0);
+                    $totalFinal = $totalHargaMenu + ($request->isAntar ? $ongkosKirim : 0) + $biayaLayanan;
+
+                    $perTenantCalc[$tenantId] = [
+                        'menus' => $menus,
+                        'totalHargaMenu' => $totalHargaMenu,
+                        'totalJumlahMenu' => $totalJumlahMenu,
+                        'ongkosKirim' => $ongkosKirim,
+                        'biayaLayanan' => $biayaLayanan,
+                        'totalFinal' => $totalFinal,
+                        'ruanganId' => $ruanganId,
+                    ];
+
+                    $grandTotal += $totalFinal;
+                }
+
+                $totalExtraGlobal = 0;
+                if ($request->isAntar) {
+                    // Hitung total seluruh item multitenant
+                    $totalSemuaItem = 0;
+                    foreach ($perTenantCalc as $calc) {
+                        $totalSemuaItem += $calc['totalJumlahMenu'];
+                    }
+
+                    // Hitung biaya extra global hanya jika total item > 10 DAN pesanan diantar
+                    $biayaExtra = Pengaturan::where('nama', 'biaya_extra')->value('nilai') ?? 1000;
+
+                    if ($totalSemuaItem > 10) {
+                        $totalExtraGlobal = ($totalSemuaItem - 10) * $biayaExtra;
+                        $grandTotal += $totalExtraGlobal;
+                    }
+                }
+
+                // Jika metode pembayaran koin -> cek saldo user mencukupi GRAND TOTAL
+                if ($request->metode_pembayaran === 'koin') {
+                    $saldo = SaldoKoin::where('user_id', $user->id)->first();
+                    if (!$saldo || $saldo->jumlah < $grandTotal) {
+                        DB::rollBack();
+                        return response()->json([
+                            'status' => 'failed',
+                            'message' => 'Saldo koin tidak cukup untuk pesanan multitenant',
+                        ], 400);
+                    }
+                }
+
+                $createdTransaksi = [];
+                $voucherId = $request->input('voucher_id');
+                $voucher = null;
+                $cashback = null;
+                $assignCashback = 0;
+                $voucherApplied = false;
+
+                if ($voucherId) {
+                    $voucher = Voucher::with('cashback')
+                        ->where('id', $voucherId)
+                        ->where('user_id', $user->id)
+                        ->first();
+
+                    if (!$voucher) {
+                        return response()->json([
+                            'status'  => 'failed',
+                            'message' => 'Voucher tidak valid'
+                        ], 400);
+                    }
+
+                    $cashback = $voucher->cashback;
+
+                    if (!$cashback) {
+                        return response()->json([
+                            'status'  => 'failed',
+                            'message' => 'Cashback tidak ditemukan'
+                        ], 400);
+                    }
+
+                    if ($cashback->quantity <= 0) {
+                        return response()->json([
+                            'status'  => 'failed',
+                            'message' => 'Cashback sudah habis'
+                        ], 400);
+                    }
+
+                    if (now()->gt($cashback->end_date)) {
+                        return response()->json([
+                            'status'  => 'failed',
+                            'message' => 'Cashback telah expired'
+                        ], 400);
+                    }
+
+                    if ($voucher->quantity <= 0) {
+                        return response()->json([
+                            'status'  => 'failed',
+                            'message' => 'Voucher sudah habis'
+                        ], 400);
+                    }
+
+                    if (!$cashback->is_valid) {
+                        return response()->json([
+                            'status'  => 'failed',
+                            'message' => 'Cashback tidak valid'
+                        ], 400);
+                    }
+                    $voucher = Voucher::with('cashback')->where('id', $voucherId)->where('user_id', $user->id)->first();
+                    $cashback = $voucher ? $voucher->cashback : null;
+                }
+
+                // Hitung cashback berdasarkan GRAND TOTAL
+                $computedCashback = 0;
+                $shouldApplyCashback = false;
+
+                if ($voucher && $cashback) {
+
+                    if ($grandTotal >= ($cashback->minimal_beli ?? 0)) {
+
+                        $computedCashback = $grandTotal * $cashback->value;
+
+                        if ($cashback->max_cashback && $computedCashback > $cashback->max_cashback) {
+                            $computedCashback = $cashback->max_cashback;
+                        }
+
+                        $shouldApplyCashback = true;
+                    }
+                }
+
+                $qrisCreatedYet = false;
+                $firstTransaksiForQris = null;
+                $qrisInfo = null;
+
+
+                // Sekarang buat transaksi per tenant — gunakan nilai dari pre-calc agar konsisten
+                foreach ($perTenantCalc as $tenantId => $calc) {
+                    $tenant = Tenants::find($tenantId); // pastikan model Tenant (singular)
+                    if (!$tenant) continue;
+
+                    $ruanganId = $calc['ruanganId'];
+                    $ongkosKirim = $calc['ongkosKirim'];
+                    $biayaLayanan = $calc['biayaLayanan'];
+                    $totalFinal = $calc['totalFinal'];
+
+                    if ($firstTransaksiForQris === null && $totalExtraGlobal > 0) {
+                        $totalFinal += $totalExtraGlobal;
+                        $ongkosKirim += $totalExtraGlobal;
+                    }
+
+                    $assignCashback = 0;
+                    // Apply hanya ke transaksi pertama
+                    if ($shouldApplyCashback && !$voucherApplied) {
+                        $assignCashback = $computedCashback;
+                    }
+
+                    // Create transaksi
+                    $transaksi = Transaksi::create([
+                        'user_id' => $user->id,
+                        'total' => $totalFinal,
+                        'isAntar' => (int) $request->boolean('isAntar'),
+                        'isPriority' => (int) $request->boolean('isPriority') ?? false,
+                        'metode_pembayaran' => $request->metode_pembayaran,
+                        'tenant_id' => $tenant->user_id,
+                        'ruangan_id' => $ruanganId,
+                        'catatan' => $request->catatan,
+                        'status' => $request->metode_pembayaran === 'qris'
+                            ? 'pending'
+                            : 'pesanan_masuk',
+                        'ongkos_kirim' => $ongkosKirim,
+                        'biaya_layanan' => $biayaLayanan,
+                        'catatan_lokasi_pengantaran' => $request->catatan_lokasi_pengantaran ?? null,
+                        'multitenant_id' => $multitenantId,
+                        'voucher_id' => $assignCashback ? $voucher->id : null,
+                        'cashback_amount' => $assignCashback ?? 0
+                    ]);
+
+                    if ($firstTransaksiForQris === null) {
+                        $firstTransaksiForQris = $transaksi;
+                    }
+
+                    // generate kode pemesanan unik per transaksi
+                    do {
+                        $kodePemesanan = TransaksiCek::generateKodePemesanan($transaksi->id);
+                    } while (Transaksi::where('kode_pemesanan', $kodePemesanan)->exists());
+
+                    if ($request->isPriority) {
+                        $verificationCode = TransaksiCek::generateVerificationCode($transaksi);
+                        $transaksi->verification_code = $verificationCode;
+                    }
+
+                    $transaksi->kode_pemesanan = $kodePemesanan;
+                    $transaksi->save();
+
+                    // Simpan detail transaksi (kirim menus lengkap dgn catatan)
+                    $menusWithNotes = collect($calc['menus'])->map(function ($menu) {
+                        return [
+                            'id' => $menu['id'],
+                            'jumlah' => $menu['jumlah'],
+                            'catatan' => $menu['catatan'] ?? null,
+                        ];
+                    })->toArray();
+
+                    $this->storeTransakasiDetail(
+                        new Request(['menus' => $menusWithNotes]),
+                        $transaksi
+                    );
+
+                    // Jika metode koin -> kurangi saldo per transaksi dan catat TransaksiSaldoKoin negatif
+                    if ($request->metode_pembayaran === 'koin') {
+                        // Ambil saldo fresh (atau gunakan $saldo yang sudah diambil)
+                        $saldo = $saldo ?? SaldoKoin::where('user_id', $user->id)->first();
+                        $saldo->jumlah -= $totalFinal;
+                        $saldo->save();
+
+                        TransaksiSaldoKoin::create([
+                            'user_id' => $user->id,
+                            'jumlah' => -$totalFinal,
+                            'tipe' => 'keluar',
+                            'deskripsi' => 'Pembayaran pesanan #' . $transaksi->id,
+                        ]);
+                    }
+
+                    // jika kita apply voucher ke transaksi ini, catat CatatVoucher & decrement quantity (HANYA SEKALI)
+                    if ($assignCashback > 0) {
+
+                        // Kurangi quantity baru sekali
+                        $cashback->decrement('quantity');
+                        $voucher->decrement('quantity');
+
+                        CatatVoucher::create([
+                            'user_id' => $user->id,
+                            'transaksi_id' => $transaksi->id,
+                            'voucher_id' => $voucher->id,
+                            'quantity_voucher' => 1,
+                            'cashback_amount' => $assignCashback,
+                        ]);
+
+                        $voucherApplied = true; // pastikan tidak diaplikasikan lagi
+                    }
+
+                    // simpan transaksi created
+                    $createdTransaksi[] = $transaksi;
+                }
+
+                if ($transaksi->status === 'pesanan_masuk') {
+                    // === Kirim notifikasi ke tenant ===
+                    foreach ($createdTransaksi as $transaksiTenant) {
+                        $tenantUser = User::with('fcmTokens')
+                            ->whereHas('tenant', function ($tenant) use ($transaksiTenant) {
+                                $tenant->where('user_id', $transaksiTenant->tenant_id);
+                            })
+                            ->first();
+
+                        if ($tenantUser && $tenantUser->fcmTokens->isNotEmpty()) {
+                            $fcmTokens = $tenantUser->fcmTokens->pluck('fcm_token')
+                                ->filter()
+                                ->unique()
+                                ->values()
+                                ->toArray();
+
+                            if (!empty($fcmTokens)) {
+                                $firebases
+                                    ->withNotification('Pesanan Masuk', 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!')
+                                    ->withData([
+                                        'title' => 'Pesanan Masuk',
+                                        'body' => 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!',
+                                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                    ])
+                                    ->sendToTenant($fcmTokens);
+
+                                Log::info('FCM dikirim ke tenant', [
+                                    'tenant_id' => $transaksiTenant->tenant_id,
+                                    'tokens' => $fcmTokens
+                                ]);
+                            }
+                        } else {
+                            Log::warning('Tenant tidak punya FCM token atau user tidak ditemukan', [
+                                'tenant_id' => $transaksiTenant->tenant_id
+                            ]);
+                        }
+                    }
+
+                    if ($request->boolean('isPriority')) {
+                        // === Kirim notifikasi ke masbro ===
+                        $masbroTokens = User::role('masbro')
+                            // ->where('isOnline', 1)
+                            ->with('fcmTokens')
+                            ->get()
+                            ->flatMap(fn($user) => $user->fcmTokens->pluck('fcm_token'))
+                            ->filter()
+                            ->unique()
+                            ->values()
+                            ->toArray();
+
+                        $fcmMasbroToken = $masbroTokens;
+                        if (!empty($fcmMasbroToken)) {
+                            $firebases
+                                ->withNotification('Ada Pesanan Prioritas multitenant', 'Gasin yuk ada ongkir tambahannya loh')
+                                ->withData([
+                                    'title' => 'Ada Pesanan Prioritas',
+                                    'body' => 'Gasin yuk ada ongkir tambahannya loh',
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                ])->sendToDriver($fcmMasbroToken);
+                            Log::info('Sending FCM to driver', ['tokens' => $fcmMasbroToken]);
+                        }
+                    }
+                }
+
+                // ==== QRIS MULTITENANT PAYMENT ====
+                if ($request->metode_pembayaran === 'qris' && !$qrisCreatedYet) {
+
+                    // Tag transaksi pertama sebagai parent untuk checkout
+                    $firstTransaksiId = $firstTransaksiForQris->id;
+
+                    // Hitung biaya admin berdasarkan GRAND TOTAL multitenant
+                    $biaya = $this->generateBiayaAdmin((int) $grandTotal);
+
+                    $uuidParts = explode('-', Str::uuid()->toString());
+                    $shortUuid = implode('-', array_slice($uuidParts, 0, 3));
+
+                    $qrisTotalFinal = $biaya['total_biaya_admin'] + $grandTotal;
+
+                    $orderId = 'foodlabs-' . $shortUuid . '-' . time();
+
+                    $params = [
+                        'transaction_details' => [
+                            'order_id' => $orderId,
+                            'gross_amount' => $qrisTotalFinal,
+                        ],
+                        'payment_type' => 'qris',
+                        'qris' => [
+                            'acquirer' => 'gopay'
+                        ],
+                    ];
+
+                    \Midtrans\Config::$serverKey = config('custom.midtrans_server_key');
+                    \Midtrans\Config::$isProduction = false;
+                    \Midtrans\Config::$isSanitized = true;
+                    \Midtrans\Config::$is3ds = true;
+
+                    $snap = \Midtrans\CoreApi::charge($params);
+
+                    // Create checkout hanya sekali (transaksi pertama sebagai induk)
+                    Checkout::create([
+                        'user_id' => $user->id,
+                        'transaksi_id' => $firstTransaksiId,
+                        'nominal' => $grandTotal,
+                        'biaya_midtrans' => $biaya['biaya_midtrans'],
+                        'biaya_ubisma' => $biaya['biaya_ubsima'],
+                        'total_biaya_admin' => $biaya['total_biaya_admin'],
+                        'total_bayar_user' => $biaya['total_bayar_user'],
+                        'status_bayar' => 'pending',
+                        'midtrans_request_id' => $orderId,
+                        'kode_bayar' => $snap->actions[0]->url ?? null,
+                        'tgl_akhir_tagihan' => $snap->expiry_time ?? null,
+                    ]);
+
+                    $qrisInfo = [
+                        'order_id_midtrans' => $orderId,
+                        'qr_url' => $snap->actions[0]->url ?? null,
+                        'expiry' => $snap->expiry_time ?? null,
+                        'biaya_admin' => $biaya['total_biaya_admin'],
+                        'grand_total' => $qrisTotalFinal
+                    ];
+
+                    $qrisCreatedYet = true;
+                }
+
+                DB::commit();
+
+                $transaksiWithDetails = Transaksi::with(['listTransaksiDetail.menus'])
+                    ->whereIn('id', collect($createdTransaksi)->pluck('id'))
+                    ->get();
+
+                $allTransaksi = Transaksi::with(['listTransaksiDetail.menus', 'user', 'checkout'])
+                    ->whereIn('id', collect($createdTransaksi)->pluck('id'))
+                    ->orderBy('id', 'asc') // Urutkan berdasarkan ID untuk konsistensi
+                    ->get();
+
+                // Transform semua transaksi untuk menambahkan QRIS info jika ada
+                $transaksiWithQris = $allTransaksi->map(function ($trans) use ($qrisInfo) {
+                    $transData = $trans->toArray();
+
+                    // Tambahkan QRIS info ke setiap transaksi
+                    if (!empty($qrisInfo)) {
+                        $transData = array_merge($transData, $qrisInfo);
+                    }
+
+                    return $transData;
+                });
+
+                return response()->json([
+                    'status' => 'success',
+                    'messages' => 'Transaksi multitenant berhasil dibuat',
+                    'multitenant_id' => $multitenantId,
+                    'data' => [
+                        'transaksi' => $transaksiWithQris->toArray() // Array semua transaksi
+                    ]
+                ], 201);
+            }
+            // << END OF MULTITENANT FLOW >>
+
             $menu_id = $request->menus[0]['id'];
             $tenantUser = User::with('fcmTokens')->whereHas('tenant', function ($tenant) use ($menu_id) {
                 $tenant->whereHas('listMenu', function ($kelola) use ($menu_id) {
                     $kelola->where('id', $menu_id);
                 });
             })->first();
+            $masbroTokens = User::role('masbro')
+                // ->where('isOnline', 1)
+                ->with('fcmTokens')
+                ->get()
+                ->flatMap(fn($user) => $user->fcmTokens->pluck('fcm_token'))
+                ->filter()
+                ->unique()
+                ->values()
+                ->toArray();
 
             $fcmTenantToken = $tenantUser ? $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+            $fcmMasbroToken = $masbroTokens;
 
             if (!$tenantUser) {
                 Log::warning('User tenant tidak ditemukan berdasarkan menu_id', ['menu_id' => $menu_id]);
@@ -375,6 +869,15 @@ class TransaksiController extends Controller
             $ruanganId = $request->isAntar ? $request->ruangan_id : null;
             $ongkosKirim = 0;
 
+            $isAntar = filter_var($request->input('isAntar'), FILTER_VALIDATE_BOOLEAN);
+            $isPriority = filter_var($request->input('isPriority'), FILTER_VALIDATE_BOOLEAN);
+            if ($isPriority && !$isAntar) {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => ['Pengiriman prioritas hanya bisa dilakukan dengan pengiriman']
+                ], 400);
+            }
+
             if ($request->isAntar && $ruanganId) {
                 $ruangan = Ruangan::with('gedung')->find($ruanganId);
 
@@ -384,6 +887,11 @@ class TransaksiController extends Controller
                 $biayaExtra = Pengaturan::where('nama', 'biaya_extra')->value('nilai') ?? 500;
                 if ($totalJumlahMenu > 10) {
                     $ongkosKirim += ($totalJumlahMenu - 10) * $biayaExtra;
+                }
+
+                if ($isPriority) {
+                    $ongkirPrioritas = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
+                    $ongkosKirim += $ongkirPrioritas;
                 }
             }
 
@@ -489,6 +997,7 @@ class TransaksiController extends Controller
                 'user_id' => $user->id,
                 'total' => $totalFinal,
                 'isAntar' => $request->isAntar,
+                'isPriority' => $request->boolean('isPriority') ?? false,
                 'metode_pembayaran' => $request->metode_pembayaran,
                 'tenant_id' => $tenant->user_id,
                 'ruangan_id' => $ruanganId,
@@ -504,6 +1013,11 @@ class TransaksiController extends Controller
             do {
                 $kodePemesanan = TransaksiCek::generateKodePemesanan($transaksi->id);
             } while (Transaksi::where('kode_pemesanan', $kodePemesanan)->exists());
+
+            if ($request->isPriority) {
+                $verificationCode = TransaksiCek::generateVerificationCode($transaksi->id);
+                $transaksi->verification_code = $verificationCode;
+            }
 
             // SIMPAN ke database
             $transaksi->kode_pemesanan = $kodePemesanan;
@@ -557,7 +1071,7 @@ class TransaksiController extends Controller
                         ],
                     ];
                     \Midtrans\Config::$serverKey = config('custom.midtrans_server_key');
-                    \Midtrans\Config::$isProduction = true;
+                    \Midtrans\Config::$isProduction = false;
                     \Midtrans\Config::$isSanitized = true;
                     \Midtrans\Config::$is3ds = true;
                     $snap = \Midtrans\CoreApi::charge($params);
@@ -581,6 +1095,7 @@ class TransaksiController extends Controller
                         'qr_url' => $snap->actions[0]->url ?? null,
                         'expiry' => $snap->expiry_time ?? null,
                         'biaya_admin' => $biaya['total_biaya_admin'],
+                        'grand_total' => $qrisTotalFinal
                     ];
                 }
 
@@ -615,6 +1130,18 @@ class TransaksiController extends Controller
                                 'body' => 'Ada pesanan baru masuk di tenant kamu. Yuk, segera proses!',
                                 'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                             ])->sendToTenant($fcmTenantToken);
+                    }
+
+                    if ($request->boolean('isPriority')) {
+                        if (!empty($fcmMasbroToken)) {
+                            $firebases
+                                ->withNotification('Ada Pesanan Prioritas', 'Gasin yuk ada ongkir tambahannya loh')
+                                ->withData([
+                                    'title' => 'Ada Pesanan Prioritas',
+                                    'body' => 'Gasin yuk ada ongkir tambahannya loh',
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                ])->sendToDriver($fcmMasbroToken);
+                        }
                     }
                     Log::info('Sending FCM to tenant', ['tokens' => $fcmTenantToken]);
                 }
@@ -652,6 +1179,16 @@ class TransaksiController extends Controller
                 'messages' => 'transaksi gagal: ' . $th->getMessage(),
             ], 400);
         }
+    }
+
+    private function getOngkirGedung($ruanganId, $isMultitenant = false)
+    {
+        $ruangan = Ruangan::with('gedung')->find($ruanganId);
+        if (!$ruangan || !$ruangan->gedung) return 0;
+
+        return $isMultitenant
+            ? ($ruangan->gedung->ongkir_multitenant ?? 0)
+            : ($ruangan->gedung->ongkir ?? 0);
     }
 
     public function storeTransakasiDetail($request, $transaksi)
@@ -779,23 +1316,32 @@ class TransaksiController extends Controller
                 return ResponseApi::error("Pesanan sedang diproses. Tidak bisa dibatalkan", 400);
             }
 
+            if (
+                $transaksi->status === 'siap_diantar' || $transaksi->status === 'siap_diambil' || $transaksi->status === 'diantar' &&
+                !($isAdmin)
+            ) {
+                return ResponseApi::error("Pesanan sedang diproses. Tidak bisa dibatalkan", 400);
+            }
+
             if ($request->has('catatan_penolakan')) {
                 $transaksi->catatan_penolakan = $request->input('catatan_penolakan');
             }
 
-            CatatVoucher::where('transaksi_id', $transaksi->id)->delete();
+            if ($transaksi->multitenant_id === null) {
+                CatatVoucher::where('transaksi_id', $transaksi->id)->delete();
 
-            if ($transaksi->cashback_amount > 0 && $transaksi->voucher_id) {
-                $voucher = $transaksi->voucher;
+                if ($transaksi->cashback_amount > 0 && $transaksi->voucher_id) {
+                    $voucher = $transaksi->voucher;
 
-                if ($voucher) {
-                    $voucher->increment('quantity');
+                    if ($voucher) {
+                        $voucher->increment('quantity');
 
-                    if ($voucher->cashback) {
-                        $voucher->cashback->increment('quantity');
+                        if ($voucher->cashback) {
+                            $voucher->cashback->increment('quantity');
+                        }
+
+                        Log::info("Voucher #{$voucher->id} dikembalikan karena refund transaksi #{$transaksi->id}");
                     }
-
-                    Log::info("Voucher #{$voucher->id} dikembalikan karena refund transaksi #{$transaksi->id}");
                 }
             }
 
@@ -817,36 +1363,357 @@ class TransaksiController extends Controller
                     ])->sendToFallback($fcmUserToken);
             }
 
+            // === LOGIKA MULTITENANT ===
             try {
-                $transaksi->refundKoin();
+                // 🔸 Pastikan transaksi masih bisa dibatalkan
+                if (in_array($transaksi->status, ['selesai', 'refund_selesai'])) {
+                    return ResponseApi::error("Pesanan tidak dapat dibatalkan karena sudah selesai atau sudah direfund.", 400);
+                }
 
-                TransaksiSaldoKoin::create([
-                    'user_id' => $transaksi->user_id,
-                    'jumlah' => $transaksi->total,
-                    'tipe' => 'masuk',
-                    'deskripsi' => 'Refund pesanan #' . $transaksi->id,
-                ]);
-
+                // 🔸 Update status transaksi ini ke refund_selesai
                 $transaksi->status = 'refund_selesai';
                 $transaksi->save();
 
-                if ($userTransaksi && $userTransaksi->fcm_token) {
+                // 🔹 Kirim notifikasi FCM ke user (jika ada)
+                $userTransaksi = User::with('fcmTokens')->find($transaksi->user_id);
+                $fcmUserToken = $userTransaksi ? $userTransaksi->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+
+                if (!empty($fcmUserToken)) {
                     $firebases
-                        ->withNotification('Refund Berhasil', 'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.')
+                        ->withNotification('Pesanan Dibatalkan', "Pesanan #{$transaksi->id} telah dibatalkan dan status berubah menjadi refund_selesai.")
                         ->withData([
-                            'title' => 'Refund Berhasil',
-                            'body' => 'Koin dari pesanan #' . $transaksi->id . ' telah berhasil dikembalikan ke akun kamu.',
+                            'title' => 'Pesanan Dibatalkan',
+                            'body' => "Pesanan #{$transaksi->id} telah dibatalkan dan status berubah menjadi refund_selesai.",
                             'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
-                        ])->sendToFallback($fcmUserToken);
+                        ])
+                        ->sendToFallback($fcmUserToken);
+                }
+
+                // 🔹 Jika ada multitenant_id, lakukan pengecekan tambahan
+                if ($transaksi->multitenant_id) {
+                    Log::info("Transaksi #{$transaksi->id} membatalkan pesanan multitenant #{$transaksi->multitenant_id}.");
+
+                    // Cek apakah masih ada transaksi aktif dalam grup multitenant
+                    $stillActive = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                        ->whereIn('status', ['pesanan_masuk', 'pesanan_diproses', 'siap_diantar', 'diantar'])
+                        ->exists();
+
+                    // === cek apakah ini adalah tenant PERTAMA yang melakukan refund (first-cancel) ===
+                    $otherRefundCount = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                        ->where('id', '!=', $transaksi->id)
+                        ->where('status', 'refund_selesai')
+                        ->count();
+
+                    $isFirstCancel = ($otherRefundCount === 0);
+                    if ($transaksi->isAntar == 1) {
+                        if ($isFirstCancel) {
+                            Log::info("Transaksi #{$transaksi->id} adalah tenant pertama yang cancel pada multitenant #{$transaksi->multitenant_id}.");
+
+                            // Cari related transaksi lain dalam grup yang MASIH AKTIF (bukan refund)
+                            $related = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                                ->where('id', '!=', $transaksi->id)
+                                ->where('status', '!=', 'refund_selesai') // Yang belum refund
+                                ->first();
+
+                            if ($related) {
+                                Log::info("🔄 Found related transaction #{$related->id} (status: {$related->status})");
+
+                                // Tentukan mana yang cancel dan mana yang tetap aktif
+                                $cancelTx = $transaksi;      // status sudah refund_selesai
+                                $activeTx = $related;        // status masih aktif (pesanan_masuk/diproses/dll)
+
+                                // Hitung items
+                                $activeItems = $activeTx->listTransaksiDetail->sum('jumlah');  // items yang tetap aktif
+                                $cancelItems = $cancelTx->listTransaksiDetail->sum('jumlah');  // items yang dicancel
+
+                                // Hitung X berdasarkan rumus
+                                $totalItems = $activeItems + $cancelItems;
+
+                                if ($activeItems <= 10) {
+                                    // Case: activeItems ≤ 10
+                                    $x = ($totalItems - 10) * 500;
+                                } else {
+                                    // Case: activeItems > 10  
+                                    $x = ($totalItems - 10) * 500 - (($activeItems - 10) * 500);
+                                }
+                                $x = max($x, 0); // Pastikan X tidak negatif
+
+                                Log::info("📊 Items calculation: active={$activeItems}, cancel={$cancelItems}, total={$totalItems}, X={$x}");
+
+                                // PERBAIKAN: Cek kondisi untuk menentukan perlu swap atau tidak
+                                // Swap hanya dilakukan jika ongkir cancel > ongkir active
+                                $needSwap = ($cancelTx->ongkos_kirim > $activeTx->ongkos_kirim);
+
+                                $cancelOngkirMulti = $cancelTx->ruangan->gedung->ongkir_multitenant ?? 0;
+                                $activeOngkirMulti = $activeTx->ruangan->gedung->ongkir_multitenant ?? 0;
+                                if ($transaksi->isPriority) {
+                                    $activeOngkirPriority = Pengaturan::where('nama', 'ongkos_kirim_prioritas_multitenant')->value('nilai') ?? 4000;
+                                } else {
+                                    $activeOngkirPriority = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
+                                }
+                                $multitenantOngkir = Pengaturan::where('nama', 'ongkos_kirim_multitenant')->value('nilai') ?? 2000;
+                                $activeBaseOngkir = $activeTx->ruangan->gedung->ongkir ?? 0;
+                                $cancelLessThanExtraFee = $cancelTx->listTransaksiDetail->sum('jumlah') <= 10;
+
+                                if ($needSwap && $cancelTx->ongkos_kirim !== $activeTx->ongkos_kirim) {
+                                    // 🔄 SWAP ONGKIR: Hanya jika ongkir cancel lebih besar
+                                    $tempOngkir = $cancelTx->ongkos_kirim;
+                                    $cancelTx->ongkos_kirim = $activeTx->ongkos_kirim;
+                                    $activeTx->ongkos_kirim = $tempOngkir;
+
+                                    Log::info("🔄 SWAP: transaksi #{$cancelTx->id} ({$tempOngkir}) <-> #{$activeTx->id} ({$activeTx->ongkos_kirim})");
+
+                                    // Jika totalItems > 10, kurangi ongkir activeTx dengan X
+                                    if ($totalItems > 10) {
+                                        $newOngkir = max($activeTx->ongkos_kirim - $x, 0);
+                                        Log::info("📉 Kurangi X={$x} untuk transaksi aktif #{$activeTx->id}: {$activeTx->ongkos_kirim} -> {$newOngkir}");
+                                        $activeTx->ongkos_kirim = $newOngkir;
+                                    }
+
+                                    $cancelTx->ongkos_kirim = $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems);
+                                    $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems);
+                                    if ($transaksi->isPriority) {
+                                        $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems)) - $x;
+                                        if ($totalItems <= 10) {
+                                            $activeTx->total += $multitenantOngkir; //new code
+                                            $activeTx->ongkos_kirim += $multitenantOngkir; //new code
+                                        }
+                                    } else {
+                                        $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $this->extraFee($totalItems)) - $x;
+                                    }
+
+                                    $cancelTx->save();
+                                    $activeTx->save();
+
+                                    Log::info("✅ [SWAP DONE] Swap completed for multitenant #{$transaksi->multitenant_id}");
+                                    Log::info("   Cancel #{$cancelTx->id} ongkir: {$cancelTx->ongkos_kirim}");
+                                    Log::info("   Active #{$activeTx->id} ongkir: {$activeTx->ongkos_kirim}");
+                                } else { // Kondisi ketika tidak perlu swap
+                                    Log::info("ℹ️ Tidak perlu swap, cek kondisi:");
+                                    Log::info("   - Cancel ongkir (#{$cancelTx->id}): {$cancelTx->ongkos_kirim}");
+                                    Log::info("   - Active ongkir (#{$activeTx->id}): {$activeTx->ongkos_kirim}");
+                                    Log::info("   - Need swap: " . ($needSwap ? 'YES' : 'NO'));
+
+                                    if ($totalItems <= 10) {
+                                        if ($transaksi->isPriority) {
+                                            $activeTx->total += $multitenantOngkir; //new code
+                                            $activeTx->ongkos_kirim += $multitenantOngkir; //new code
+                                            $activeTx->save();
+                                        }
+                                    }
+
+                                    // PERBAIKAN: JIKA TIDAK SWAP, tetap kurangi X dari ongkir active jika totalItems > 10
+                                    if ($totalItems > 10) {
+                                        // Tapi tunggu! Jika tidak swap, mungkin X perlu dikurangi dari ongkir yang lebih besar?
+                                        // Sesuai case 2: ongkir besar ada di cancel (10500), kecil di active (0)
+                                        // Maka kurangi X dari ongkir cancel karena dia yang lebih besar
+
+                                        if ($cancelTx->ongkos_kirim > $activeTx->ongkos_kirim) {
+                                            // Ongkir besar di cancel, kecil di active
+                                            // Kurangi X dari cancel karena dialah yang lebih besar
+                                            $newOngkir = max($cancelTx->ongkos_kirim - $x, 0);
+                                            Log::info("📉 Kurangi X={$x} dari cancel (besar) #{$cancelTx->id}: {$cancelTx->ongkos_kirim} -> {$newOngkir}");
+                                            $cancelTx->ongkos_kirim = $newOngkir;
+                                        } else {
+                                            // Ongkir besar di active, kecil di cancel
+                                            // Kurangi X dari active karena dialah yang lebih besar
+                                            $newOngkir = max($activeTx->ongkos_kirim - $x, 0);
+                                            Log::info("📉 Kurangi X={$x} dari active (besar) #{$activeTx->id}: {$activeTx->ongkos_kirim} -> {$newOngkir}");
+                                            $activeTx->ongkos_kirim = $newOngkir;
+                                        }
+
+                                        $cancelTx->ongkos_kirim = $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems);
+                                        $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems);
+                                        if ($transaksi->isPriority) {
+                                            $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems)) - $x;
+                                            // $activeTx->total += $multitenantOngkir; //new code
+                                            // $activeTx->ongkos_kirim += $multitenantOngkir; //new code
+                                        } else {
+                                            $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $this->extraFee($totalItems)) - $x;
+                                        }
+
+                                        $cancelTx->save();
+                                        $activeTx->save();
+                                    } else {
+                                        Log::info("ℹ️ Total items ≤ 10, no X to apply");
+                                    }
+                                }
+                            } else {
+                                Log::info("ℹ️ Tidak ada transaksi aktif lain dalam multitenant #{$transaksi->multitenant_id}");
+                            }
+                        } else {
+                            $related = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                                ->where('id', '!=', $transaksi->id)
+                                // ->where('status', '!=', 'refund_selesai') // Yang belum refund
+                                ->first();
+                            // Tentukan mana yang cancel dan mana yang tetap aktif
+                            $cancelTx = $transaksi;      // status sudah refund_selesai
+                            $activeTx = $related;        // status masih aktif (pesanan_masuk/diproses/dll)
+
+                            // Hitung items
+                            $activeItems = $activeTx->listTransaksiDetail->sum('jumlah');  // items yang tetap aktif
+                            $cancelItems = $cancelTx->listTransaksiDetail->sum('jumlah');  // items yang dicancel
+                            $multitenantOngkir = Pengaturan::where('nama', 'ongkos_kirim_multitenant')->value('nilai') ?? 2000;
+
+                            $totalItems = $activeItems + $cancelItems;
+
+                            if ($totalItems <= 10) {
+                                if ($transaksi->isPriority) {
+                                    $activeTx->total -= $multitenantOngkir;
+                                    $activeTx->ongkos_kirim -= $multitenantOngkir;
+                                    $activeTx->save();
+                                }
+                            }
+                            Log::info("ℹ️ Transaksi #{$transaksi->id} bukan tenant pertama yang cancel");
+                        }
+                    }
+
+                    // Jika semua transaksi sudah refund/selesai → tenant terakhir yang cancel (flow existing)
+                    if (!$stillActive) {
+                        Log::info("🎯 All transactions in multitenant #{$transaksi->multitenant_id} are now refunded/completed");
+
+                        // --- existing flow (total refund, kembalikan voucher/cashback, tambah saldo koin) ---
+                        $totalRefund = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->sum('total');
+
+                        // Tambahkan ke saldo koin user
+                        $saldo = \App\Models\SaldoKoin::firstOrCreate(['user_id' => $transaksi->user_id]);
+                        $saldo->jumlah += $totalRefund;
+                        $saldo->save();
+
+                        // Catat transaksi saldo koin
+                        \App\Models\TransaksiSaldoKoin::create([
+                            'user_id'   => $transaksi->user_id,
+                            'jumlah'    => $totalRefund,
+                            'tipe'      => 'masuk',
+                            'deskripsi' => 'Refund pesanan multitenant #' . $transaksi->multitenant_id,
+                        ]);
+
+                        // Kembalikan voucher & cashback jika semua refund
+                        $transaksiDenganVoucher = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                            ->whereNotNull('voucher_id')
+                            ->first();
+
+                        if ($transaksiDenganVoucher && $transaksiDenganVoucher->voucher_id) {
+                            $voucher = $transaksiDenganVoucher->voucher;
+
+                            if ($voucher) {
+                                // Hapus catatan voucher
+                                CatatVoucher::where('transaksi_id', $transaksiDenganVoucher->id)->delete();
+
+                                // Kembalikan quantity voucher
+                                $voucher->increment('quantity');
+
+                                // Kembalikan quantity cashback (jika ada relasi)
+                                if ($voucher->cashback) {
+                                    $voucher->cashback->increment('quantity');
+                                }
+
+                                Log::info("🔁 Voucher #{$voucher->id} dikembalikan karena semua transaksi multitenant #{$transaksi->multitenant_id} refund.");
+                            }
+                        }
+
+                        // Kirim notifikasi ke user
+                        if (!empty($fcmUserToken)) {
+                            $firebases
+                                ->withNotification(
+                                    'Pesanan Multitenant Dibatalkan',
+                                    "Semua pesanan multitenant #{$transaksi->multitenant_id} telah dibatalkan. Saldo sebesar Rp " . number_format($totalRefund, 0, ',', '.') . " telah dikembalikan."
+                                )
+                                ->withData([
+                                    'title' => 'Pesanan Multitenant Dibatalkan',
+                                    'body'  => "Saldo Rp " . number_format($totalRefund, 0, ',', '.') . " telah dikembalikan ke akun Anda.",
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                                ])
+                                ->sendToFallback($fcmUserToken);
+                        }
+
+                        Log::info("Multitenant #{$transaksi->multitenant_id} seluruhnya telah dibatalkan. Total refund: {$totalRefund}");
+                    }
+                } else {
+                    // Tambahkan ke saldo koin user
+                    $saldo = \App\Models\SaldoKoin::firstOrCreate(['user_id' => $transaksi->user_id]);
+                    $saldo->jumlah += $transaksi->total;
+                    $saldo->save();
+
+                    // Catat transaksi saldo koin
+                    \App\Models\TransaksiSaldoKoin::create([
+                        'user_id'   => $transaksi->user_id,
+                        'jumlah'    => $transaksi->total,
+                        'tipe'      => 'masuk',
+                        'deskripsi' => 'Refund pesanan #' . $transaksi->id,
+                    ]);
+
+                    // Kirim notifikasi ke user
+                    if (!empty($fcmUserToken)) {
+                        $firebases
+                            ->withNotification(
+                                'Pesanan Dibatalkan',
+                                "Pesanan #{$transaksi->kode_pemesanan} telah dibatalkan. Saldo sebesar Rp " . number_format($transaksi->total, 0, ',', '.') . " telah dikembalikan."
+                            )
+                            ->withData([
+                                'title' => 'Pesanan Dibatalkan',
+                                'body'  => "Saldo Rp " . number_format($transaksi->total, 0, ',', '.') . " telah dikembalikan ke akun Anda.",
+                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                            ])
+                            ->sendToFallback($fcmUserToken);
+                    }
+                }
+
+                if ($transaksi->isPriority) {
+                    // Kirim FCM saldo kembalian
+                    if ($transaksi->driver_id == null) {
+                        $masbroTokens = User::role('masbro')
+                            // ->where('isOnline', 1)
+                            ->with('fcmTokens')
+                            ->get()
+                            ->flatMap(fn($user) => $user->fcmTokens->pluck('fcm_token'))
+                            ->filter()
+                            ->unique()
+                            ->values()
+                            ->toArray();
+
+                        $fcmMasbroToken = $masbroTokens;
+                        if (!empty($fcmMasbroToken)) {
+                            $firebases
+                                ->withNotification('Pesanan prioritas', "Salah satu pesanan prioritas  dibatalkan #{$transaksi->id}")
+                                ->withData([
+                                    'title' => 'Pesanan Prioritas',
+                                    'body' => "Salah satu pesanan prioritas  dibatalkan #{$transaksi->id}",
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                ])->sendToFallback($fcmMasbroToken);
+                            Log::info('Sending FCM to driver', ['tokens' => $fcmMasbroToken]);
+                        }
+                    } else {
+                        $masbroTokens = User::role('masbro')
+                            ->where('isOnline', 1)
+                            ->with('fcmTokens')
+                            ->get()
+                            ->flatMap(fn($user) => $user->fcmTokens->pluck('fcm_token'))
+                            ->filter()
+                            ->unique()
+                            ->values()
+                            ->toArray();
+
+                        $fcmMasbroToken = $masbroTokens;
+                        if (!empty($fcmMasbroToken)) {
+                            $firebases
+                                ->withNotification('Pesanan prioritas', "Salah satu pesanan prioritas  dibatalkan #{$transaksi->id}")
+                                ->withData([
+                                    'title' => 'Pesanan Prioritas',
+                                    'body' => "Salah satu pesanan prioritas  dibatalkan #{$transaksi->id}",
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                ])->sendToDriver($fcmMasbroToken);
+                            Log::info('Sending FCM to driver', ['tokens' => $fcmMasbroToken]);
+                        }
+                    }
                 }
 
                 DB::commit();
-                return ResponseApi::success(null, "Transaksi dibatalkan dan refund berhasil");
+                return ResponseApi::success(null, "Pesanan berhasil dibatalkan (refund_selesai)");
             } catch (\Throwable $e) {
-                $transaksi->status = 'refund_gagal';
-                $transaksi->save();
-
-                DB::commit(); // kita tetap commit perubahan status refund_gagal
+                DB::rollBack();
+                // $transaksi->status = 'refund_selesai';
+                // $transaksi->save();
                 Log::warning("Refund gagal: " . $e->getMessage());
                 return ResponseApi::error("Transaksi dibatalkan, tapi refund gagal. Silakan hubungi admin.");
             }
@@ -855,6 +1722,67 @@ class TransaksiController extends Controller
             Log::error("Gagal membatalkan transaksi: " . $th->getMessage());
             return ResponseApi::serverError();
         }
+    }
+
+    private function extraFee($totalItems)
+    {
+        $extraLimit = 10;
+        $costPerExtra = 500;
+
+        // Jika current items > 10, hanya kelebihan dari 10 yang kena extra fee
+        if ($totalItems > $extraLimit) {
+            return ($totalItems - $extraLimit) * $costPerExtra;
+        }
+
+        return 0;
+    }
+
+    private function extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems)
+    {
+        $extraLimit = 10;
+        $costPerExtra = 500;
+
+        // 20 20 (cancel)
+        if ($cancelItems > $extraLimit && $activeItems > $extraLimit && $totalItems > $extraLimit) {
+            return ($cancelItems) * $costPerExtra;
+        }
+
+        // gabisa
+        // if ($cancelItems > $extraLimit && $activeItems > $extraLimit && $totalItems <= $extraLimit) {
+        //     return ($cancelItems) * $costPerExtra;
+        // }
+
+        // gabisa
+        // if ($cancelItems > $extraLimit && $activeItems <= $extraLimit && $totalItems <= $extraLimit) {
+        //     return ($cancelItems) * $costPerExtra;
+        // }
+
+        // 3 (7 cancel)
+        // if ($cancelItems <= $extraLimit && $activeItems <= $extraLimit && $totalItems <= $extraLimit) {
+        //     return ($cancelItems) * $costPerExtra;
+        // }
+
+        // 12 (7 cancel)
+        if ($cancelItems <= $extraLimit && $activeItems > $extraLimit && $totalItems > $extraLimit) {
+            return ($cancelItems) * $costPerExtra;
+        }
+
+        // 7 (7 cancel)
+        if ($cancelItems <= $extraLimit && $activeItems <= $extraLimit && $totalItems > $extraLimit) {
+            return ($cancelItems) * $costPerExtra;
+        }
+
+        // 7 (12 cancel)
+        if ($cancelItems > $extraLimit && $activeItems <= $extraLimit && $totalItems > $extraLimit) {
+            return (($activeItems + $cancelItems) - $extraLimit) * $costPerExtra;
+        }
+
+        // gabisa
+        // if ($cancelItems <= $extraLimit && $activeItems > $extraLimit && $totalItems <= $extraLimit) {
+        //     return (($activeItems + $cancelItems) - $extraLimit) * $costPerExtra;
+        // }        
+
+        return 0;
     }
 
     public function generateKodePemesanan(Transaksi $transaksi)
@@ -869,6 +1797,21 @@ class TransaksiController extends Controller
             Log::info("Transaksi setelah save: ", $transaksi->toArray());
         } catch (Exception $e) {
             Log::error("Gagal membuat kode pemesanan: " . $e->getMessage());
+        }
+    }
+
+    public function generateVerificationCode(Transaksi $transaksi)
+    {
+        try {
+            $verificationCode = TransaksiCek::generateVerificationCode($transaksi->id);
+            Log::info("Verification code generated: " . $verificationCode);
+
+            $transaksi->verification_code = $verificationCode;
+            $transaksi->save();
+
+            Log::info("Transaksi setelah save: ", $transaksi->toArray());
+        } catch (Exception $e) {
+            Log::error("Gagal membuat verification code: " . $e->getMessage());
         }
     }
 
@@ -1616,6 +2559,7 @@ class TransaksiController extends Controller
                         'status_bayar' => 'settlement',
                         'tgl_bayar' => $json['settlement_time'] ?? now()
                     ]);
+                    Log::info("Checkout ID {$checkout->id} sudah dibayar. Status checkout ganti ke settlement.");
 
                     // Update Transaksi → pesanan_masuk
                     $transaksi = Transaksi::find($checkout->transaksi_id);
@@ -1623,18 +2567,67 @@ class TransaksiController extends Controller
                         $transaksi->status = 'pesanan_masuk';
                         $transaksi->save();
 
-                        // 🚀 Notifikasi ke tenant
-                        $tenantUser = User::with('fcmTokens')->find($transaksi->tenant_id);
-                        $fcmTenantToken = $tenantUser ? $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
-                        if (!empty($fcmTenantToken)) {
-                            $firebases = new Firebases();
-                            $firebases
-                                ->withNotification('Pesanan Masuk', 'Ada pesanan baru, segera proses!')
-                                ->withData([
-                                    'title' => 'Pesanan Masuk',
-                                    'body' => 'Ada pesanan baru yang masuk! Silakan cek aplikasi untuk detailnya.',
-                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                                ])->sendToTenant($fcmTenantToken);
+                        if ($transaksi->multitenant_id) {
+                            TransaksiSaldoKoin::create([
+                                'user_id' => $transaksi->user_id,
+                                'jumlah' => -$checkout->total_bayar_user,
+                                'tipe' => 'keluar',
+                                'deskripsi' => 'Pembayaran pesanan (QRIS) #' . $transaksi->id,
+                            ]);
+                        } else {
+                            TransaksiSaldoKoin::create([
+                                'user_id' => $transaksi->user_id,
+                                'jumlah' => -$transaksi->total,
+                                'tipe' => 'keluar',
+                                'deskripsi' => 'Pembayaran pesanan (QRIS) #' . $transaksi->id,
+                            ]);
+                        }
+
+
+                        if ($transaksi->multitenant_id) {
+
+                            $relatedTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                                ->where('id', '!=', $transaksi->id)       // exclude transaksi utama
+                                ->get();
+
+                            foreach ($relatedTransaksi as $t) {
+                                if ($t->status === 'pending') {
+                                    $t->status = 'pesanan_masuk';
+                                    $t->save();
+                                }
+
+                                // 🔔 Notifikasi ke tenant terkait
+                                $tenantUser = User::with('fcmTokens')->find($t->tenant_id);
+                                $tenantTokens = $tenantUser ? $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+
+                                if (!empty($tenantTokens)) {
+                                    $firebases = new Firebases();
+                                    $firebases
+                                        ->withNotification('Pesanan Masuk', 'Ada pesanan baru, segera proses!')
+                                        ->withData([
+                                            'title' => 'Pesanan Masuk',
+                                            'body' => 'Ada pesanan baru multitenant, silakan cek detailnya.',
+                                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                        ])->sendToTenant($tenantTokens);
+                                }
+                            }
+                        }
+
+                        if ($transaksi->multitenant_id == null) { {
+                                // 🚀 Notifikasi ke tenant
+                                $tenantUser = User::with('fcmTokens')->find($transaksi->tenant_id);
+                                $fcmTenantToken = $tenantUser ? $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                                if (!empty($fcmTenantToken)) {
+                                    $firebases = new Firebases();
+                                    $firebases
+                                        ->withNotification('Pesanan Masuk', 'Ada pesanan baru, segera proses!')
+                                        ->withData([
+                                            'title' => 'Pesanan Masuk',
+                                            'body' => 'Ada pesanan baru yang masuk! Silakan cek aplikasi untuk detailnya.',
+                                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                        ])->sendToTenant($fcmTenantToken);
+                                }
+                            }
                         }
 
                         $user = User::with('fcmTokens')->find($transaksi->user_id);
@@ -1650,10 +2643,64 @@ class TransaksiController extends Controller
                                 ])->sendToFallback($fcmUserToken);
                         }
                     }
+
+                    // Update Cashier
+                    $cashier = Cashier::find($checkout->cashier_id);
+                    if ($cashier && $cashier->status === 'pending') {
+                        $cashier->status = 'pesanan_diproses';
+                        $cashier->save();
+                        Log::info("Cashier ID {$cashier->id} sudah dibayar. Status cashier ganti ke pesanan_diproses.");
+
+                        $tenantUser = User::with('fcmTokens')->find($cashier->user_id);
+
+                        $fcmTenantToken = [];
+
+                        if (!empty($cashier->fcm_token)) {
+                            // 🔹 Kirim ke 1 device (token di cashiers)
+                            $fcmTenantToken = [$cashier->fcm_token];
+                        } else {
+                            // 🔹 Kirim ke semua device user
+                            $fcmTenantToken = $tenantUser->fcmTokens
+                                ->pluck('fcm_token')
+                                ->filter()
+                                ->unique()
+                                ->toArray();
+                        }
+
+                        if (!empty($fcmTenantToken)) {
+                            $firebases = new Firebases();
+                            $firebases
+                                ->withNotification(
+                                    "Pesanan KASIR-{$cashier->order_tenant} Berhasil Dibayar",
+                                    "Pesanan {$cashier->id}, segera diproses!"
+                                )
+                                ->withData([
+                                    'title' => "Pesanan KASIR-{$cashier->order_tenant} Berhasil Dibayar",
+                                    'body' => "Pesanan {$cashier->id}, segera diproses!",
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                ])
+                                ->sendToTenant($fcmTenantToken);
+                        }
+                    }
                 } elseif ($transactionStatus === 'pending') {
                     $checkout->update(['status_bayar' => 'pending']);
                 } elseif (in_array($transactionStatus, ['deny', 'cancel', 'expire'])) {
                     $checkout->update(['status_bayar' => 'failed']);
+                    Log::info("Checkout ID {$checkout->id} status updated to failed by Midtrans ({$transactionStatus}).");
+
+                    // Update transaksi utama -> gagal_bayar (jika pending)
+                    $transaksi = Transaksi::find($checkout->transaksi_id);
+                    if ($transaksi && $transaksi->status === 'pending') {
+                        $transaksi->status = 'gagal_bayar';
+                        $transaksi->save();
+                    }
+
+                    // Jika multitenant -> update semua related transaksi pending -> gagal_bayar
+                    if ($transaksi && $transaksi->multitenant_id) {
+                        Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                            ->where('status', 'pending')
+                            ->update(['status' => 'gagal_bayar']);
+                    }
                 } else {
                     $checkout->update(['status_bayar' => 'unknown']);
                 }
@@ -1859,37 +2906,43 @@ class TransaksiController extends Controller
             $dateStart = $startOfMonth;
             $dateEnd   = $endOfMonth;
         } elseif ($year && $month && $date) {
-            // mode daily → ambil minggu dari tanggal yang dipilih
+            // =========================
+            // MODE DAILY (DENGAN WINDOW 06:00–05:59)
+            // =========================
             $filterDate = Carbon::create($year, $month, $date);
-
-            // tentukan rentang minggu (Senin - Minggu) berdasarkan tanggal itu
             $startOfWeek = $filterDate->copy()->startOfWeek(Carbon::MONDAY);
             $endOfWeek   = $filterDate->copy()->endOfWeek(Carbon::SUNDAY);
 
             $dateStart = $startOfWeek;
             $dateEnd   = $endOfWeek;
 
-            // looping setiap hari dalam minggu itu
             $period = CarbonPeriod::create($startOfWeek, $endOfWeek);
 
+            // Buat mapping label & window
+            $labelDateMap = [];
+            $labelWindowMap = [];
+
             foreach ($period as $day) {
-                $dayStart = $day->copy()->startOfDay();
-                $dayEnd   = $day->copy()->endOfDay();
+                $dayName = $day->locale('id')->translatedFormat('l');
+                $dayDate = $day->format('d-m-Y');
 
-                $labels[] = $day->locale('id')->translatedFormat('l'); // Senin, Selasa, dst (bahasa Indonesia)
+                $labelDateMap[$dayName] = $dayDate;
 
-                $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
-                    $q->where('user_id', $tenantId);
-                })
+                // window 06:00 hari sebelumnya - 05:59 hari ini
+                $windowStart = $day->copy()->subDay()->setTime(6, 0, 0);
+                $windowEnd   = $day->copy()->setTime(5, 59, 59);
+                $labelWindowMap[$dayName] = [$windowStart, $windowEnd];
+
+                $labels[] = $dayName;
+
+                $selesaiData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
                     ->where('status', 'selesai')
-                    ->whereBetween('updated_at', [$dayStart, $dayEnd])
+                    ->whereBetween('updated_at', [$windowStart, $windowEnd])
                     ->count();
 
-                $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
-                    $q->where('user_id', $tenantId);
-                })
+                $refundData[] = Transaksi::whereHas('listTransaksiDetail.menus.tenants', fn($q) => $q->where('user_id', $tenantId))
                     ->where('status', 'refund_selesai')
-                    ->whereBetween('updated_at', [$dayStart, $dayEnd])
+                    ->whereBetween('updated_at', [$windowStart, $windowEnd])
                     ->count();
             }
         } else {
@@ -1913,10 +2966,10 @@ class TransaksiController extends Controller
         $transaksiQuery = Transaksi::whereHas('listTransaksiDetail.menus.tenants', function ($q) use ($tenantId) {
             $q->where('user_id', $tenantId);
         })
-        ->whereIn('status', ['selesai', 'refund_selesai'])
-        ->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
-            $q->whereBetween('updated_at', [$dateStart, $dateEnd]);
-        })
+            ->whereIn('status', ['selesai', 'refund_selesai'])
+            ->when($dateStart && $dateEnd, function ($q) use ($dateStart, $dateEnd) {
+                $q->whereBetween('updated_at', [$dateStart, $dateEnd]);
+            })
             ->orderBy('updated_at', 'asc')
             ->get();
 
@@ -1924,11 +2977,15 @@ class TransaksiController extends Controller
             $harga = max(0, (int)$trx->total - (int)($trx->ongkos_kirim ?? 0));
             $bersih = $trx->status === 'selesai' ? $harga - (0.1 * $harga) : 0;
 
-            // default null
+            $original = $trx->updated_at->copy()->timezone('Asia/Jakarta');
+            $hour = (int)$original->format('H');
+
+            // default value
             $labelTrx = null;
+            $labelTanggal = $original->copy();
 
             if (!empty($weekRanges)) {
-                // mode monthly → cari minggu transaksi
+                // 🗓️ Mode monthly → cari minggu transaksi
                 foreach ($weekRanges as $label => [$start, $end]) {
                     if ($trx->updated_at->between($start, $end)) {
                         $labelTrx = $label;
@@ -1936,21 +2993,43 @@ class TransaksiController extends Controller
                     }
                 }
             } elseif ($year && $month && $date) {
-                // mode daily → pakai nama hari
-                $labelTrx = $trx->updated_at->locale('id')->translatedFormat('l');
+                // 🌙 mode daily (hari aktif = mulai dari jam 06:00 pagi sampai 05:59 besoknya)
+                if ($hour >= 6) {
+                    // Semua jam 06:00 ke atas → dianggap hari berikutnya
+                    $labelTanggal = $original->copy()->addDay();
+                } else {
+                    // Jam 00:00 - 05:59 → tetap hari itu
+                    $labelTanggal = $original->copy();
+                }
+
+                // Nama hari sesuai label_tanggal
+                $labelTrx = $labelTanggal->locale('id')->translatedFormat('l');
             } else {
-                // fallback (yearly / all time) → bisa pakai bulan atau null
+                // 📅 Mode yearly / all time → pakai nama bulan
                 $labelTrx = $trx->updated_at->locale('id')->translatedFormat('F');
             }
 
-            $transaksiList[] = [
-                'id'                => $trx->id,
-                'status'            => $trx->status,
-                'harga'             => $harga,
-                'pendapatan_bersih' => $bersih,
-                'tanggal'           => $trx->updated_at->format('d-m-Y H:i:s'),
-                'label'             => $labelTrx,
-            ];
+            if ($year && $month && $date) {
+                $transaksiList[] = [
+                    'id'                => $trx->id,
+                    'status'            => $trx->status,
+                    'harga'             => $harga,
+                    'pendapatan_bersih' => $bersih,
+                    'tanggal'           => $trx->updated_at->format('d-m-Y H:i:s'),
+                    'label'             => $labelTrx,
+                    'label_tanggal'     => $labelTanggal->format('d-m-Y'),
+                ];
+            } else {
+                $transaksiList[] = [
+                    'id'                => $trx->id,
+                    'status'            => $trx->status,
+                    'harga'             => $harga,
+                    'pendapatan_bersih' => $bersih,
+                    'tanggal'           => $trx->updated_at->format('d-m-Y H:i:s'),
+                    'label'             => $labelTrx,
+                    'label_tanggal'     => $labelTanggal->format('d-m-Y'),
+                ];
+            }
         }
 
         // total pendapatan bersih
@@ -1969,23 +3048,45 @@ class TransaksiController extends Controller
             $totalPendapatan += $harga - (0.1 * $harga);
         }
 
-        return response()->json([
-            'labels'            => $labels,
-            'selesaiData'       => array_map('intval', $selesaiData),
-            'refundData'        => array_map('intval', $refundData),
-            'totalSelesai'      => intval(array_sum($selesaiData)),
-            'totalRefund'       => intval(array_sum($refundData)),
-            'totalPendapatan'   => intval($totalPendapatan),
-            'transaksi' => collect($transaksiList)->map(function ($trx) {
-                return [
-                    'id'                => intval($trx['id']),
-                    'status'            => $trx['status'],
-                    'harga'             => intval($trx['harga']),
-                    'pendapatan_bersih' => intval($trx['pendapatan_bersih']),
-                    'tanggal'           => $trx['tanggal'],
-                    'label'             => $trx['label'],
-                ];
-            }),
-        ]);
+        if ($year && $month && $date) {
+            return response()->json([
+                'labels'            => $labels,
+                'selesaiData'       => array_map('intval', $selesaiData),
+                'refundData'        => array_map('intval', $refundData),
+                'totalSelesai'      => intval(array_sum($selesaiData)),
+                'totalRefund'       => intval(array_sum($refundData)),
+                'totalPendapatan'   => intval($totalPendapatan),
+                'transaksi' => collect($transaksiList)->map(function ($trx) {
+                    return [
+                        'id'                => intval($trx['id']),
+                        'status'            => $trx['status'],
+                        'harga'             => intval($trx['harga']),
+                        'pendapatan_bersih' => intval($trx['pendapatan_bersih']),
+                        'tanggal'           => $trx['tanggal'],
+                        'label'             => $trx['label'],
+                        'label_tanggal'     => $trx['label_tanggal'],
+                    ];
+                }),
+            ]);
+        } else {
+            return response()->json([
+                'labels'            => $labels,
+                'selesaiData'       => array_map('intval', $selesaiData),
+                'refundData'        => array_map('intval', $refundData),
+                'totalSelesai'      => intval(array_sum($selesaiData)),
+                'totalRefund'       => intval(array_sum($refundData)),
+                'totalPendapatan'   => intval($totalPendapatan),
+                'transaksi' => collect($transaksiList)->map(function ($trx) {
+                    return [
+                        'id'                => intval($trx['id']),
+                        'status'            => $trx['status'],
+                        'harga'             => intval($trx['harga']),
+                        'pendapatan_bersih' => intval($trx['pendapatan_bersih']),
+                        'tanggal'           => $trx['tanggal'],
+                        'label'             => $trx['label'],
+                    ];
+                }),
+            ]);
+        }
     }
 }

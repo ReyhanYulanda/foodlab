@@ -14,6 +14,7 @@ class Checkout extends Model
     protected $fillable = [
         'user_id',
         'transaksi_id',
+        'cashier_id',
         'nominal',
         'biaya_midtrans',
         'biaya_ubisma',
@@ -36,6 +37,11 @@ class Checkout extends Model
     public function transaksi()
     {
         return $this->belongsTo(Transaksi::class);
+    }
+
+    public function cashier()
+    {
+        return $this->belongsTo(Cashier::class);
     }
 
     public function user()

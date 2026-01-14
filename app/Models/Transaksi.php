@@ -23,16 +23,19 @@ class Transaksi extends Model
         'ongkos_kirim',
         'biaya_layanan',
         'isAntar',
+        'isPriority',
         'metode_pembayaran',
         'tenant_id',
         'catatan',
         'driver_id',
         'kode_pemesanan',
+        'verification_code',
         'catatan_lokasi_pengantaran',
         'catatan_penolakan',
         'bukti_pengantaran',
         'cashback_amount',
-        'voucher_id'
+        'voucher_id',
+        'multitenant_id'
     ];
 
     protected $appends = ['sub_total', 'gedung', 'nama_ruangan', 'nama_pembeli', 'nama_tenant', 'order_id', 'nama_driver', 'foto_driver'];
@@ -72,6 +75,11 @@ class Transaksi extends Model
     public function getSubTotalAttribute()
     {
         return (int)$this->listTransaksiDetail()->sum(DB::raw('harga'));
+    }
+
+    public function getExtraTotalAttribute()
+    {
+        return (int)$this->listTransaksiDetail()->sum(DB::raw('harga * jumlah'));
     }
 
     public function getGedungAttribute()

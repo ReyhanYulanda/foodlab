@@ -30,14 +30,13 @@ class TenantOrderController extends Controller
         $user = $request->user();
 
         if (!$user->can('read order tenant')) {
-            return ResponseApi::forbidden('tidak memiliki akses');  
+            return ResponseApi::forbidden('tidak memiliki akses');
         }
 
         try {
             $dataPesanan = $this->tenantOrderService->getDataPesanan($user->id, $request->status);
 
             return ResponseApi::success($dataPesanan, "Berhasil mengambil data");
-
         } catch (Throwable $th) {
             Log::error($th->getMessage());
             return ResponseApi::serverError();
@@ -53,5 +52,16 @@ class TenantOrderController extends Controller
         }
 
         return $this->tenantOrderService->updateStatusPesanan($request, $firebases, $id);
+    }
+
+    public function updateCashier(Request $request, Firebases $firebases, $id)
+    {
+        $user = $request->user();
+
+        if (!$user->can('update order tenant')) {
+            return ResponseApi::forbidden('tidak memiliki akses');
+        }
+
+        return $this->tenantOrderService->updateStatusPesananCashier($request, $firebases, $id);
     }
 }

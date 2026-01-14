@@ -22,6 +22,7 @@ class PesananController extends Controller
     {
         $user = $request->user();
 
+        // 🧱 Cek hak akses
         if (!$user->can('read pengantaran')) {
             return response()->json([
                 'status' => 'failed',
@@ -29,6 +30,7 @@ class PesananController extends Controller
             ], 403);
         }
 
+        // 🧾 Validasi input
         $validator = Validator::make($request->all(), [
             'status' => 'required|in:diantar,selesai,siap_diantar',
             'gedung' => 'nullable',
@@ -42,20 +44,166 @@ class PesananController extends Controller
         }
 
         try {
-            $transaksi = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user']);
+            // 🔍 Base Query
+            $transaksiQuery = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user'])
+                ->where('status', '!=', 'refund_selesai');
 
+            // ⚙️ Filter berdasarkan status
             if ($request->has('status')) {
-                if (in_array($request->status, ['diantar', 'selesai'])) {
-                    $transaksi = $transaksi->where('driver_id', $user->id);
+
+                // === CASE: siap_diantar ===
+                if ($request->status === 'siap_diantar') {
+                    $transaksiQuery = $transaksiQuery->where(function ($q) use ($user) {
+                        $q->where(function ($inner) use ($user) {
+                            // Transaksi siap_diantar TANPA driver
+                            $inner->where('status', 'siap_diantar')
+                                ->whereNull('driver_id');
+                        })
+                            ->orWhere(function ($inner) use ($user) {
+                                // Transaksi siap_diantar dengan driver_id = user saat ini
+                                $inner->where('status', 'siap_diantar')
+                                    ->where('driver_id', $user->id);
+                            })
+                            ->orWhere(function ($inner) use ($user) {
+                                // Priority order
+                                $inner->where('isPriority', 1)
+                                    ->whereIn('status', ['pesanan_masuk', 'pesanan_diproses'])
+                                    ->where(function ($sub2) use ($user) {
+                                        $sub2->whereNull('driver_id')
+                                            ->orWhere('driver_id', $user->id);
+                                    });
+                            });
+                    })
+                        // Filter multitenant: hanya ambil jika semua anggota grup belum punya driver
+                        // atau user saat ini adalah driver untuk grup tersebut
+                        ->where(function ($q) use ($user) {
+                            $q->whereNull('multitenant_id') // transaksi tunggal
+                                ->orWhere(function ($or) use ($user) {
+                                    // Multitenant yang belum ada drivernya sama sekali
+                                    $or->whereNotIn('multitenant_id', function ($sub) {
+                                        $sub->select('multitenant_id')
+                                            ->from('transaksi')
+                                            ->whereNotNull('driver_id')
+                                            ->whereNotNull('multitenant_id')
+                                            ->whereIn('status', ['siap_diantar', 'diantar']);
+                                    });
+                                })
+                                ->orWhere(function ($or) use ($user) {
+                                    // Multitenant yang user saat ini adalah drivernya
+                                    $or->whereIn('multitenant_id', function ($sub) use ($user) {
+                                        $sub->select('multitenant_id')
+                                            ->from('transaksi')
+                                            ->where('driver_id', $user->id)
+                                            ->whereNotNull('multitenant_id')
+                                            ->whereIn('status', ['siap_diantar', 'diantar']);
+                                    });
+                                });
+                        })
+                        // Exclude multitenant yang sudah diantar/selesai
+                        ->where(function ($q) {
+                            $q->whereNull('multitenant_id')
+                                ->orWhereNotIn('multitenant_id', function ($sub) {
+                                    $sub->select('multitenant_id')
+                                        ->from('transaksi')
+                                        ->whereIn('status', ['diantar', 'selesai'])
+                                        ->whereNotNull('multitenant_id');
+                                });
+                        });
                 }
-                $transaksi = $transaksi->where('status', $request->status);
+
+                // === CASE: diantar / selesai ===
+                elseif (in_array($request->status, ['diantar', 'selesai'])) {
+                    $transaksiQuery = $transaksiQuery->where(function ($q) use ($user, $request) {
+                        $q->where(function ($inner) use ($user, $request) {
+                            $inner->where('driver_id', $user->id)
+                                ->where('status', $request->status);
+                        })
+                            ->orWhere(function ($inner) use ($user, $request) {
+                                $inner->whereIn('multitenant_id', function ($sub) use ($user, $request) {
+                                    $sub->select('multitenant_id')
+                                        ->from('transaksi')
+                                        ->where('driver_id', $user->id)
+                                        ->where('status', $request->status);
+                                });
+                            });
+                    });
+                }
+
+                // === CASE: status lainnya (fallback)
+                else {
+                    $transaksiQuery = $transaksiQuery->where('status', $request->status);
+                }
             }
 
+            // 🏢 Optional filter gedung
             if ($request->has('gedung')) {
-                $transaksi = $transaksi->where('gedung', $request->gedung);
+                $transaksiQuery = $transaksiQuery->where('gedung', $request->gedung);
             }
 
-            $transaksi = $transaksi->get();
+            // 🚀 Jalankan query utama
+            $transaksi = $transaksiQuery->get();
+
+            // Filter tambahan untuk mengecualikan transaksi multitenant
+            // yang sudah punya driver berbeda dari user saat ini
+            $transaksi = $transaksi->filter(function ($trx) use ($user) {
+                // Jika transaksi ini sudah punya driver yang berbeda
+                if ($trx->driver_id && $trx->driver_id != $user->id) {
+                    return false;
+                }
+
+                // Jika ini multitenant, cek apakah ada anggota lain yang sudah punya driver berbeda
+                if ($trx->multitenant_id) {
+                    $adaDriverLain = Transaksi::where('multitenant_id', $trx->multitenant_id)
+                        ->whereNotNull('driver_id')
+                        ->where('driver_id', '!=', $user->id)
+                        ->exists();
+
+                    if ($adaDriverLain) {
+                        return false;
+                    }
+                }
+
+                return true;
+            })->values();
+
+            // 🔁 Filter untuk mengecualikan transaksi yang masih ada pesanan_masuk non-prioritas
+            $transaksi = $transaksi->filter(function ($trx) {
+                if (!$trx->multitenant_id) return true;
+
+                $adaPesananMasuk = Transaksi::where('multitenant_id', $trx->multitenant_id)
+                    ->where('isPriority', 0)
+                    ->where('status', 'pesanan_masuk')
+                    ->exists();
+
+                if ($adaPesananMasuk) {
+                    return false;
+                }
+
+                return true;
+            })->values();
+
+            // 🔁 Ambil semua multitenant_id yang muncul
+            $multiIds = $transaksi->pluck('multitenant_id')->filter()->unique();
+
+            // 🔁 Jika ada grup multitenant, ambil semua anggota grupnya
+            if ($multiIds->isNotEmpty()) {
+                $extraTransaksi = Transaksi::with(['listTransaksiDetail.menus.tenants', 'user'])
+                    ->whereIn('multitenant_id', $multiIds)
+                    ->where('status', '!=', 'refund_selesai')
+                    ->get();
+
+                $transaksi = $transaksi->merge($extraTransaksi)->unique('id')->values();
+
+                // Filter sekali lagi untuk pastikan tidak ada driver lain
+                $transaksi = $transaksi->filter(function ($trx) use ($user) {
+                    // Jika transaksi ini sudah punya driver yang berbeda
+                    if ($trx->driver_id && $trx->driver_id != $user->id) {
+                        return false;
+                    }
+
+                    return true;
+                })->values();
+            }
 
             return response()->json([
                 "status" => "success",
@@ -92,7 +240,7 @@ class PesananController extends Controller
 
         // validasi semua field
         $validator = Validator::make($request->all(), [
-            'status' => 'required|in:diantar,selesai,siap_diantar',
+            'status' => 'required|in:pesanan_diproses,diantar,selesai,siap_diantar',
         ]);
 
         if ($validator->fails()) {
@@ -109,18 +257,6 @@ class PesananController extends Controller
             ], 403);
         }
 
-        // if ($request->status === 'selesai') {
-        //     if ($request->hasFile('bukti_pengantaran')) {
-        //         $file = $request->file('bukti_pengantaran');
-        //         $path = $file->store('bukti_pengantaran', 'public');
-        //     } else {
-        //         return response()->json([
-        //             "status" => "Bad Request",
-        //             "message" => "Upload bukti pengantaran"
-        //         ], 400);
-        //     }
-        // }
-
         try {
             $transaksi = Transaksi::find($transaksiId);
 
@@ -129,6 +265,493 @@ class PesananController extends Controller
                     "status" => "Not Found",
                     "message" => "Transaksi tidak ditemukan"
                 ], 404);
+            }
+            if ($status === 'pesanan_diproses') {
+                if ($transaksi->isPriority == 1) {
+                    if ($transaksi->driver_id === null) {
+                        $transaksiAktifDriver = Transaksi::where('driver_id', $user->id)
+                            ->whereIn('status', ['diantar', 'siap_diantar'])
+                            ->count();
+
+                        if ($transaksiAktifDriver >= 5) {
+                            return response()->json([
+                                "status" => "failed",
+                                "message" => "Maksimal 5 pesanan aktif. Selesaikan dulu pengantaran"
+                            ], 400);
+                        }
+                    }
+                    if ($transaksi->status === 'pesanan_masuk' || $transaksi->status === 'pesanan_diproses') {
+                        if (in_array($transaksi->status, ['refund_selesai', 'selesai'])) {
+                            return response()->json([
+                                "status" => "forbidden",
+                                "message" => "Pesanan sudah selesai atau direfund, tidak bisa diambil lagi",
+                            ], 403);
+                        }
+
+                        if ($transaksi->status === 'pesanan_masuk' && $request->status === 'pesanan_diproses') {
+                            // assign driver id
+                            if ($transaksi->driver_id === null) {
+                                $relatedTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
+                                if ($transaksi->multitenant_id) {
+                                    foreach ($relatedTransaksi as $t) {
+                                        $t->driver_id = $user->id;
+                                        $t->save();
+                                    }
+                                } else {
+                                    $transaksi->driver_id = $user->id;
+                                    $transaksi->save();
+                                }
+                                // send notification
+                                $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+                                $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                                $firebases
+                                    ->withNotification('Pesanan Telah mendapatkan driver', "Pesanan {$transaksi->id} telah mendapatkan driver. Mohon tunggu tenant menyiapkan pesanan!")
+                                    ->withData([
+                                        'title' => 'Pesanan Telah mendapatkan driver',
+                                        'body' => "Pesanan {$transaksi->id} telah mendapatkan driver. Mohon tunggu tenant menyiapkan pesanan!",
+                                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                    ])->sendToFallback($fcmUserToken);
+
+                                return response()->json([
+                                    "status" => "success",
+                                    "message" => "Driver berhasil ditetapkan ke pesanan prioritas tanpa mengubah status",
+                                    "data" => $transaksi
+                                ]);
+                            }
+                            if ($transaksi->driver_id !== null) {
+                                if ($transaksi->status === 'pesanan_diproses' && $request->status === 'pesanan_diproses') { {
+                                        return response()->json([
+                                            "status" => "forbidden",
+                                            "message" => "Pesanan sudah diproses tenant",
+                                        ], 403);
+                                    }
+                                }
+                                if ($transaksi->driver_id !== $user->id) {
+                                    return response()->json([
+                                        "status" => "forbidden",
+                                        "message" => "Pesanan prioritas ini sudah diambil oleh driver lain",
+                                    ], 403);
+                                }
+                                $transaksi->status = 'pesanan_diproses';
+                                $transaksi->save();
+
+                                $detail = $transaksi->listTransaksiDetail()
+                                    ->with('menus.tenants.pemilik.fcmTokens')
+                                    ->first();
+
+                                $pemilikUser = optional($detail->menus->tenants)->pemilik ?? null;
+
+                                $fcmTenantToken = $pemilikUser
+                                    ? $pemilikUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray()
+                                    : [];
+
+                                if (!empty($fcmTenantToken)) {
+                                    $firebases
+                                        ->withNotification('Pesanan Prioritas', "Driver telah mengganti status pesanan {$transaksi->id} ke diproses!")
+                                        ->withData([
+                                            'title' => 'Pesanan Prioritas',
+                                            'body' => "Driver telah mengganti status pesanan {$transaksi->id} ke diproses!",
+                                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                        ])
+                                        ->sendToTenant($fcmTenantToken);
+                                }
+                            }
+                            $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+                            $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                            $firebases
+                                ->withNotification('Pesanan sedang diproses oleh tenant', "Pesanan {$transaksi->id} sedang diproses oleh tenant. Mohon tunggu tenant menyiapkan pesanan!")
+                                ->withData([
+                                    'title' => 'Pesanan sedang diproses oleh tenant',
+                                    'body' => "Pesanan {$transaksi->id} sedang diproses oleh tenant. Mohon tunggu tenant menyiapkan pesanan!",
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                ])->sendToFallback($fcmUserToken);
+
+                            return response()->json([
+                                "status" => "success",
+                                "message" => "Driver berhasil mengubah status pesanan masuk ke pesanan diproses",
+                                "data" => $transaksi,
+                            ]);
+                        }
+
+                        if ($transaksi->driver_id !== $user->id) {
+                            return response()->json([
+                                "status" => "forbidden",
+                                "message" => "Pesanan prioritas ini sudah diambil oleh driver lain",
+                            ], 403);
+                        }
+
+                        return response()->json([
+                            "status" => "success",
+                            "message" => "Pesanan prioritas sudah Anda ambil sebelumnya",
+                        ]);
+                    }
+                    // if ($transaksi->status === 'siap_diantar') {
+                    //     $transaksi->driver_id = $user->id;
+                    //     $transaksi->status = 'diantar';
+                    //     $transaksi->save();
+
+                    //     $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+                    //     $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                    //     $firebases
+                    //         ->withNotification('Pesanan Telah mendapatkan driver', "Pesanan {$transaksi->id} telah mendapatkan driver. Driver akan menuju tempat pengantaran!")
+                    //         ->withData([
+                    //             'title' => 'Pesanan Telah mendapatkan driver',
+                    //             'body' => "Pesanan {$transaksi->id} telah mendapatkan driver. Driver akan menuju tempat pengantaran!",
+                    //             'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                    //         ])->sendToFallback($fcmUserToken);
+
+                    //     return response()->json([
+                    //         "status" => "success",
+                    //         "message" => "Driver berhasil ditetapkan ke pesanan prioritas",
+                    //         "data" => $transaksi
+                    //     ]);
+                    // }
+                }
+            }
+            if ($status === 'diantar') {
+                // Jika pesanan prioritas
+                if ($transaksi->isPriority == 1) {
+                    if ($transaksi->driver_id === null) {
+                        $transaksiAktifDriver = Transaksi::where('driver_id', $user->id)
+                            ->whereIn('status', ['diantar', 'siap_diantar'])
+                            ->count();
+
+                        if ($transaksiAktifDriver >= 5) {
+                            return response()->json([
+                                "status" => "failed",
+                                "message" => "Maksimal 5 pesanan aktif. Selesaikan dulu pengantaran"
+                            ], 400);
+                        }
+                    }
+                    if ($transaksi->status === 'pesanan_diproses' & $request->status === 'diantar' & $transaksi->driver_id === null) {
+                        if ($transaksi->multitenant_id) {
+                            $relatedTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
+                            foreach ($relatedTransaksi as $t) {
+                                $t->driver_id = $user->id;
+
+                                if ($t->status === 'siap_diantar') {
+                                    $t->status = 'diantar';
+                                }
+
+                                $t->save();
+                            }
+                        } else {
+                            $transaksi->driver_id = $user->id;
+                            $transaksi->save();
+                        }
+
+                        $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+                        $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                        $firebases
+                            ->withNotification('Pesanan berhasil mendapatkan driver', "Pesanan {$transaksi->id} berhasil mendapatkan driver.")
+                            ->withData([
+                                'title' => 'Pesanan berhasil mendapatkan driver',
+                                'body' => "Pesanan {$transaksi->id} berhasil mendapatkan driver.",
+                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                            ])->sendToFallback($fcmUserToken);
+
+                        return response()->json([
+                            "status" => "success",
+                            "message" => "Driver berhasil terassign ke pesanan prioritas",
+                            "data" => $transaksi
+                        ]);
+                    }
+                    if ($transaksi->status === 'pesanan_masuk' & $request->status === 'diantar' & $transaksi->driver_id === null) {
+                        if ($transaksi->multitenant_id) {
+                            $relatedTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
+                            foreach ($relatedTransaksi as $t) {
+                                $t->driver_id = $user->id;
+
+                                if ($t->status === 'siap_diantar') {
+                                    $t->status = 'diantar';
+                                }
+
+                                $t->save();
+                            }
+                        } else {
+                            $transaksi->driver_id = $user->id;
+                            $transaksi->save();
+                        }
+
+                        $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+                        $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                        $firebases
+                            ->withNotification('Pesanan berhasil mendapatkan driver', "Pesanan {$transaksi->id} berhasil mendapatkan driver.")
+                            ->withData([
+                                'title' => 'Pesanan berhasil mendapatkan driver',
+                                'body' => "Pesanan {$transaksi->id} berhasil mendapatkan driver.",
+                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                            ])->sendToFallback($fcmUserToken);
+
+                        return response()->json([
+                            "status" => "success",
+                            "message" => "Driver berhasil terassign ke pesanan prioritas",
+                            "data" => $transaksi
+                        ]);
+                    }
+                    if ($transaksi->status === 'pesanan_diproses' & $request->status === 'diantar' & $transaksi->driver_id !== null) {
+                        if ($transaksi->driver_id !== $user->id) {
+                            return response()->json([
+                                "status" => "forbidden",
+                                "message" => "Pesanan prioritas ini sudah diambil oleh driver lain",
+                            ], 403);
+                        } else {
+                            $transaksi->status = 'diantar';
+                            $transaksi->save();
+
+                            $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+                            $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                            $firebases
+                                ->withNotification('Pesanan telah selesai diproses', "Pesanan {$transaksi->id} telah selesai diproses. Driver akan menuju tempat pengantaran!")
+                                ->withData([
+                                    'title' => 'Pesanan telah selesai diproses',
+                                    'body' => "Pesanan {$transaksi->id} telah selesai diproses. Driver akan menuju tempat pengantaran!",
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                ])->sendToFallback($fcmUserToken);
+
+                            if ($transaksi->isPriority) {
+                                $detail = $transaksi->listTransaksiDetail()
+                                    ->with('menus.tenants.pemilik.fcmTokens')
+                                    ->first();
+
+                                $pemilikUser = optional($detail->menus->tenants)->pemilik ?? null;
+
+                                $fcmTenantToken = $pemilikUser
+                                    ? $pemilikUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray()
+                                    : [];
+
+                                if (!empty($fcmTenantToken)) {
+                                    $firebases
+                                        ->withNotification('Pesanan Prioritas', "Driver telah mengganti status pesanan {$transaksi->id} ke diantar!")
+                                        ->withData([
+                                            'title' => 'Pesanan Prioritas',
+                                            'body' => "Driver telah mengganti status pesanan {$transaksi->id} ke diantar!",
+                                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                        ])
+                                        ->sendToTenant($fcmTenantToken);
+                                }
+                            }
+
+                            return response()->json([
+                                "status" => "success",
+                                "message" => "Driver berhasil mengubah status diproses ke diantar",
+                                "data" => $transaksi
+                            ]);
+                        }
+                    }
+                    if ($transaksi->status === 'siap_diantar' & $request->status === 'diantar') {
+                        if ($transaksi->driver_id === null) {
+                            if ($transaksi->multitenant_id) {
+                                $relatedTransaksi = Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
+                                foreach ($relatedTransaksi as $t) {
+                                    $t->driver_id = $user->id;
+                                    if ($t->status === 'siap_diantar') {
+                                        $t->status = 'diantar';
+                                    }
+                                    $t->save();
+                                }
+                            } else {
+                                $transaksi->driver_id = $user->id;
+                                $transaksi->status = 'diantar';
+                                $transaksi->save();
+
+                                if ($transaksi->isPriority) {
+                                    $detail = $transaksi->listTransaksiDetail()
+                                        ->with('menus.tenants.pemilik.fcmTokens')
+                                        ->first();
+
+                                    $pemilikUser = optional($detail->menus->tenants)->pemilik ?? null;
+
+                                    $fcmTenantToken = $pemilikUser
+                                        ? $pemilikUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray()
+                                        : [];
+
+                                    if (!empty($fcmTenantToken)) {
+                                        $firebases
+                                            ->withNotification('Pesanan Prioritas', "Driver telah mengganti status pesanan {$transaksi->id} ke diantar!")
+                                            ->withData([
+                                                'title' => 'Pesanan Prioritas',
+                                                'body' => "Driver telah mengganti status pesanan {$transaksi->id} ke diantar!",
+                                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                            ])
+                                            ->sendToTenant($fcmTenantToken);
+                                    }
+                                }
+                            }
+
+                            $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+                            $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                            $firebases
+                                ->withNotification('Pesanan Telah mendapatkan driver', "Pesanan {$transaksi->id} telah mendapatkan driver. Driver akan menuju tempat pengantaran!")
+                                ->withData([
+                                    'title' => 'Pesanan Telah mendapatkan driver',
+                                    'body' => "Pesanan {$transaksi->id} telah mendapatkan driver. Driver akan menuju tempat pengantaran!",
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                ])->sendToFallback($fcmUserToken);
+
+                            return response()->json([
+                                "status" => "success",
+                                "message" => "Driver berhasil mendapatkan driver dan mengubah status siap diantar ke diantar",
+                                "data" => $transaksi
+                            ]);
+                        }
+                        if ($transaksi->driver_id !== null) {
+                            if ($transaksi->driver_id !== $user->id) {
+                                return response()->json([
+                                    "status" => "forbidden",
+                                    "message" => "Pesanan prioritas ini sudah diambil oleh driver lain",
+                                ], 403);
+                            } else {
+                                $transaksi->driver_id = $user->id;
+                                $transaksi->status = 'diantar';
+                                $transaksi->save();
+
+                                if ($transaksi->isPriority) {
+
+                                    $detail = $transaksi->listTransaksiDetail()
+                                        ->with('menus.tenants.pemilik.fcmTokens')
+                                        ->first();
+
+                                    $pemilikUser = optional($detail->menus->tenants)->pemilik ?? null;
+
+                                    $fcmTenantToken = $pemilikUser
+                                        ? $pemilikUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray()
+                                        : [];
+
+                                    if (!empty($fcmTenantToken)) {
+                                        $firebases
+                                            ->withNotification('Pesanan Prioritas', "Driver telah mengganti status pesanan {$transaksi->id} ke diantar!")
+                                            ->withData([
+                                                'title' => 'Pesanan Prioritas',
+                                                'body' => "Driver telah mengganti status pesanan {$transaksi->id} ke diantar!",
+                                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                            ])
+                                            ->sendToTenant($fcmTenantToken);
+                                    }
+                                }
+
+                                $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+                                $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                                $firebases
+                                    ->withNotification('Pesanan Telah mendapatkan driver', "Pesanan {$transaksi->id} telah mendapatkan driver. Driver akan menuju tempat pengantaran!")
+                                    ->withData([
+                                        'title' => 'Pesanan Telah mendapatkan driver',
+                                        'body' => "Pesanan {$transaksi->id} telah mendapatkan driver. Driver akan menuju tempat pengantaran!",
+                                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                    ])->sendToFallback($fcmUserToken);
+
+                                return response()->json([
+                                    "status" => "success",
+                                    "message" => "Driver berhasil mengubah status siap diantar ke diantar",
+                                    "data" => $transaksi
+                                ]);
+                            }
+                        }
+                    }
+                }
+
+                // Jika pesanan biasa (non-prioritas)
+                if ($transaksi->isPriority == 0) {
+                    if ($transaksi->driver_id === null) {
+                        $transaksiAktifDriver = Transaksi::where('driver_id', $user->id)
+                            ->whereIn('status', ['diantar', 'siap_diantar'])
+                            ->count();
+
+                        if ($transaksiAktifDriver >= 5) {
+                            return response()->json([
+                                "status" => "failed",
+                                "message" => "Maksimal 5 pesanan aktif. Selesaikan dulu pengantaran"
+                            ], 400);
+                        }
+                    }
+                    if (in_array($transaksi->status, ['refund_selesai', 'selesai'])) {
+                        return response()->json([
+                            "status" => "forbidden",
+                            "message" => "Pesanan sudah selesai atau direfund, tidak bisa diambil lagi",
+                        ], 403);
+                    }
+
+                    // Jika sudah ada driver lain
+                    if ($transaksi->driver_id !== null && $transaksi->driver_id !== $user->id) {
+                        return response()->json([
+                            "status" => "forbidden",
+                            "message" => "Pesanan ini sudah diambil oleh driver lain",
+                        ], 403);
+                    }
+
+                    // Kalau driver_id masih kosong, assign ke driver ini
+                    if ($transaksi->driver_id === null) {
+                        $transaksi->driver_id = $user->id;
+                    }
+
+                    // Kalau sudah diantar sebelumnya
+                    if ($transaksi->status === 'diantar') {
+                        return response()->json([
+                            "status" => "success",
+                            "message" => "Pesanan sudah diambil oleh driver",
+                            "data" => $transaksi
+                        ]);
+                    }
+
+                    // Update status ke diantar
+                    $transaksi->status = 'diantar';
+                    $transaksi->driver_id = $user->id;
+                    $transaksi->save();
+
+                    if ($transaksi->multitenant_id) {
+                        // Ambil ulang semua transaksi dalam grup multitenant
+                        $allTransaksi = \App\Models\Transaksi::where('multitenant_id', $transaksi->multitenant_id)->get();
+
+                        // Cek apakah semuanya siap diantar atau sudah diantar
+                        $allReadyToDeliver = $allTransaksi->every(fn($t) => in_array($t->status, ['siap_diantar', 'diantar']));
+
+                        foreach ($allTransaksi as $t) {
+                            // Kalau belum ada driver, assign driver yang sama
+                            if ($t->driver_id === null) {
+                                $t->driver_id = $user->id;
+                            }
+
+                            // Jika semua siap diantar → set semua ke diantar
+                            if ($allReadyToDeliver) {
+                                $t->status = 'diantar';
+                            }
+
+                            $t->save();
+
+                            // Kirim notifikasi ke tenant
+                            $tenantUser = User::with('fcmTokens')->find($t->user_id);
+                            $tenantTokens = $tenantUser ? $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+
+                            if (!empty($tenantTokens)) {
+                                $firebases
+                                    ->withNotification('Pesanan Telah mendapatkan driver', "Driver sedang menjemput pesanan {$t->id}. Mohon tunggu sebentar!")
+                                    ->withData([
+                                        'title' => 'Pesanan Telah mendapatkan driver',
+                                        'body' => "Pesanan {$t->id} sedang dijemput. Mohon tunggu sebentar!",
+                                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                    ])->sendToFallback($tenantTokens);
+                            }
+                        }
+                    }
+
+                    $fcmUser = User::with('fcmTokens')->find($transaksi->user_id);
+                    $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                    if ($transaksi->status == 'diantar') {
+                        $firebases
+                            ->withNotification('Pesanan Sedang Diantar', "Pesanan {$transaksi->id} sedang diantar oleh driver. Mohon tunggu sebentar!")
+                            ->withData([
+                                'title' => 'Pesanan Sedang Diantar',
+                                'body' => "Pesanan {$transaksi->id} sedang diantar oleh driver. Mohon tunggu sebentar!",
+                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                            ])->sendToFallback($fcmUserToken);
+                    }
+
+                    return response()->json([
+                        "status" => "success",
+                        "message" => "Pesanan berhasil diambil oleh driver",
+                        "data" => $transaksi,
+                    ]);
+                }
             } else {
                 if ($transaksi->status === 'selesai' && $request->status === 'diantar') {
                     return response()->json([
@@ -212,6 +835,156 @@ class PesananController extends Controller
                     $transaksi->bukti_pengantaran = 'bukti_pengantaran/' . $filename;
                 }
 
+                /**
+                 * 🔹 Cek kondisi multitenant refund
+                 * Jika ada transaksi lain dalam grup multitenant yang refund_selesai,
+                 * maka refund sesuai kondisi ongkir
+                 */
+                if ($transaksi->multitenant_id) {
+                    $relatedItems = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                        ->where('id', '!=', $transaksi->id)
+                        ->get();
+
+                    // cari transaksi yang berstatus refund_selesai di antara pasangan (prioritas)
+                    $relatedRefund = $relatedItems->firstWhere('status', 'refund_selesai');
+
+                    // jika tidak ada yang refund_selesai, coba first() seperti sebelumnya (opsional)
+                    $related = $relatedRefund ?? $relatedItems->first();
+
+                    // ===============================
+                    // 🔹 1. LOGIKA REFUND MULTITENANT
+                    // ===============================
+                    if ($related && $related->status === 'refund_selesai') {
+                        $refundTx = $related;      // Transaksi yang di-refund (cancel)
+                        $currentTx = $transaksi;   // Transaksi yang aktif/selesai
+
+                        $ongkirMulti = $refundTx->ruangan->gedung->ongkir_multitenant ?? 0;
+                        $baseOngkir = $refundTx->ruangan->gedung->ongkir ?? 0;
+                        if ($transaksi->isPriority) {
+                            $priorityOngkir = Pengaturan::where('nama', 'ongkos_kirim_prioritas_multitenant')->value('nilai') ?? 4000;
+                        } else {
+                            $priorityOngkir = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
+                        }
+
+                        // Hitung total items
+                        $refundTxItems = $refundTx->listTransaksiDetail->sum('jumlah');
+                        $currentTxItems = $currentTx->listTransaksiDetail->sum('jumlah');
+                        $totalItemsGabungan = $refundTxItems + $currentTxItems;
+
+                        // DEBUG: Hitung harga makanan (total - ongkos_kirim)
+                        // $hargaMakananRefundTx = $refundTx->total - $refundTx->ongkos_kirim;
+                        // $hargaMakananCurrentTx = $currentTx->total - $currentTx->ongkos_kirim;
+                        if ($transaksi->isPriority) {
+                            $hargaMakananRefundTx = ($refundTx->sub_total + $baseOngkir + $priorityOngkir + $this->calculateExtraFee($totalItemsGabungan)) - ($baseOngkir + $priorityOngkir + $this->calculateExtraFee($totalItemsGabungan));
+                        } else {
+                            $hargaMakananRefundTx = ($refundTx->sub_total + $baseOngkir + $this->calculateExtraFee($totalItemsGabungan)) - ($baseOngkir + $this->calculateExtraFee($totalItemsGabungan));
+                        }
+                        $hargaMakananCurrentTx = $currentTx->sub_total + $ongkirMulti;
+
+                        // Hitung extra fees
+                        $extraFeeBayarSemua = $this->calculateExtraFeeBayarSemua($totalItemsGabungan);
+                        $extraFeeBayarSatu = $this->calculateExtraFeeBayarSatu($currentTxItems, $refundTxItems);
+
+                        // Hitung total scenarios
+                        $totalBayarSemua = ($hargaMakananRefundTx + $hargaMakananCurrentTx)
+                            + $baseOngkir + $ongkirMulti + $priorityOngkir + $extraFeeBayarSemua;
+
+                        $totalBayarSatu = $hargaMakananCurrentTx + $baseOngkir + $priorityOngkir + $extraFeeBayarSatu;
+
+                        $refundAmount = $totalBayarSemua - $totalBayarSatu;
+                        $refundAmount = max($refundAmount, 0);
+
+                        // DEBUG LOG
+                        Log::info('=== DEBUG REFUND CALCULATION ===');
+                        Log::info("Transaksi Refund (ID: {$refundTx->id}): {$refundTxItems} items, Total: {$refundTx->total}, Ongkir: {$refundTx->ongkos_kirim}, Harga Makanan: {$hargaMakananRefundTx}");
+                        Log::info("Transaksi Aktif (ID: {$currentTx->id}): {$currentTxItems} items, Total: {$currentTx->total}, Ongkir: {$currentTx->ongkos_kirim}, Harga Makanan: {$hargaMakananCurrentTx}");
+                        Log::info("Ongkir: Base={$baseOngkir}, Multi={$ongkirMulti}, Priority={$priorityOngkir}");
+                        Log::info("Items: Refund={$refundTxItems}, Current={$currentTxItems}, Total={$totalItemsGabungan}");
+                        Log::info("Extra Fee: BayarSemua={$extraFeeBayarSemua}, BayarSatu={$extraFeeBayarSatu}");
+                        Log::info("Total Bayar Semua: {$totalBayarSemua}");
+                        Log::info("Total Bayar Satu: {$totalBayarSatu}");
+                        Log::info("Refund Amount: {$refundAmount}");
+                        Log::info('=== END DEBUG ===');
+
+                        // Lakukan refund
+                        $user = $refundTx->user;
+                        $saldo = SaldoKoin::firstOrCreate(['user_id' => $user->id], ['jumlah' => 0]);
+                        $saldo->jumlah += $refundAmount;
+                        $saldo->save();
+
+                        TransaksiSaldoKoin::create([
+                            'user_id'   => $user->id,
+                            'jumlah'    => $refundAmount,
+                            'tipe'      => 'masuk',
+                            'deskripsi' => "Refund pesanan {$refundTx->kode_pemesanan} karena pesanan multitenant lain dibatalkan",
+                        ]);
+
+                        Log::info("Refund multitenant: {$refundAmount} diberikan ke {$user->name} untuk transaksi #{$transaksi->id}");
+
+                        // Kirim notifikasi FCM ke user
+                        $fcmUser = User::with('fcmTokens')->find($user->id);
+                        $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+                        if (!empty($fcmUserToken)) {
+                            $firebases
+                                ->withNotification('Refund Berhasil', "Saldo sebesar {$refundAmount} telah dikembalikan ke akunmu.")
+                                ->withData([
+                                    'title' => 'Refund Berhasil',
+                                    'body' => "Saldo sebesar {$refundAmount} telah dikembalikan ke akunmu.",
+                                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                ])
+                                ->sendToFallback($fcmUserToken);
+                        }
+                    }
+
+                    // ============================================
+                    // 🔹 2. LOGIKA AUTO-SELESAI UNTUK MULTITENANT
+                    // ============================================
+                    if ($request->status === 'selesai' && $transaksi->multitenant_id) {
+                        $related = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                            ->where('id', '!=', $transaksi->id)
+                            ->first();
+
+                        if ($related) {
+                            // 🚫 Jika related masih pesanan_masuk atau pesanan_diproses → tolak
+                            if (in_array($related->status, ['pesanan_masuk', 'pesanan_diproses', 'siap_diantar'])) {
+                                return response()->json([
+                                    'status' => 'failed',
+                                    'message' => 'Masih ada pesanan multitenant lain yang belum selesai diproses.',
+                                ], 400);
+                            }
+
+                            // ✅ Kalau related diantar → auto-selesai juga
+                            if ($related->status === 'diantar') {
+                                $related->status = 'selesai';
+                                $related->driver_id = $user->id;
+                                $related->bukti_pengantaran = $transaksi->bukti_pengantaran;
+                                $related->save();
+
+                                Log::info("Multitenant auto-selesai: Transaksi #{$related->id} otomatis diselesaikan karena pasangan #{$transaksi->id} sudah selesai.");
+
+                                // Kirim notifikasi ke tenant terkait
+                                $tenantUser = User::with('fcmTokens')->find($related->tenant->user_id ?? null);
+                                if ($tenantUser) {
+                                    $tenantTokens = $tenantUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray();
+                                    if (!empty($tenantTokens)) {
+                                        $firebases
+                                            ->withNotification('Pesanan Selesai', "Pesanan multitenant #{$related->kode_pemesanan} telah otomatis selesai.")
+                                            ->withData([
+                                                'title' => 'Pesanan Selesai',
+                                                'body' => "Pesanan multitenant #{$related->kode_pemesanan} telah otomatis selesai.",
+                                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                            ])
+                                            ->sendToFallback($tenantTokens);
+                                    }
+                                }
+                            }
+
+                            // ✅ Kalau related refund_selesai → lanjut normal (driver boleh selesaikan pesanan)
+                            // Tidak perlu aksi tambahan karena pesanan lain sudah selesai via refund
+                        }
+                    }
+                }
+
                 $transaksi->save();
                 $status = str_replace('_', ' ', $transaksi->status);
 
@@ -236,7 +1009,8 @@ class PesananController extends Controller
                 if ($transaksi->status == 'selesai') {
                     if (
                         $transaksi->status === 'selesai' &&
-                        $transaksi->cashback_amount > 0
+                        $transaksi->cashback_amount > 0 &&
+                        $transaksi->multitenant_id === null
                     ) {
                         $user = $transaksi->user;
 
@@ -308,36 +1082,213 @@ class PesananController extends Controller
                             ->sendToFallback($fcmTenantToken);
                     }
 
-                    $ongkirAsli = $transaksi->ongkos_kirim;
+                    // === FLOW DRIVER: ONGKIR MULTITENANT / NON-MULTITENANT ===
+                    if ($transaksi->driver_id) {
+                        $isMultiTenant = $transaksi->multitenant_id !== null;
+                        $related = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                            ->where('id', '!=', $transaksi->id)
+                            ->first();
 
-                    $pengaturanPotongan = Pengaturan::where('nama', 'biaya_ongkos_kirim')->first();
-                    $persentasePotongan = $pengaturanPotongan ? (float)$pengaturanPotongan->nilai : 0;
+                        if ($related && $isMultiTenant) {
+                            $bothRefund =
+                                in_array($transaksi->status, ['refund_selesai', 'refund']) &&
+                                in_array($related->status, ['refund_selesai', 'refund']);
 
-                    $ongkirAsli = $transaksi->ongkos_kirim;
-                    $potongan = ($persentasePotongan / 100) * $ongkirAsli;
-                    $ongkirBersih = $ongkirAsli - $potongan;
+                            $transaksiCashback = null;
+                            if ($transaksi->cashback_amount > 0) {
+                                $transaksiCashback = $transaksi;
+                            } elseif ($related->cashback_amount > 0) {
+                                $transaksiCashback = $related;
+                            }
 
-                    // Simpan ke histori
-                    TransaksiSaldoKoin::create([
-                        'user_id' => $transaksi->driver_id,
-                        'jumlah' => $ongkirBersih,
-                        'tipe' => 'masuk',
-                        'deskripsi' => "Ongkir dari pesanan #{$transaksi->id}, potongan {$persentasePotongan}% dari {$ongkirAsli}, total masuk: {$ongkirBersih}",
-                    ]);
+                            $atLeastOneSelesai =
+                                in_array($transaksi->status, ['selesai']) ||
+                                in_array($related->status, ['selesai']);
 
-                    // Update saldo user
-                    $saldo = SaldoKoin::firstOrCreate(
-                        ['user_id' => $transaksi->driver_id],
-                        ['jumlah' => 0]
-                    );
+                            if ($transaksiCashback && !$bothRefund && $atLeastOneSelesai) {
+                                $user = $transaksiCashback->user;
+                                $cashbackValue = $transaksiCashback->cashback_amount;
 
-                    $saldo->jumlah += $ongkirBersih;
-                    $saldo->save();
+                                if ($cashbackValue > 0) {
+                                    // 🔒 Cek apakah cashback untuk multitenant ini sudah pernah diberikan
+                                    $cashbackAlreadyGiven = TransaksiSaldoKoin::where('user_id', $user->id)
+                                        ->where('tipe', 'masuk')
+                                        ->where('deskripsi', 'like', "%multitenant #{$transaksiCashback->multitenant_id}%")
+                                        ->exists();
+
+                                    if ($cashbackAlreadyGiven) {
+                                        Log::info("⚠️ Cashback multitenant #{$transaksiCashback->multitenant_id} sudah pernah diberikan ke user {$user->id}, skip duplikat.");
+                                        return;
+                                    }
+
+                                    // Tambahkan ke saldo user
+                                    $saldo = SaldoKoin::firstOrCreate(
+                                        ['user_id' => $user->id],
+                                        ['jumlah' => 0]
+                                    );
+
+                                    $saldo->jumlah += $cashbackValue;
+                                    $saldo->save();
+
+                                    // Catat transaksi saldo
+                                    TransaksiSaldoKoin::create([
+                                        'user_id'   => $user->id,
+                                        'jumlah'    => $cashbackValue,
+                                        'tipe'      => 'masuk',
+                                        'deskripsi' => "Cashback pesanan #{$transaksiCashback->kode_pemesanan} (multitenant #{$transaksiCashback->multitenant_id}) telah masuk",
+                                    ]);
+
+                                    Log::info("✅ Cashback: {$cashbackValue} diberikan ke {$user->name} dari transaksi #{$transaksiCashback->id}");
+
+                                    // Kirim notifikasi FCM ke user
+                                    $fcmUser = User::with('fcmTokens')->find($user->id);
+                                    $fcmUserToken = $fcmUser ? $fcmUser->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray() : [];
+
+                                    if (!empty($fcmUserToken)) {
+                                        $title = 'Cashback berhasil didapatkan';
+                                        $body  = "Cashback sebesar {$cashbackValue} telah masuk ke akunmu.";
+
+                                        $firebases->withNotification($title, $body)
+                                            ->withData([
+                                                'title'        => $title,
+                                                'body'         => $body,
+                                                'type'         => 'cashback',
+                                                'transaksi_id' => $transaksiCashback->id,
+                                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                                            ])
+                                            ->sendToFallback($fcmUserToken);
+                                    }
+                                }
+                            } else {
+                                Log::info("💤 Cashback dilewati — kondisi tidak terpenuhi (both refund / tidak ada yang selesai / tidak ada cashback).", [
+                                    'transaksi_id' => $transaksi->id,
+                                    'related_id'   => $related->id ?? null,
+                                    'status1'      => $transaksi->status,
+                                    'status2'      => $related->status,
+                                    'cashback1'    => $transaksi->cashback_amount,
+                                    'cashback2'    => $related->cashback_amount,
+                                ]);
+                            }
+                        }
+
+                        if ($transaksi->driver_id && $transaksi->multitenant_id) {
+                            $related = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
+                                ->where('id', '!=', $transaksi->id)
+                                ->first();
+
+                            $ongkirMulti = $transaksi->ruangan->gedung->ongkir_multitenant ?? 0;
+                            $baseOngkir = $transaksi->ruangan->gedung->ongkir ?? 0;
+                            if ($transaksi->isPriority) {
+                                $priorityOngkir = Pengaturan::where('nama', 'ongkos_kirim_prioritas_multitenant')->value('nilai') ?? 4000;
+                            } else {
+                                $priorityOngkir = Pengaturan::where('nama', 'ongkos_kirim_prioritas')->value('nilai') ?? 3000;
+                            }
+                            $pajakPersen = 10;
+
+
+                            // Tentukan status pasangan
+                            $bothSelesai = $transaksi->status === 'selesai' && $related && $related->status === 'selesai';
+                            $oneRefund   = $related && in_array($related->status, ['refund_selesai', 'refund']);
+                            $bothRefund  = $transaksi->status === 'refund_selesai' && $related && $related->status === 'refund_selesai';
+
+                            $totalOngkir = 0;
+
+                            if ($transaksi->isPriority) {
+                                if ($bothSelesai) {
+                                    $totalOngkir = $baseOngkir + $priorityOngkir + $ongkirMulti;
+                                } elseif ($oneRefund) {
+                                    $totalOngkir = $baseOngkir + $priorityOngkir;
+                                } elseif ($bothRefund) {
+                                    $totalOngkir = 0;
+                                }
+                            } else {
+                                if ($bothSelesai) {
+                                    $totalOngkir = $baseOngkir + $ongkirMulti;
+                                } elseif ($oneRefund) {
+                                    $totalOngkir = $baseOngkir;
+                                } elseif ($bothRefund) {
+                                    $totalOngkir = 0;
+                                }
+                            }
+                            // ===== Hitung EXTRA ITEM =====
+                            $transaksi1_items = $transaksi->listTransaksiDetail->sum('jumlah');
+                            $transaksi2_items = $related ? $related->listTransaksiDetail->sum('jumlah') : 0;
+
+                            $extra_items_limit = 10;
+                            $value_extra_per_item = 500;
+
+                            $extraOngkir = 0;
+
+                            // PERBAIKAN: Hitung total items HANYA dari transaksi yang SELESAI (tidak refund)
+                            $totalItemsSelesai = 0;
+
+                            if ($transaksi->status === 'selesai') {
+                                $totalItemsSelesai += $transaksi1_items;
+                            }
+
+                            if ($related && $related->status === 'selesai') {
+                                $totalItemsSelesai += $transaksi2_items;
+                            }
+
+                            // Hanya berikan extra ongkir jika ada transaksi yang selesai dan total items > 10
+                            if ($totalItemsSelesai > $extra_items_limit) {
+                                $extraOngkir = ($totalItemsSelesai - $extra_items_limit) * $value_extra_per_item;
+                            }
+
+                            $totalOngkir += $extraOngkir;
+
+                            // Potong pajak 10%
+                            $pajak = ($pajakPersen / 100) * $totalOngkir;
+                            $ongkirBersih = $totalOngkir - $pajak;
+
+                            if ($ongkirBersih > 0) {
+                                // Simpan ke histori
+                                TransaksiSaldoKoin::create([
+                                    'user_id' => $transaksi->driver_id,
+                                    'jumlah' => $ongkirBersih,
+                                    'tipe' => 'masuk',
+                                    'deskripsi' => "Ongkir multitenant #{$transaksi->multitenant_id} telah masuk",
+                                ]);
+
+                                // Update saldo driver
+                                $saldo = SaldoKoin::firstOrCreate(['user_id' => $transaksi->driver_id], ['jumlah' => 0]);
+                                $saldo->jumlah += $ongkirBersih;
+                                $saldo->save();
+
+                                Log::info("Driver #{$transaksi->driver_id} menerima ongkir bersih {$ongkirBersih} (total: {$totalOngkir}, pajak: {$pajak})");
+                            }
+                        } else {
+                            // === FLOW NON-MULTITENANT ===
+                            $pengaturanPotongan = Pengaturan::where('nama', 'biaya_ongkos_kirim')->first();
+                            $persentasePotongan = $pengaturanPotongan ? (float)$pengaturanPotongan->nilai : 0;
+
+                            $ongkirAsli = $transaksi->ongkos_kirim;
+                            $potongan = ($persentasePotongan / 100) * $ongkirAsli;
+                            $ongkirBersih = $ongkirAsli - $potongan;
+
+                            // Simpan ke histori
+                            TransaksiSaldoKoin::create([
+                                'user_id' => $transaksi->driver_id,
+                                'jumlah' => $ongkirBersih,
+                                'tipe' => 'masuk',
+                                'deskripsi' => "Ongkir dari pesanan #{$transaksi->id} telah masuk",
+                            ]);
+
+                            // Update saldo driver
+                            $saldo = SaldoKoin::firstOrCreate(
+                                ['user_id' => $transaksi->driver_id],
+                                ['jumlah' => 0]
+                            );
+                            $saldo->jumlah += $ongkirBersih;
+                            $saldo->save();
+                        }
+                    }
                 }
 
                 return response()->json([
                     "status" => "success",
                     "message" => "Pesanan {$request->status}",
+                    "data" => $transaksi
                 ]);
             }
         } catch (Throwable $th) {
@@ -347,5 +1298,66 @@ class PesananController extends Controller
                 "message" => "terjadi kesalahan di server"
             ], 500);
         }
+    }
+
+    /**
+     * Calculate extra fee based on the business rules
+     */
+    private function calculateExtraFeeBayarSemua($totalItems)
+    {
+        $extraLimit = 10;
+        $costPerExtra = 500;
+
+        if ($totalItems <= $extraLimit) {
+            return 0;
+        }
+
+        return ($totalItems - $extraLimit) * $costPerExtra;
+    }
+
+    private function calculateExtraFee($totalItems)
+    {
+        $extraLimit = 10;
+        $costPerExtra = 500;
+
+        // Jika current items > 10, hanya kelebihan dari 10 yang kena extra fee
+        if ($totalItems > $extraLimit) {
+            return ($totalItems - $extraLimit) * $costPerExtra;
+        }
+
+        return 0;
+    }
+
+    // private function calculateExtraFeeBayarSatu($currentItems, $refundItems)
+    // {
+    //     $extraLimit = 10;
+    //     $costPerExtra = 500;
+
+    //     // Jika current items > 10, hanya kelebihan dari 10 yang kena extra fee
+    //     if ($currentItems > $extraLimit) {
+    //         return ($currentItems - $extraLimit) * $costPerExtra;
+    //     }
+
+    //     // Jika current items ≤ 10, hitung dari total (current + refund)
+    //     $totalItems = $currentItems + $refundItems;
+    //     if ($totalItems > $extraLimit) {
+    //         return ($totalItems - $extraLimit) * $costPerExtra;
+    //     }
+
+    //     // Jika tidak ada yang melebihi limit, return 0
+    //     return 0;
+    // }
+    private function calculateExtraFeeBayarSatu($currentItems, $refundItems)
+    {
+        $extraLimit = 10;
+        $costPerExtra = 500;
+
+        // HANYA hitung berdasarkan currentItems (transaksi yang aktif)
+        // Jangan pedulikan refundItems sama sekali
+        if ($currentItems > $extraLimit) {
+            return ($currentItems - $extraLimit) * $costPerExtra;
+        }
+
+        return 0;
     }
 }

@@ -1,3 +1,4 @@
+
 # Gunakan PHP 7.4 FPM base
 FROM php:7.4-fpm-buster
 
@@ -13,27 +14,33 @@ RUN printf "deb [trusted=yes] http://archive.debian.org/debian buster main contr
 # Install Composer secara global
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
+# Buat user aplikasi
+RUN useradd -u 1000 -ms /bin/bash -g www-data masbro
+
 # Set working directory
 WORKDIR /var/www/html
 
 # Copy hanya file composer dulu untuk caching dependency layer
-COPY composer.json composer.lock ./
+COPY --chown=www-data:www-data composer.json composer.lock ./
 
-# Install dependency Laravel
-RUN composer install --no-interaction --no-ansi --no-scripts --no-progress --prefer-dist || true
+# Install dependency Laravel sebagai www-data
+USER www-data
+RUN composer install --no-interaction --no-ansi --no-scripts --no-progress --prefer-dist --ignore-platform-reqs
 
-# Sekarang baru copy semua source code project
-COPY . .
+# Copy source code dengan ownership yang benar
+USER root
+COPY --chown=www-data:www-data . .
 
-# Ubah ownership ke user www-data (default PHP-FPM)
-RUN chown -R www-data:www-data /var/www/html
+# Buat dan set permission folder storage
+RUN mkdir -p storage bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
 
-# Copy entrypoint ke container
-COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+# Switch ke user aplikasi
+USER masbro
 
 # Expose port php-fpm
 EXPOSE 9000
 
-# Gunakan entrypoint custom
-ENTRYPOINT ["entrypoint.sh"]
+# Run PHP-FPM
+CMD ["php-fpm"]

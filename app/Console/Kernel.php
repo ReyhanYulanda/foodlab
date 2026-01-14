@@ -18,16 +18,22 @@ class Kernel extends ConsoleKernel
         $schedule->command('tenant:update-status')->everyMinute();
         $schedule->command('tenant:tutup')->everyMinute();
         $schedule->command('tenant:reset-manual-offline')->dailyAt($reset_manual->nilai ?? '00:00');
+        $schedule->command('kasir:auto-complete-pesanan-diproses')->dailyAt($jam_siap_diambil_done_otomatis->nilai ?? '01:00');
         $schedule->command('driver:tutup')->dailyAt($jam_tutup_driver->nilai ?? '00:00');
         $schedule->command('chat:delete-finished')->dailyAt($jam_clear_chat->nilai ?? '00:00');
         $schedule->command('notifikasi:siap-diantar')->everyMinute();
         $schedule->command('notifikasi:pesanan-masuk')->everyMinute();
-        $schedule->command('notifikasi:pesanan-diproses')->everyMinute();
-        $schedule->command('transaksi:auto-complete-siap-diambil')->dailyAt($jam_siap_diambil_done_otomatis->nilai ?? '02:00');
+        // $schedule->command('notifikasi:pesanan-diproses')->everyMinute();
+        $schedule->command('auto:complete-diproses')->everyMinute();
+        $schedule->command('transactions:auto-complete-siap-diambil')->everyMinute();
         $schedule->command('tenants:reset-busy')->everyMinute();
         $schedule->command('tenants:check-refund')->everyMinute();
         $schedule->command('transactions:update-failed')->everyMinute();
     }
+
+    // protected $commands = [
+    //     \App\Console\Commands\AutoCompleteSiapDiambil::class,
+    // ];
 
     protected function commands()
     {

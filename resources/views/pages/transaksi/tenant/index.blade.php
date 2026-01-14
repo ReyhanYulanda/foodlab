@@ -54,7 +54,7 @@
                                     'end_date' => request('end_date'),
                                 ]) }}"
                                     class="btn btn-success ms-2">Export CSV 10%</a>
-                                    
+
                                 <a href="{{ route('export.transaksi.tenant.rekap', [
                                     'filter_date' => request('filter_date'),
                                     'start_date' => request('start_date'),
@@ -72,12 +72,14 @@
                                 <th class="align-middle" rowspan="2">Nama Tenant</th>
                                 <th colspan="2">Transaksi Pesan Antar</th>
                                 <th colspan="2">Transaksi Ambil Sendiri</th>
+                                <th colspan="1" class="align-middle">Kasir</th>
                                 <th class="align-middle" rowspan="2">Rincian Penjualan</th>
                             </tr>
                             <tr>
                                 <th>Pendapatan Kotor</th>
                                 <th>Pendapatan Bersih</th>
                                 <th>Pendapatan Kotor</th>
+                                <th>Pendapatan Bersih</th>
                                 <th>Pendapatan Bersih</th>
                             </tr>
                         </thead>
@@ -90,6 +92,7 @@
                                     <td>Rp{{ number_format($p->pendapatan_bersih_1, 0, ',', '.') }}</td>
                                     <td>Rp{{ number_format($p->pendapatan_kotor_2, 0, ',', '.') }}</td>
                                     <td>Rp{{ number_format($p->pendapatan_bersih_2, 0, ',', '.') }}</td>
+                                    <td>Rp{{ number_format($p->kasir_bersih, 0, ',', '.') }}</td>
                                     <td>
                                         <a href="{{ route('detail.transaksi.tenant', ['id' => $p->id, 'filter_date' => request('filter_date')]) }}"
                                             class="btn btn-primary">

@@ -119,7 +119,7 @@ class AuthController extends Controller
 
         $token = $user->createToken('secret', $permission)->plainTextToken;
         $data = [
-            'id' => $user->id,
+            'id' => $user->id, 
             'nama' => $user->name,
             'email' => $user->email,
             'token' => $token,

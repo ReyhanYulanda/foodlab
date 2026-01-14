@@ -3,6 +3,7 @@
 namespace App\Services\Kelola;
 
 use App\Models\Menus;
+use App\Models\Pengaturan;
 use App\Models\Tenants;
 use App\Models\TransaksiDetail;
 use Illuminate\Support\Facades\Storage;
@@ -91,17 +92,18 @@ class TenantService
 
     public function interuptBusy(Tenants $tenant): Tenants
     {
+        $busy_until_setting = Pengaturan::where('nama', 'busy_until')->value('nilai') ?? 3;
 
         if ($tenant->busy_until == null) {
             return $tenant;
         }
-        
+
         $now = now();
 
         // Update interrupt + busy_until
         $tenant->update([
             'is_interupt' => $now,
-            'busy_until'  => $now->copy()->addMinutes(3),
+            'busy_until'  => $now->copy()->addMinutes($busy_until_setting),
         ]);
 
         // Cek user pemilik
