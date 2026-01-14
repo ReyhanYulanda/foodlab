@@ -760,7 +760,7 @@ class TransaksiController extends Controller
                     ];
 
                     \Midtrans\Config::$serverKey = config('custom.midtrans_server_key');
-                    \Midtrans\Config::$isProduction = false;
+                    \Midtrans\Config::$isProduction = true;
                     \Midtrans\Config::$isSanitized = true;
                     \Midtrans\Config::$is3ds = true;
 
@@ -1071,7 +1071,7 @@ class TransaksiController extends Controller
                         ],
                     ];
                     \Midtrans\Config::$serverKey = config('custom.midtrans_server_key');
-                    \Midtrans\Config::$isProduction = false;
+                    \Midtrans\Config::$isProduction = true;
                     \Midtrans\Config::$isSanitized = true;
                     \Midtrans\Config::$is3ds = true;
                     $snap = \Midtrans\CoreApi::charge($params);
