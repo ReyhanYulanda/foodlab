@@ -309,7 +309,7 @@ class TransaksiController extends Controller
         $validatator = Validator::make($request->all(), [
             'isAntar' => 'required|boolean',
             'ruangan_id' => 'required_if:isAntar,true',
-            'metode_pembayaran' => 'required|in:koin,cod,qris',
+            'metode_pembayaran' => 'required|in:koin,qris',
             'catatan' => 'nullable',
             // 'status' => 'nullable',
             'menus' => 'required|array',
