@@ -26,6 +26,7 @@ class AutoCancelOrder extends Command
         $threshold = Carbon::now()->subMinutes($timeout);
 
         $transaksis = Transaksi::where('status', 'pesanan_masuk')
+            ->whereNull('driver_id')
             ->where('updated_at', '<=', $threshold)
             ->get();
 
