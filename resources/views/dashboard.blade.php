@@ -172,14 +172,26 @@
                                                 <td>Rp {{ number_format($transaction->total, 0, ',', '.') }}</td>
                                                 <td>
                                                     @php
-                                                        $badgeClass = match ($transaction->status) {
-                                                            'selesai' => 'success',
-                                                            'menunggu_konfirmasi' => 'warning',
-                                                            'diproses' => 'info',
-                                                            'diantar' => 'primary',
-                                                            'refund_selesai' => 'danger',
-                                                            default => 'secondary'
-                                                        };
+                                                        switch ($transaction->status) {
+                                                            case 'selesai':
+                                                                $badgeClass = 'success';
+                                                                break;
+                                                            case 'menunggu_konfirmasi':
+                                                                $badgeClass = 'warning';
+                                                                break;
+                                                            case 'diproses':
+                                                                $badgeClass = 'info';
+                                                                break;
+                                                            case 'diantar':
+                                                                $badgeClass = 'primary';
+                                                                break;
+                                                            case 'refund_selesai':
+                                                                $badgeClass = 'danger';
+                                                                break;
+                                                            default:
+                                                                $badgeClass = 'secondary';
+                                                                break;
+                                                        }
                                                     @endphp
                                                     <span
                                                         class="badge bg-{{ $badgeClass }}">{{ str_replace('_', ' ', strtoupper($transaction->status)) }}</span>
