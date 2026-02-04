@@ -101,7 +101,7 @@
                                 <th>Nama Pengantar</th>
                                 <th>Nama Ruangan</th>
                                 <th>Metode Pengantaran</th>
-                                <th>Paket</th>
+                                <th>Multitenant ID</th>
                                 <th>List Pesanan</th>
                             </tr>
                         </thead>
@@ -150,11 +150,7 @@
                                         {{ $key->isAntar == 1 ? 'Pesan Antar' : 'Ambil Sendiri' }}
                                     </td>
                                     <td>
-                                        @if($isGrouped)
-                                            <span class="multitenant-badge">Paket #{{ $key->multitenant_id }}</span>
-                                        @else
-                                            <span class="text-muted small">-</span>
-                                        @endif
+                                        {{ $key->multitenant_id ?? '-' }}
                                     </td>
                                     <td>
                                         <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
