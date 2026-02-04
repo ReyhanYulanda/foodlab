@@ -115,15 +115,26 @@
                     <div class="card border-0 shadow-sm" style="min-height: 400px;">
                         <div class="card-header bg-white d-flex justify-content-between align-items-center pt-4">
                             <h5 class="fw-bold">Analisis Transaksi & Pendapatan</h5>
-                            <form method="GET" action="{{ route('dashboard') }}" class="d-inline-block">
-                                <select name="mode" onchange="this.form.submit()" class="form-select form-select-sm"
-                                    style="width: auto;">
-                                    @foreach ($modes as $key => $label)
-                                        <option value="{{ $key }}" {{ $mode == $key ? 'selected' : '' }}>
-                                            {{ $label }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                            <form method="GET" action="{{ route('dashboard') }}" class="d-inline-block"
+                                id="dashboardFilterForm">
+                                <div class="d-flex gap-2">
+                                    <select name="mode" onchange="this.form.submit()" class="form-select form-select-sm"
+                                        style="width: auto;">
+                                        @foreach ($modes as $key => $label)
+                                            <option value="{{ $key }}" {{ $mode == $key ? 'selected' : '' }}>
+                                                {{ $label }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <select name="year" onchange="this.form.submit()" class="form-select form-select-sm"
+                                        style="width: auto;">
+                                        @foreach ($availableYears as $year)
+                                            <option value="{{ $year }}" {{ $selectedYear == $year ? 'selected' : '' }}>
+                                                Tahun {{ $year }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
                             </form>
                         </div>
                         <div class="card-body">
