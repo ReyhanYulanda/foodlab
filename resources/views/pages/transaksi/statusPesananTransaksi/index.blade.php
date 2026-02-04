@@ -76,6 +76,8 @@
                                 <th>Nama Pembeli</th>
                                 <th>Nama Pengantar</th>
                                 <th>Nama Ruangan</th>
+                                <th>Priority</th>
+                                <th>Multitenant ID</th>
                                 <th>Metode Pengantaran</th>
                                 <th>List Pesanan</th>
                             </tr>
@@ -92,6 +94,14 @@
                                     <td>{{ $key->nama_pembeli ?? '-' }}</td>
                                     <td>{{ $key->driver->name ?? '-' }}</td>
                                     <td>{{ $key->ruangan->nama_ruangan ?? '-' }}</td>
+                                    <td>
+                                        @if ($key->isPriority == 1)
+                                            <span class="badge bg-danger">Priority</span>
+                                        @else
+                                            <span class="badge bg-secondary">Regular</span>
+                                        @endif
+                                    </td>
+                                    <td>{{ $key->multitenant_id ?? '-' }}</td>
                                     <td>
                                         {{ $key->isAntar == 1 ? 'Pesan Antar' : 'Ambil Sendiri' }}
                                     </td>
