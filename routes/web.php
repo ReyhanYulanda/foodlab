@@ -41,8 +41,8 @@ Route::get('/email-verified', function () {
 
 
 Route::get('/', function () {
-    return redirect()->route('login');
-});
+    return view('landing.index');
+})->name('landing');
 
 
 

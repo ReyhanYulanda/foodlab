@@ -29,6 +29,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('tenants:reset-busy')->everyMinute();
         $schedule->command('tenants:check-refund')->everyMinute();
         $schedule->command('transactions:update-failed')->everyMinute();
+        $schedule->command('notification:check-tenant-opening')->dailyAt('08:00');
     }
 
     // protected $commands = [
