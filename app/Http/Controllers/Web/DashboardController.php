@@ -17,16 +17,30 @@ class DashboardController extends Controller
     {
         $mode = $request->get('mode', 'weekly'); // default weekly
 
+        // Get available years from transactions
+        $availableYears = Transaksi::selectRaw('YEAR(created_at) as year')
+            ->distinct()
+            ->orderBy('year', 'desc')
+            ->pluck('year')
+            ->toArray();
+
         // Determine the anchor date (latest transaction date or now if empty)
         // This ensures that if the data is old (e.g. 2025), the dashboard shows that period by default
         $latestTransaction = Transaksi::latest('created_at')->first();
-        $anchorDate = $latestTransaction ? $latestTransaction->created_at : now();
+        $defaultYear = $latestTransaction ? $latestTransaction->created_at->year : now()->year;
 
-        // If the user deliberately requests a specific range in real-app, we might need params.
-        // But for this debugging/demo context, anchoring to data is best.
+        // Get selected year from request, default to latest year with data
+        $selectedYear = $request->get('year', $defaultYear);
 
-        // Keep 'now()' if the latest transaction is older than 1 year and we want to show 'current' status? 
-        // No, user specifically complains about 0 data. Let's use anchorDate.
+        // Create anchor date based on selected year
+        // For weekly/monthly modes, use the last day of the selected year to show the most recent data
+        // For yearly mode, the year itself is what matters
+        if ($mode === 'yearly' || $mode === 'all') {
+            $anchorDate = now()->setYear($selectedYear)->startOfYear();
+        } else {
+            // For weekly/monthly, use end of year to show latest week/month of that year
+            $anchorDate = now()->setYear($selectedYear)->endOfYear();
+        }
 
         // Data untuk dropdown
         $modes = [
@@ -151,7 +165,9 @@ class DashboardController extends Controller
             'recentTransactions',
             'modes',
             'mode',
-            'refundList'
+            'refundList',
+            'availableYears',
+            'selectedYear'
         ));
     }
 }
