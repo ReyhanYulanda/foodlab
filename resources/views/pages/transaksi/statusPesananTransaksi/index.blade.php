@@ -1,26 +1,28 @@
 <x-master-layout>
-    @push('css')
-        <style>
-            .multitenant-group {
-                border-left: 4px solid #2196F3;
-                position: relative;
-            }
-            .multitenant-badge {
-                display: inline-block;
-                padding: 2px 8px;
-                border-radius: 12px;
-                font-size: 11px;
-                font-weight: 600;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                margin-left: 8px;
-            }
-            .group-separator {
-                height: 8px;
-                background: transparent;
-            }
-        </style>
-    @endpush
+    <style>
+        .multitenant-group {
+            border-left: 4px solid #2196F3 !important;
+            position: relative;
+        }
+        .multitenant-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            color: white !important;
+            margin-left: 8px;
+        }
+        .group-separator {
+            height: 8px;
+            background: transparent !important;
+        }
+        .group-separator td {
+            padding: 0 !important;
+            border: none !important;
+        }
+    </style>
     <div class="main-content">
         <div class="title">
             Status Pesanan Transaksi Tenant
@@ -134,7 +136,7 @@
                                     <tr class="group-separator"><td colspan="11"></td></tr>
                                 @endif
                                 
-                                <tr class="{{ $groupClass }}" style="background-color: {{ $bgColor }};">
+                                <tr class="{{ $groupClass }}" style="background-color: {{ $bgColor }} !important; {{ $isGrouped ? 'border-left: 4px solid #2196F3 !important;' : '' }}">
                                     <td>{{ ($statusTransaksi->currentPage() - 1) * $statusTransaksi->perPage() + $loop->iteration }}
                                     </td>
                                     <td>{{ $key->id }}</td>
