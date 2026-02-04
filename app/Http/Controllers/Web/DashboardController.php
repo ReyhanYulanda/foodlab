@@ -114,12 +114,16 @@ class DashboardController extends Controller
         $totalRevenue = Transaksi::where('status', 'selesai')->sum('total'); // Keep this for overall total revenue
         $activeTransactions = Transaksi::whereIn('status', ['menunggu_konfirmasi', 'diproses', 'diantar'])->count();
 
+        // Tenant yang diabaikan
+        $ignoredTenants = ['Kedai Pak Agil', 'Test Tenant'];
+
         // Top 5 Tenant berdasarkan Pendapatan (Revenue)
         $topTenants = DB::table('transaksi')
             ->join('transaksi_detail', 'transaksi.id', '=', 'transaksi_detail.transaksi_id')
             ->join('menus', 'menus.id', '=', 'transaksi_detail.menu_id')
             ->join('tenants', 'tenants.id', '=', 'menus.tenant_id')
             ->where('transaksi.status', 'selesai')
+            ->whereNotIn('tenants.nama_tenant', $ignoredTenants)
             ->select('tenants.nama_tenant', DB::raw('SUM(transaksi_detail.harga) as total_revenue'))
             ->groupBy('tenants.nama_tenant')
             ->orderByDesc('total_revenue')
@@ -142,6 +146,7 @@ class DashboardController extends Controller
             ->where('transaksi.status', 'refund_selesai')
             ->whereNull('transaksi.deleted_at')
             ->whereNull('transaksi_detail.deleted_at')
+            ->whereNotIn('tenants.nama_tenant', $ignoredTenants)
             ->select(
                 'tenants.user_id as tenant_user_id',
                 'tenants.nama_tenant',
