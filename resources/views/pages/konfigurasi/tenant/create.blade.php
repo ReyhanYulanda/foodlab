@@ -30,6 +30,17 @@
                                     <input type="text" placeholder="Input Here" class="form-control" id="basicInput"
                                         name="nama_kavling">
                                 </div>
+                                <div class="mb-3">
+                                    <label class="form-label d-block">Template Jam</label>
+                                    <button type="button" class="btn btn-secondary btn-sm mr-2 set-jam"
+                                        data-buka="09:30" data-tutup="17:00">
+                                        Default (09:30 - 17:00)
+                                    </button>
+                                    <button type="button" class="btn btn-danger btn-sm set-jam" data-buka="01:58"
+                                        data-tutup="01:59">
+                                        Libur (01:58 - 01:59)
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         <div class="row">
@@ -103,6 +114,13 @@
     @push('js')
         <script>
             $('select').select2();
+
+            $('.set-jam').on('click', function () {
+                let buka = $(this).data('buka');
+                let tutup = $(this).data('tutup');
+                $('input[name="jam_buka"]').val(buka);
+                $('input[name="jam_tutup"]').val(tutup);
+            });
         </script>
         @if ($errors->any())
             @foreach ($errors->all() as $error)
@@ -112,7 +130,7 @@
         {{-- {!! $dataTable->scripts() !!}
 
         <script>
-            $('.add').on('click', function(e){
+            $('.add').on('click', function (e) {
                 e.preventDefault();
 
                 $.ajax({
@@ -122,7 +140,7 @@
                         const modal = $('#modal_action').html(response);
                         modal.modal('show');
 
-                        $('#form_action').on('submit', function(e){
+                        $('#form_action').on('submit', function (e) {
                             e.preventDefault();
                             console.log(this);
 
@@ -132,15 +150,15 @@
                                 data: new FormData(this),
                                 contentType: false,
                                 processData: false,
-                                success: function(response){
+                                success: function (response) {
                                     $('#modal_action').modal('hide');
                                     window.location.reload();
                                 },
-                                error: function(err){
+                                error: function (err) {
                                     const errors = err.responseJSON?.errors;
 
-                                    if (errors){
-                                        for(let [key, message] of Object.entries(errors)){
+                                    if (errors) {
+                                        for (let [key, message] of Object.entries(errors)) {
                                             $(`[name=${key}]`).addClass('is-invalid').parent().append(`<div class="invalid-feedback"> ${message} </div>`);
                                         }
                                     }
@@ -148,7 +166,7 @@
                             })
                         })
                     },
-                    error: function(){
+                    error: function () {
 
                     }
                 })
