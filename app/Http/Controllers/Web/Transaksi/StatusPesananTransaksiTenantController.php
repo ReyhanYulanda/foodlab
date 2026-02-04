@@ -18,7 +18,7 @@ class StatusPesananTransaksiTenantController extends Controller
             'listTransaksiDetail.menus.tenants',
             'driver'
         ])
-            ->select('id', 'status', 'user_id', 'updated_at', 'driver_id', 'isAntar', 'ruangan_id', 'catatan_lokasi_pengantaran', 'catatan_penolakan')
+            ->select('id', 'status', 'user_id', 'updated_at', 'driver_id', 'isAntar', 'ruangan_id', 'catatan_lokasi_pengantaran', 'catatan_penolakan', 'multitenant_id')
             ->when($request->start_date && $request->end_date, function ($query) use ($request) {
                 $query->whereBetween('updated_at', [$request->start_date, $request->end_date]);
             }, function ($query) use ($request) {
@@ -48,7 +48,8 @@ class StatusPesananTransaksiTenantController extends Controller
                 });
             })
             ->when($request->status, fn($query) => $query->where('status', $request->status))
-            ->when(in_array($request->isAntar, ['0', '1'], true), fn($query) => $query->where('isAntar', (int)$request->isAntar))
+            ->when(in_array($request->isAntar, ['0', '1'], true), fn($query) => $query->where('isAntar', (int) $request->isAntar))
+            ->orderByRaw('COALESCE(multitenant_id, id) DESC')
             ->orderBy('updated_at', 'desc')
             ->paginate($request->input('per_page', 10));
 

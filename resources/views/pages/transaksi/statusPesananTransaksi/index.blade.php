@@ -1,4 +1,26 @@
 <x-master-layout>
+    @push('css')
+        <style>
+            .multitenant-group {
+                border-left: 4px solid #2196F3;
+                position: relative;
+            }
+            .multitenant-badge {
+                display: inline-block;
+                padding: 2px 8px;
+                border-radius: 12px;
+                font-size: 11px;
+                font-weight: 600;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                margin-left: 8px;
+            }
+            .group-separator {
+                height: 8px;
+                background: transparent;
+            }
+        </style>
+    @endpush
     <div class="main-content">
         <div class="title">
             Status Pesanan Transaksi Tenant
@@ -77,12 +99,42 @@
                                 <th>Nama Pengantar</th>
                                 <th>Nama Ruangan</th>
                                 <th>Metode Pengantaran</th>
+                                <th>Paket</th>
                                 <th>List Pesanan</th>
                             </tr>
                         </thead>
                         <tbody>
+                            @php
+                                $currentMultitenantId = null;
+                                $groupColors = ['#e3f2fd', '#fff3e0', '#f3e5f5', '#e8f5e9', '#fce4ec', '#fff9c4'];
+                                $colorIndex = 0;
+                                $previousMultitenantId = null;
+                            @endphp
+                            
                             @foreach ($statusTransaksi as $key)
-                                <tr>
+                                @php
+                                    // Detect if this is a new multi-tenant group
+                                    $isNewGroup = $key->multitenant_id && $key->multitenant_id !== $currentMultitenantId;
+                                    if ($isNewGroup) {
+                                        $currentMultitenantId = $key->multitenant_id;
+                                        $colorIndex = ($colorIndex + 1) % count($groupColors);
+                                    }
+                                    
+                                    // Determine styling
+                                    $isGrouped = $key->multitenant_id !== null;
+                                    $bgColor = $isGrouped ? $groupColors[$colorIndex] : 'transparent';
+                                    $groupClass = $isGrouped ? 'multitenant-group' : '';
+                                    
+                                    // Add separator between different groups
+                                    $needsSeparator = $previousMultitenantId && $previousMultitenantId !== $key->multitenant_id && $isGrouped;
+                                    $previousMultitenantId = $key->multitenant_id;
+                                @endphp
+                                
+                                @if($needsSeparator)
+                                    <tr class="group-separator"><td colspan="11"></td></tr>
+                                @endif
+                                
+                                <tr class="{{ $groupClass }}" style="background-color: {{ $bgColor }};">
                                     <td>{{ ($statusTransaksi->currentPage() - 1) * $statusTransaksi->perPage() + $loop->iteration }}
                                     </td>
                                     <td>{{ $key->id }}</td>
@@ -94,6 +146,13 @@
                                     <td>{{ $key->ruangan->nama_ruangan ?? '-' }}</td>
                                     <td>
                                         {{ $key->isAntar == 1 ? 'Pesan Antar' : 'Ambil Sendiri' }}
+                                    </td>
+                                    <td>
+                                        @if($isGrouped)
+                                            <span class="multitenant-badge">Paket #{{ $key->multitenant_id }}</span>
+                                        @else
+                                            <span class="text-muted small">-</span>
+                                        @endif
                                     </td>
                                     <td>
                                         <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
