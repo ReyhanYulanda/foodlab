@@ -17,6 +17,17 @@ class DashboardController extends Controller
     {
         $mode = $request->get('mode', 'weekly'); // default weekly
 
+        // Determine the anchor date (latest transaction date or now if empty)
+        // This ensures that if the data is old (e.g. 2025), the dashboard shows that period by default
+        $latestTransaction = Transaksi::latest('created_at')->first();
+        $anchorDate = $latestTransaction ? $latestTransaction->created_at : now();
+
+        // If the user deliberately requests a specific range in real-app, we might need params.
+        // But for this debugging/demo context, anchoring to data is best.
+
+        // Keep 'now()' if the latest transaction is older than 1 year and we want to show 'current' status? 
+        // No, user specifically complains about 0 data. Let's use anchorDate.
+
         // Data untuk dropdown
         $modes = [
             'weekly' => 'Per Tanggal (Minggu ini)',
@@ -28,11 +39,12 @@ class DashboardController extends Controller
         $labels = [];
         $selesaiData = [];
         $refundData = [];
+        $revenueData = []; // Initialize revenueData here
 
         if ($mode === 'weekly') {
-            // x = tanggal minggu ini
-            $start = now()->startOfWeek();
-            $end = now()->endOfWeek();
+            // x = tanggal minggu ini (relative to anchorDate)
+            $start = $anchorDate->copy()->startOfWeek();
+            $end = $anchorDate->copy()->endOfWeek();
 
             $period = \Carbon\CarbonPeriod::create($start, $end);
 
@@ -40,46 +52,74 @@ class DashboardController extends Controller
                 $labels[] = $date->format('d M');
                 $selesaiData[] = Transaksi::whereDate('created_at', $date)->where('status', 'selesai')->count();
                 $refundData[] = Transaksi::whereDate('created_at', $date)->where('status', 'refund_selesai')->count();
+                $revenueData[] = Transaksi::whereDate('created_at', $date)->where('status', 'selesai')->sum('total');
             }
         } elseif ($mode === 'monthly') {
-            // x = minggu dalam bulan ini
-            $start = now()->startOfMonth();
-            $end = now()->endOfMonth();
+            // x = minggu dalam bulan ini (relative to anchorDate)
+            $start = $anchorDate->copy()->startOfMonth();
+            $end = $anchorDate->copy()->endOfMonth();
             $week = 1;
 
             while ($start <= $end) {
                 $weekStart = $start->copy();
                 $weekEnd = $start->copy()->endOfWeek();
+                if ($weekEnd > $end)
+                    $weekEnd = $end; // Ensure weekEnd does not exceed month end
 
                 $labels[] = "Minggu $week";
                 $selesaiData[] = Transaksi::whereBetween('created_at', [$weekStart, $weekEnd])->where('status', 'selesai')->count();
                 $refundData[] = Transaksi::whereBetween('created_at', [$weekStart, $weekEnd])->where('status', 'refund_selesai')->count();
+                $revenueData[] = Transaksi::whereBetween('created_at', [$weekStart, $weekEnd])->where('status', 'selesai')->sum('total');
 
                 $start->addWeek();
                 $week++;
             }
         } elseif ($mode === 'yearly') {
-            // x = bulan
+            // x = bulan (relative to anchorDate year)
+            $targetYear = $anchorDate->year;
+
             for ($m = 1; $m <= 12; $m++) {
                 $labels[] = date('M', mktime(0, 0, 0, $m, 1));
-                $selesaiData[] = Transaksi::whereMonth('created_at', $m)->whereYear('created_at', now()->year)->where('status', 'selesai')->count();
-                $refundData[] = Transaksi::whereMonth('created_at', $m)->whereYear('created_at', now()->year)->where('status', 'refund_selesai')->count();
+                $selesaiData[] = Transaksi::whereMonth('created_at', $m)->whereYear('created_at', $targetYear)->where('status', 'selesai')->count();
+                $refundData[] = Transaksi::whereMonth('created_at', $m)->whereYear('created_at', $targetYear)->where('status', 'refund_selesai')->count();
+                $revenueData[] = Transaksi::whereMonth('created_at', $m)->whereYear('created_at', $targetYear)->where('status', 'selesai')->sum('total');
             }
         } else {
-            $years = Transaksi::selectRaw('YEAR(created_at) as year')->distinct()->pluck('year');
+            $years = Transaksi::selectRaw('YEAR(created_at) as year')->distinct()->orderBy('year')->pluck('year');
             foreach ($years as $y) {
                 $labels[] = $y;
-                $selesaiData[] = Transaksi::whereYear('created_at', $y)
-                    ->where('status', 'selesai')
-                    ->count();
-                $refundData[] = Transaksi::whereYear('created_at', $y)
-                    ->where('status', 'refund_selesai')
-                    ->count();
+                $selesaiData[] = Transaksi::whereYear('created_at', $y)->where('status', 'selesai')->count();
+                $refundData[] = Transaksi::whereYear('created_at', $y)->where('status', 'refund_selesai')->count();
+                $revenueData[] = Transaksi::whereYear('created_at', $y)->where('status', 'selesai')->sum('total');
             }
         }
 
+        // Statistik Card Utama
         $totalSelesai = Transaksi::where('status', 'selesai')->count();
         $totalRefund = Transaksi::where('status', 'refund_selesai')->count();
+        $totalRevenue = Transaksi::where('status', 'selesai')->sum('total'); // Keep this for overall total revenue
+        $activeTransactions = Transaksi::whereIn('status', ['menunggu_konfirmasi', 'diproses', 'diantar'])->count();
+
+        // Top 5 Tenant berdasarkan Pendapatan (Revenue)
+        $topTenants = DB::table('transaksi')
+            ->join('transaksi_detail', 'transaksi.id', '=', 'transaksi_detail.transaksi_id')
+            ->join('menus', 'menus.id', '=', 'transaksi_detail.menu_id')
+            ->join('tenants', 'tenants.id', '=', 'menus.tenant_id')
+            ->where('transaksi.status', 'selesai')
+            ->select('tenants.nama_tenant', DB::raw('SUM(transaksi_detail.harga) as total_revenue'))
+            ->groupBy('tenants.nama_tenant')
+            ->orderByDesc('total_revenue')
+            ->limit(5)
+            ->get();
+
+        $topTenantLabels = $topTenants->pluck('nama_tenant');
+        $topTenantData = $topTenants->pluck('total_revenue');
+
+        // Recent Transactions
+        $recentTransactions = Transaksi::with(['user', 'ruangan'])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
 
         $refundList = DB::table('transaksi')
             ->join('transaksi_detail', 'transaksi.id', '=', 'transaksi_detail.transaksi_id')
@@ -101,8 +141,14 @@ class DashboardController extends Controller
             'labels',
             'selesaiData',
             'refundData',
+            'revenueData',
             'totalSelesai',
             'totalRefund',
+            'totalRevenue',
+            'activeTransactions',
+            'topTenantLabels',
+            'topTenantData',
+            'recentTransactions',
             'modes',
             'mode',
             'refundList'
