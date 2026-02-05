@@ -54,7 +54,7 @@ class TransaksiController extends Controller
         }
 
         $perPage = $request->input('per_page', 10);
-        $page    = $request->input('page', 1);
+        $page = $request->input('page', 1);
 
         $transaksi = Transaksi::with([
             'listTransaksiDetail.menus.tenants',
@@ -119,9 +119,9 @@ class TransaksiController extends Controller
         })->toArray();
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'data berhasil didapatkan',
-            'data'    => $transaksiData
+            'data' => $transaksiData
         ]);
     }
 
@@ -129,7 +129,7 @@ class TransaksiController extends Controller
     {
         $user = $request->user();
 
-        if (! $user->can('read order user')) {
+        if (!$user->can('read order user')) {
             return response()->json([
                 'status' => 'failed',
                 'message' => 'tidak memiliki akses',
@@ -146,7 +146,7 @@ class TransaksiController extends Controller
             ->where('id', $id)
             ->first();
 
-        if (! $transaksi) {
+        if (!$transaksi) {
             return response()->json([
                 'status' => 'failed',
                 'message' => 'Transaksi tidak ditemukan',
@@ -225,7 +225,7 @@ class TransaksiController extends Controller
             }
 
             $perPage = $request->input('per_page', 10);
-            $page    = $request->input('page', 1);
+            $page = $request->input('page', 1);
 
             $transaksi = Transaksi::whereHas('listTransaksiDetail.menus', function ($menus) use ($tenant) {
                 return $menus->where('tenant_id', $tenant->id);
@@ -241,14 +241,14 @@ class TransaksiController extends Controller
                 ->paginate($perPage, ['*'], 'page', $page);
 
             return response()->json([
-                "status"  => "success",
+                "status" => "success",
                 "message" => "Berhasil mengambil data",
-                "data"    => $transaksi
+                "data" => $transaksi
             ]);
         } catch (Throwable $th) {
             Log::error($th->getMessage());
             return response()->json([
-                "status"  => "server error",
+                "status" => "server error",
                 "message" => "terjadi kesalahan di server"
             ], 500);
         }
@@ -267,7 +267,7 @@ class TransaksiController extends Controller
 
         try {
             $perPage = $request->input('per_page', 10);
-            $page    = $request->input('page', 1);
+            $page = $request->input('page', 1);
 
             $transaksi = Transaksi::where('isAntar', 1)
                 ->where('driver_id', $user->id)
@@ -277,14 +277,14 @@ class TransaksiController extends Controller
                 ->paginate($perPage, ['*'], 'page', $page);
 
             return response()->json([
-                "status"  => "success",
+                "status" => "success",
                 "message" => "Berhasil mengambil data",
-                "data"    => $transaksi
+                "data" => $transaksi
             ]);
         } catch (Throwable $th) {
             Log::error($th->getMessage());
             return response()->json([
-                "status"  => "server error",
+                "status" => "server error",
                 "message" => "terjadi kesalahan di server"
             ], 500);
         }
@@ -316,7 +316,7 @@ class TransaksiController extends Controller
             'menus.*.id' => 'required|integer|exists:menus,id',
             'menus.*.jumlah' => 'required|integer|min:1',
             'catatan_lokasi_pengantaran' => 'nullable|string|max:255',
-        ],);
+        ], );
 
         if ($validatator->fails()) {
             return response()->json([
@@ -490,7 +490,7 @@ class TransaksiController extends Controller
 
                     if (!$voucher) {
                         return response()->json([
-                            'status'  => 'failed',
+                            'status' => 'failed',
                             'message' => 'Voucher tidak valid'
                         ], 400);
                     }
@@ -499,35 +499,35 @@ class TransaksiController extends Controller
 
                     if (!$cashback) {
                         return response()->json([
-                            'status'  => 'failed',
+                            'status' => 'failed',
                             'message' => 'Cashback tidak ditemukan'
                         ], 400);
                     }
 
                     if ($cashback->quantity <= 0) {
                         return response()->json([
-                            'status'  => 'failed',
+                            'status' => 'failed',
                             'message' => 'Cashback sudah habis'
                         ], 400);
                     }
 
                     if (now()->gt($cashback->end_date)) {
                         return response()->json([
-                            'status'  => 'failed',
+                            'status' => 'failed',
                             'message' => 'Cashback telah expired'
                         ], 400);
                     }
 
                     if ($voucher->quantity <= 0) {
                         return response()->json([
-                            'status'  => 'failed',
+                            'status' => 'failed',
                             'message' => 'Voucher sudah habis'
                         ], 400);
                     }
 
                     if (!$cashback->is_valid) {
                         return response()->json([
-                            'status'  => 'failed',
+                            'status' => 'failed',
                             'message' => 'Cashback tidak valid'
                         ], 400);
                     }
@@ -561,7 +561,8 @@ class TransaksiController extends Controller
                 // Sekarang buat transaksi per tenant — gunakan nilai dari pre-calc agar konsisten
                 foreach ($perTenantCalc as $tenantId => $calc) {
                     $tenant = Tenants::find($tenantId); // pastikan model Tenant (singular)
-                    if (!$tenant) continue;
+                    if (!$tenant)
+                        continue;
 
                     $ruanganId = $calc['ruanganId'];
                     $ongkosKirim = $calc['ongkosKirim'];
@@ -924,7 +925,7 @@ class TransaksiController extends Controller
 
                 if (!$voucher) {
                     return response()->json([
-                        'status'  => 'failed',
+                        'status' => 'failed',
                         'message' => 'Voucher tidak valid'
                     ], 400);
                 }
@@ -933,49 +934,49 @@ class TransaksiController extends Controller
 
                 if (!$cashback) {
                     return response()->json([
-                        'status'  => 'failed',
+                        'status' => 'failed',
                         'message' => 'Cashback tidak ditemukan'
                     ], 400);
                 }
 
                 if ($cashback->quantity <= 0) {
                     return response()->json([
-                        'status'  => 'failed',
+                        'status' => 'failed',
                         'message' => 'Cashback sudah habis'
                     ], 400);
                 }
 
                 if (now()->gt($cashback->end_date)) {
                     return response()->json([
-                        'status'  => 'failed',
+                        'status' => 'failed',
                         'message' => 'Cashback telah expired'
                     ], 400);
                 }
 
                 if ($totalFinal < $cashback->minimal_beli) {
                     return response()->json([
-                        'status'  => 'failed',
+                        'status' => 'failed',
                         'message' => 'Total belanja minimal ' . ($cashback->minimal_beli)
                     ], 400);
                 }
 
                 if ($voucher->user_id != $user->id) {
                     return response()->json([
-                        'status'  => 'failed',
+                        'status' => 'failed',
                         'message' => 'Voucher bukan milik anda'
                     ], 400);
                 }
 
                 if ($voucher->quantity <= 0) {
                     return response()->json([
-                        'status'  => 'failed',
+                        'status' => 'failed',
                         'message' => 'Voucher sudah habis'
                     ], 400);
                 }
 
                 if (!$cashback->is_valid) {
                     return response()->json([
-                        'status'  => 'failed',
+                        'status' => 'failed',
                         'message' => 'Cashback tidak valid'
                     ], 400);
                 }
@@ -1025,9 +1026,9 @@ class TransaksiController extends Controller
 
             if ($voucherId) {
                 CatatVoucher::create([
-                    'user_id'         => $user->id,
-                    'transaksi_id'    => $transaksi->id,
-                    'voucher_id'      => $voucher->id,
+                    'user_id' => $user->id,
+                    'transaksi_id' => $transaksi->id,
+                    'voucher_id' => $voucher->id,
                     'quantity_voucher' => $voucher->quantity,
                     'cashback_amount' => $assignCashback,
                 ]);
@@ -1184,7 +1185,8 @@ class TransaksiController extends Controller
     private function getOngkirGedung($ruanganId, $isMultitenant = false)
     {
         $ruangan = Ruangan::with('gedung')->find($ruanganId);
-        if (!$ruangan || !$ruangan->gedung) return 0;
+        if (!$ruangan || !$ruangan->gedung)
+            return 0;
 
         return $isMultitenant
             ? ($ruangan->gedung->ongkir_multitenant ?? 0)
@@ -1585,9 +1587,9 @@ class TransaksiController extends Controller
 
                         // Catat transaksi saldo koin
                         \App\Models\TransaksiSaldoKoin::create([
-                            'user_id'   => $transaksi->user_id,
-                            'jumlah'    => $totalRefund,
-                            'tipe'      => 'masuk',
+                            'user_id' => $transaksi->user_id,
+                            'jumlah' => $totalRefund,
+                            'tipe' => 'masuk',
                             'deskripsi' => 'Refund pesanan multitenant #' . $transaksi->multitenant_id,
                         ]);
 
@@ -1624,7 +1626,7 @@ class TransaksiController extends Controller
                                 )
                                 ->withData([
                                     'title' => 'Pesanan Multitenant Dibatalkan',
-                                    'body'  => "Saldo Rp " . number_format($totalRefund, 0, ',', '.') . " telah dikembalikan ke akun Anda.",
+                                    'body' => "Saldo Rp " . number_format($totalRefund, 0, ',', '.') . " telah dikembalikan ke akun Anda.",
                                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
                                 ])
                                 ->sendToFallback($fcmUserToken);
@@ -1640,9 +1642,9 @@ class TransaksiController extends Controller
 
                     // Catat transaksi saldo koin
                     \App\Models\TransaksiSaldoKoin::create([
-                        'user_id'   => $transaksi->user_id,
-                        'jumlah'    => $transaksi->total,
-                        'tipe'      => 'masuk',
+                        'user_id' => $transaksi->user_id,
+                        'jumlah' => $transaksi->total,
+                        'tipe' => 'masuk',
                         'deskripsi' => 'Refund pesanan #' . $transaksi->id,
                     ]);
 
@@ -1655,7 +1657,7 @@ class TransaksiController extends Controller
                             )
                             ->withData([
                                 'title' => 'Pesanan Dibatalkan',
-                                'body'  => "Saldo Rp " . number_format($transaksi->total, 0, ',', '.') . " telah dikembalikan ke akun Anda.",
+                                'body' => "Saldo Rp " . number_format($transaksi->total, 0, ',', '.') . " telah dikembalikan ke akun Anda.",
                                 'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
                             ])
                             ->sendToFallback($fcmUserToken);
@@ -1902,8 +1904,8 @@ class TransaksiController extends Controller
             'x-api-key' => $apiKey,
             'Accept' => 'application/json',
         ])->asJson()->post($apiUrl, [
-            'data' => [$dataToSend]
-        ]);
+                    'data' => [$dataToSend]
+                ]);
 
         if ($response->failed()) {
             return response()->json([
@@ -1948,18 +1950,18 @@ class TransaksiController extends Controller
     {
         $persentaseBiayaMidtrans = 0.007; // 0,7%
 
-        $biayaMidtrans     = (int) ceil($nominalTopup * $persentaseBiayaMidtrans);
+        $biayaMidtrans = (int) ceil($nominalTopup * $persentaseBiayaMidtrans);
         $totalSebelumBulat = $nominalTopup + $biayaMidtrans;
-        $totalBayar        = (int) (ceil($totalSebelumBulat / 50) * 50);
-        $biayaUbsima       = $totalBayar - $totalSebelumBulat;
-        $totalBiayaAdmin   = $biayaMidtrans + $biayaUbsima;
+        $totalBayar = (int) (ceil($totalSebelumBulat / 50) * 50);
+        $biayaUbsima = $totalBayar - $totalSebelumBulat;
+        $totalBiayaAdmin = $biayaMidtrans + $biayaUbsima;
 
         return [
-            'nominal_topup'     => $nominalTopup,
-            'biaya_midtrans'    => $biayaMidtrans,
-            'biaya_ubsima'      => $biayaUbsima,
+            'nominal_topup' => $nominalTopup,
+            'biaya_midtrans' => $biayaMidtrans,
+            'biaya_ubsima' => $biayaUbsima,
             'total_biaya_admin' => $totalBiayaAdmin,
-            'total_bayar_user'  => $totalBayar,
+            'total_bayar_user' => $totalBayar,
             'total_sebelum_bulat' => $totalSebelumBulat
         ];
     }
@@ -1985,7 +1987,7 @@ class TransaksiController extends Controller
         $dataToSend = [
             'payment_type' => 'qris',
             'transaction_details' => [
-                'order_id'     => $midtransRequestId,
+                'order_id' => $midtransRequestId,
                 'gross_amount' => $biaya['total_bayar_user'],
             ],
         ];
@@ -2222,8 +2224,8 @@ class TransaksiController extends Controller
             'x-api-key' => $apiKey,
             'Accept' => 'application/json',
         ])->asJson()->post($apiUrl, [
-            'data' => [$dataToSend]
-        ]);
+                    'data' => [$dataToSend]
+                ]);
 
         if ($response->failed()) {
             return response()->json([
@@ -2443,15 +2445,15 @@ class TransaksiController extends Controller
         $leaderboard = $leaderboard->map(function ($item) {
             $driver = $item->driver()->first(); // akses relasi driver manual
             return [
-                'nama_driver'     => $driver ? $driver->name : null,
-                'foto_driver'     => $driver ? $driver->image : null,
+                'nama_driver' => $driver ? $driver->name : null,
+                'foto_driver' => $driver ? $driver->image : null,
                 'total_transaksi' => $item->total_transaksi,
             ];
         });
 
         return response()->json([
             'status' => true,
-            'data'   => $leaderboard,
+            'data' => $leaderboard,
         ]);
     }
 
@@ -2501,7 +2503,7 @@ class TransaksiController extends Controller
             }
 
             $title = "📢 Driver menghubungi anda";
-            $body  = "Driver bisa saja mengirim pesan atau memberi tahu bahwa ia sudah tiba di lokasi.";
+            $body = "Driver bisa saja mengirim pesan atau memberi tahu bahwa ia sudah tiba di lokasi.";
 
             $firebase = new Firebases();
             $firebase->withNotification($title, $body)
@@ -2535,9 +2537,9 @@ class TransaksiController extends Controller
         Log::info('Webhook Callback dari Midtrans:', $json);
 
         // Validasi Signature
-        $orderId      = $json['order_id'] ?? null;
-        $statusCode   = $json['status_code'] ?? null;
-        $grossAmount  = $json['gross_amount'] ?? null;
+        $orderId = $json['order_id'] ?? null;
+        $statusCode = $json['status_code'] ?? null;
+        $grossAmount = $json['gross_amount'] ?? null;
         $signatureKey = $json['signature_key'] ?? null;
 
         if (!$orderId || !$statusCode || !$grossAmount || !$signatureKey) {
@@ -2774,24 +2776,24 @@ class TransaksiController extends Controller
     public function getPenghasilanTenant(Request $request)
     {
         $tenantId = $request->user()->id; // ambil id tenant dari user login
-        $year     = $request->query('year');
-        $month    = $request->query('month');
-        $date     = $request->query('date');
+        $year = $request->query('year');
+        $month = $request->query('month');
+        $date = $request->query('date');
 
-        $labels        = [];
-        $selesaiData   = [];
-        $refundData    = [];
+        $labels = [];
+        $selesaiData = [];
+        $refundData = [];
         $transaksiList = [];
 
         // default: all time
         $dateStart = null;
-        $dateEnd   = null;
+        $dateEnd = null;
 
         if ($year && !$month && !$date) {
             // mode yearly → data per bulan
             for ($m = 1; $m <= 12; $m++) {
                 $start = Carbon::create($year, $m, 1)->startOfMonth();
-                $end   = Carbon::create($year, $m, 1)->endOfMonth();
+                $end = Carbon::create($year, $m, 1)->endOfMonth();
 
                 $labels[] = $start->locale('id')->translatedFormat('F');
 
@@ -2811,11 +2813,11 @@ class TransaksiController extends Controller
             }
 
             $dateStart = Carbon::create($year, 1, 1)->startOfYear();
-            $dateEnd   = Carbon::create($year, 12, 31)->endOfYear();
+            $dateEnd = Carbon::create($year, 12, 31)->endOfYear();
         } elseif ($year && $month && !$date) {
             // mode monthly → data per minggu (maks 5 minggu)
             $startOfMonth = Carbon::create($year, $month, 1)->startOfMonth();
-            $endOfMonth   = Carbon::create($year, $month, 1)->endOfMonth();
+            $endOfMonth = Carbon::create($year, $month, 1)->endOfMonth();
 
             // 1) Bentuk minggu mentah (Senin–Minggu), lalu clamp ke dalam bulan
             $period = CarbonPeriod::create(
@@ -2829,11 +2831,14 @@ class TransaksiController extends Controller
                 $weekEnd = $weekStart->copy()->endOfWeek(Carbon::SUNDAY);
 
                 // Clamp ke bulan
-                if ($weekStart < $startOfMonth) $weekStart = $startOfMonth->copy();
-                if ($weekEnd   > $endOfMonth)   $weekEnd   = $endOfMonth->copy();
+                if ($weekStart < $startOfMonth)
+                    $weekStart = $startOfMonth->copy();
+                if ($weekEnd > $endOfMonth)
+                    $weekEnd = $endOfMonth->copy();
 
                 // Abaikan jika sudah invalid setelah clamp
-                if ($weekStart > $weekEnd) continue;
+                if ($weekStart > $weekEnd)
+                    continue;
 
                 $rawWeeks[] = [$weekStart, $weekEnd];
             }
@@ -2862,7 +2867,7 @@ class TransaksiController extends Controller
                     array_splice($rawWeeks, $minIdx, 1);
                 } else {
                     // Parsial di tengah: pilih tetangga dengan durasi lebih kecil agar gabungan tetap seimbang
-                    $leftDur  = $durations[$minIdx - 1] ?? PHP_INT_MAX;
+                    $leftDur = $durations[$minIdx - 1] ?? PHP_INT_MAX;
                     $rightDur = $durations[$minIdx + 1] ?? PHP_INT_MAX;
 
                     if ($rightDur <= $leftDur && isset($rawWeeks[$minIdx + 1])) {
@@ -2907,17 +2912,17 @@ class TransaksiController extends Controller
             }
 
             $dateStart = $startOfMonth;
-            $dateEnd   = $endOfMonth;
+            $dateEnd = $endOfMonth;
         } elseif ($year && $month && $date) {
             // =========================
             // MODE DAILY (DENGAN WINDOW 06:00–05:59)
             // =========================
             $filterDate = Carbon::create($year, $month, $date);
             $startOfWeek = $filterDate->copy()->startOfWeek(Carbon::MONDAY);
-            $endOfWeek   = $filterDate->copy()->endOfWeek(Carbon::SUNDAY);
+            $endOfWeek = $filterDate->copy()->endOfWeek(Carbon::SUNDAY);
 
             $dateStart = $startOfWeek;
-            $dateEnd   = $endOfWeek;
+            $dateEnd = $endOfWeek;
 
             $period = CarbonPeriod::create($startOfWeek, $endOfWeek);
 
@@ -2933,7 +2938,7 @@ class TransaksiController extends Controller
 
                 // window 06:00 hari sebelumnya - 05:59 hari ini
                 $windowStart = $day->copy()->subDay()->setTime(6, 0, 0);
-                $windowEnd   = $day->copy()->setTime(5, 59, 59);
+                $windowEnd = $day->copy()->setTime(5, 59, 59);
                 $labelWindowMap[$dayName] = [$windowStart, $windowEnd];
 
                 $labels[] = $dayName;
@@ -2977,11 +2982,11 @@ class TransaksiController extends Controller
             ->get();
 
         foreach ($transaksiQuery as $trx) {
-            $harga = max(0, (int)$trx->total - (int)($trx->ongkos_kirim ?? 0));
+            $harga = max(0, (int) $trx->total - (int) ($trx->ongkos_kirim ?? 0));
             $bersih = $trx->status === 'selesai' ? $harga - (0.1 * $harga) : 0;
 
             $original = $trx->updated_at->copy()->timezone('Asia/Jakarta');
-            $hour = (int)$original->format('H');
+            $hour = (int) $original->format('H');
 
             // default value
             $labelTrx = null;
@@ -3014,23 +3019,23 @@ class TransaksiController extends Controller
 
             if ($year && $month && $date) {
                 $transaksiList[] = [
-                    'id'                => $trx->id,
-                    'status'            => $trx->status,
-                    'harga'             => $harga,
+                    'id' => $trx->id,
+                    'status' => $trx->status,
+                    'harga' => $harga,
                     'pendapatan_bersih' => $bersih,
-                    'tanggal'           => $trx->updated_at->format('d-m-Y H:i:s'),
-                    'label'             => $labelTrx,
-                    'label_tanggal'     => $labelTanggal->format('d-m-Y'),
+                    'tanggal' => $trx->updated_at->format('d-m-Y H:i:s'),
+                    'label' => $labelTrx,
+                    'label_tanggal' => $labelTanggal->format('d-m-Y'),
                 ];
             } else {
                 $transaksiList[] = [
-                    'id'                => $trx->id,
-                    'status'            => $trx->status,
-                    'harga'             => $harga,
+                    'id' => $trx->id,
+                    'status' => $trx->status,
+                    'harga' => $harga,
                     'pendapatan_bersih' => $bersih,
-                    'tanggal'           => $trx->updated_at->format('d-m-Y H:i:s'),
-                    'label'             => $labelTrx,
-                    'label_tanggal'     => $labelTanggal->format('d-m-Y'),
+                    'tanggal' => $trx->updated_at->format('d-m-Y H:i:s'),
+                    'label' => $labelTrx,
+                    'label_tanggal' => $labelTanggal->format('d-m-Y'),
                 ];
             }
         }
@@ -3053,43 +3058,69 @@ class TransaksiController extends Controller
 
         if ($year && $month && $date) {
             return response()->json([
-                'labels'            => $labels,
-                'selesaiData'       => array_map('intval', $selesaiData),
-                'refundData'        => array_map('intval', $refundData),
-                'totalSelesai'      => intval(array_sum($selesaiData)),
-                'totalRefund'       => intval(array_sum($refundData)),
-                'totalPendapatan'   => intval($totalPendapatan),
+                'labels' => $labels,
+                'selesaiData' => array_map('intval', $selesaiData),
+                'refundData' => array_map('intval', $refundData),
+                'totalSelesai' => intval(array_sum($selesaiData)),
+                'totalRefund' => intval(array_sum($refundData)),
+                'totalPendapatan' => intval($totalPendapatan),
                 'transaksi' => collect($transaksiList)->map(function ($trx) {
                     return [
-                        'id'                => intval($trx['id']),
-                        'status'            => $trx['status'],
-                        'harga'             => intval($trx['harga']),
+                        'id' => intval($trx['id']),
+                        'status' => $trx['status'],
+                        'harga' => intval($trx['harga']),
                         'pendapatan_bersih' => intval($trx['pendapatan_bersih']),
-                        'tanggal'           => $trx['tanggal'],
-                        'label'             => $trx['label'],
-                        'label_tanggal'     => $trx['label_tanggal'],
+                        'tanggal' => $trx['tanggal'],
+                        'label' => $trx['label'],
+                        'label_tanggal' => $trx['label_tanggal'],
                     ];
                 }),
             ]);
         } else {
             return response()->json([
-                'labels'            => $labels,
-                'selesaiData'       => array_map('intval', $selesaiData),
-                'refundData'        => array_map('intval', $refundData),
-                'totalSelesai'      => intval(array_sum($selesaiData)),
-                'totalRefund'       => intval(array_sum($refundData)),
-                'totalPendapatan'   => intval($totalPendapatan),
+                'labels' => $labels,
+                'selesaiData' => array_map('intval', $selesaiData),
+                'refundData' => array_map('intval', $refundData),
+                'totalSelesai' => intval(array_sum($selesaiData)),
+                'totalRefund' => intval(array_sum($refundData)),
+                'totalPendapatan' => intval($totalPendapatan),
                 'transaksi' => collect($transaksiList)->map(function ($trx) {
                     return [
-                        'id'                => intval($trx['id']),
-                        'status'            => $trx['status'],
-                        'harga'             => intval($trx['harga']),
+                        'id' => intval($trx['id']),
+                        'status' => $trx['status'],
+                        'harga' => intval($trx['harga']),
                         'pendapatan_bersih' => intval($trx['pendapatan_bersih']),
-                        'tanggal'           => $trx['tanggal'],
-                        'label'             => $trx['label'],
+                        'tanggal' => $trx['tanggal'],
+                        'label' => $trx['label'],
                     ];
                 }),
             ]);
+        }
+    }
+
+    public function deleteTransaksi($id)
+    {
+        DB::beginTransaction();
+        try {
+            $transaksi = Transaksi::find($id);
+
+            if (!$transaksi) {
+                return ResponseApi::error("Transaksi tidak ditemukan", 404);
+            }
+
+            // Soft delete details first
+            $transaksi->listTransaksiDetail()->delete();
+
+            // Soft delete the transaction
+            $transaksi->delete();
+
+            DB::commit();
+
+            return ResponseApi::success(null, "Transaksi berhasil dihapus");
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            Log::error("Gagal menghapus transaksi: " . $th->getMessage());
+            return ResponseApi::serverError();
         }
     }
 }
