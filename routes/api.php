@@ -30,6 +30,7 @@ Route::post('menu/{id}', [KelolaTenantController::class, 'updateMenuWeb']);
 
 Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function () {
     Route::post('/transaksi/topup', [TransaksiController::class, 'storeTopUp']);
+    Route::delete('/transaksi/staging/hapus/destroy/{id}', [TransaksiController::class, 'deleteTransaksi']);
     Route::get('/transaksi/get-top-up/{kodeBayar}', [TransaksiController::class, 'getTopUp']);
     Route::post('/tenant/menucoba/{id}', [KelolaTenantController::class, 'updateMenu']);
     Route::post('/transaksi/topup/midtrans', [TransaksiController::class, 'midtransTopUp']);
