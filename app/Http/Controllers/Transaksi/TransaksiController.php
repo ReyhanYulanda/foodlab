@@ -42,6 +42,88 @@ use Illuminate\Support\Str;
 
 class TransaksiController extends Controller
 {
+    public function orderUserAll(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user->can('read order user')) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'tidak memiliki akses',
+            ], 403);
+        }
+
+        $perPage = $request->input('per_page', 20);
+        $page = $request->input('page', 1);
+
+        $transaksi = Transaksi::with([
+            'listTransaksiDetail.menus.tenants',
+            'user',
+            'checkout'
+        ])
+            ->whereHas('listTransaksiDetail.menus.tenants', function ($tenant) use ($user) {
+                $tenant->where('user_id', '!=', $user->id);
+            })
+            ->orderByDesc('created_at')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        // Ambil semua multitenant_id yang ada dalam hasil query
+        $multitenantIds = $transaksi->pluck('multitenant_id')->filter()->unique()->values();
+
+        // Cari checkout untuk setiap multitenant (ambil dari transaksi pertama dengan multitenant_id tersebut)
+        $checkoutByMultitenant = [];
+
+        if ($multitenantIds->isNotEmpty()) {
+            // Ambil checkout untuk setiap multitenant group
+            $checkouts = Checkout::whereIn('transaksi_id', function ($query) use ($multitenantIds) {
+                $query->select('id')
+                    ->from('transaksi')
+                    ->whereIn('multitenant_id', $multitenantIds)
+                    ->orderBy('id', 'asc'); // Ambil transaksi pertama
+            })
+                ->get()
+                ->groupBy(function ($checkout) {
+                    // Group by multitenant_id dari transaksi
+                    return $checkout->transaksi->multitenant_id;
+                });
+
+            foreach ($checkouts as $multitenantId => $checkoutGroup) {
+                $checkoutByMultitenant[$multitenantId] = $checkoutGroup->first();
+            }
+        }
+
+        // Transformasi data
+        $transaksiData = $transaksi->toArray();
+
+        // Tambahkan data checkout ke setiap item transaksi
+        $transaksiData['data'] = collect($transaksiData['data'])->map(function ($item) use ($checkoutByMultitenant) {
+            $transaksiModel = Transaksi::find($item['id']);
+            $checkout = $transaksiModel->checkout;
+
+            // Jika transaksi ini tidak punya checkout langsung, cari berdasarkan multitenant_id
+            if (!$checkout && !empty($item['multitenant_id'])) {
+                $checkout = $checkoutByMultitenant[$item['multitenant_id']] ?? null;
+            }
+
+            if ($checkout) {
+                $item['midtrans_request_id'] = $checkout->midtrans_request_id ?? null;
+                $item['qr_url'] = $checkout->kode_bayar ?? null;
+                $item['expiry'] = $checkout->tgl_akhir_tagihan ?? null;
+                $item['biaya_admin'] = $checkout->total_biaya_admin ?? null;
+                $item['order_id_midtrans'] = $checkout->midtrans_request_id ?? null;
+                $item['grand_total'] = $checkout->total_bayar_user ?? null;
+            }
+
+            return $item;
+        })->toArray();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'data berhasil didapatkan',
+            'data' => $transaksiData
+        ]);
+    }
+
     public function orderUser(Request $request)
     {
         $user = $request->user();

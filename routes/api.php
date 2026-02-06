@@ -30,7 +30,6 @@ Route::post('menu/{id}', [KelolaTenantController::class, 'updateMenuWeb']);
 
 Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function () {
     Route::post('/transaksi/topup', [TransaksiController::class, 'storeTopUp']);
-    Route::delete('/transaksi/staging/hapus/destroy/{id}', [TransaksiController::class, 'deleteTransaksi']);
     Route::get('/transaksi/get-top-up/{kodeBayar}', [TransaksiController::class, 'getTopUp']);
     Route::post('/tenant/menucoba/{id}', [KelolaTenantController::class, 'updateMenu']);
     Route::post('/transaksi/topup/midtrans', [TransaksiController::class, 'midtransTopUp']);
@@ -53,6 +52,7 @@ Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function 
     Route::get('/tenants/{TenantId}', [TenantController::class, 'getSpecificTenant']);
     Route::get('/menus/{id}', [TenantController::class, 'getMenusById']);
     Route::get('/order/user', [TransaksiController::class, 'orderUser']);
+    Route::get('/order/user/all/transaksi', [TransaksiController::class, 'orderUserAll']);
     Route::get('/order/user/{id}', [TransaksiController::class, 'orderUserById']);
     Route::post('/order', [TransaksiController::class, 'store']);
     Route::get('/order/driver', [TransaksiController::class, 'getOnlineDriver']);
