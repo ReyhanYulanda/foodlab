@@ -3097,30 +3097,4 @@ class TransaksiController extends Controller
             ]);
         }
     }
-
-    public function deleteTransaksi($id)
-    {
-        DB::beginTransaction();
-        try {
-            $transaksi = Transaksi::find($id);
-
-            if (!$transaksi) {
-                return ResponseApi::error("Transaksi tidak ditemukan", 404);
-            }
-
-            // Soft delete details first
-            $transaksi->listTransaksiDetail()->delete();
-
-            // Soft delete the transaction
-            $transaksi->delete();
-
-            DB::commit();
-
-            return ResponseApi::success(null, "Transaksi berhasil dihapus");
-        } catch (\Throwable $th) {
-            DB::rollBack();
-            Log::error("Gagal menghapus transaksi: " . $th->getMessage());
-            return ResponseApi::serverError();
-        }
-    }
 }

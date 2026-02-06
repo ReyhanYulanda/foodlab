@@ -27,11 +27,13 @@ class AutoCompleteDiproses extends Command
 
         $retries = Pengaturan::where('nama', 'retry_pesanan_diproses')->first();
         $retry = (int) ($retries->nilai ?? 15);
-        if ($retry <= 0) $retry = 15;
+        if ($retry <= 0)
+            $retry = 15;
 
         foreach ($transaksis as $transaksi) {
             $minutes = Carbon::parse($transaksi->updated_at)->diffInMinutes(Carbon::now());
-            if ($minutes < $retry) continue;
+            if ($minutes < $retry)
+                continue;
 
             /**
              * =====================
@@ -39,6 +41,11 @@ class AutoCompleteDiproses extends Command
              * =====================
              */
             $newStatus = $transaksi->isAntar == 1 ? 'siap_diantar' : 'siap_diambil';
+
+            // 🔹 Jika Priority dan sudah ada driver, langsung diantar
+            if ($transaksi->status == 'pesanan_diproses' && $transaksi->isPriority == 1 && $transaksi->driver_id) {
+                $newStatus = 'diantar';
+            }
 
             // 🔹 Jika ini pesanan antar & punya multitenant_id
             if ($transaksi->isAntar == 1 && $transaksi->multitenant_id && $transaksi->driver_id) {
