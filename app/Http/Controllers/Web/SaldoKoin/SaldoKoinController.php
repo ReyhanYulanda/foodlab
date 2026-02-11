@@ -8,6 +8,8 @@ use App\Models\SaldoKoin;
 use App\Models\TransaksiSaldoKoin;
 use App\Models\User;
 use App\Services\Firebases;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class SaldoKoinController extends Controller
 {
@@ -86,5 +88,52 @@ class SaldoKoinController extends Controller
             ->get();
 
         return view('pages.saldoKoin.riwayat', compact('transaksi'));
+    }
+
+    public function exportCsv()
+    {
+        $this->authorize('read saldo_koin');
+
+        $saldos = SaldoKoin::with('user')->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // Header row
+        $headers = ['No', 'Nama User', 'Email', 'Jumlah Saldo', 'Terakhir Diperbarui'];
+        $sheet->fromArray($headers, null, 'A1');
+
+        // Data rows
+        $row = 2;
+        foreach ($saldos as $index => $saldo) {
+            $sheet->fromArray([
+                $index + 1,
+                $saldo->user->name ?? '-',
+                $saldo->user->email ?? '-',
+                $saldo->jumlah ?? 0,
+                $saldo->updated_at ? $saldo->updated_at->format('d-m-Y H:i:s') : '-',
+            ], null, "A{$row}");
+            $row++;
+        }
+
+        // Auto-size columns
+        foreach (range('A', $sheet->getHighestColumn()) as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // Format angka pada kolom Jumlah Saldo (D)
+        $lastRow = $sheet->getHighestRow();
+        $sheet->getStyle("D2:D{$lastRow}")
+            ->getNumberFormat()
+            ->setFormatCode('#,##0');
+
+        $fileName = 'saldo_koin_' . date('YmdHis') . '.xlsx';
+        $writer = new Xlsx($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 }
