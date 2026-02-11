@@ -14,9 +14,10 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $perPage = $request->input('per_page', 10);
-        $search = $request->input('search'); 
+        $search = $request->input('search');
 
-        $query = User::with('roles');
+        $query = User::with('roles')->whereNotNull('email_verified_at');
+        ;
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -64,8 +65,8 @@ class UserController extends Controller
             'image' => $url,
         ]);
 
-        if($request->roles){
-            foreach($request->roles as $role){
+        if ($request->roles) {
+            foreach ($request->roles as $role) {
                 $user->assignRole($role);
                 if ($role === 'masbro') {
                     DriverDetail::firstOrCreate(
@@ -74,7 +75,7 @@ class UserController extends Controller
                     );
                 }
             }
-        }        
+        }
 
         return redirect()->route('user.index')->with(["status" => "success", 'message' => "User berhasil ditambahkan"]);
     }
@@ -114,23 +115,25 @@ class UserController extends Controller
             'image' => $url,
         ]);
 
-        if($request->roles){
+        if ($request->roles) {
             $user->syncRoles($request->roles);
-        
+
             if (in_array('masbro', $request->roles)) {
                 DriverDetail::firstOrCreate(
                     ['user_id' => $user->id],
                     ['no_rekening' => null]
                 );
             }
-        }        
+        }
 
-        return redirect()->route('user.index')->with(["status" => "success", 'message' => "User berhasil diupdate"]);;
+        return redirect()->route('user.index')->with(["status" => "success", 'message' => "User berhasil diupdate"]);
+        ;
     }
 
     public function destroy($id)
     {
         $user = User::destroy($id);
-        return redirect()->route('user.index')->with(["status" => "success", 'message' => "User berhasil dihapus"]);;
+        return redirect()->route('user.index')->with(["status" => "success", 'message' => "User berhasil dihapus"]);
+        ;
     }
 }
