@@ -21,9 +21,9 @@ class TransaksiTenantController extends Controller
         $this->authorize('read transaksi_tenant');
 
         $filterDate = $request->input('filter_date');
-        $startDate  = $request->input('start_date');
-        $endDate    = $request->input('end_date');
-        $perPage    = $request->input('per_page', 10);
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+        $perPage = $request->input('per_page', 10);
 
         // Default: hari ini
         if (!$filterDate && !$startDate && !$endDate) {
@@ -37,13 +37,13 @@ class TransaksiTenantController extends Controller
          */
         if ($filterDate) {
             $start = Carbon::parse($filterDate)->subDay()->setTime(6, 0, 0);
-            $end   = Carbon::parse($filterDate)->setTime(5, 59, 59);
+            $end = Carbon::parse($filterDate)->setTime(5, 59, 59);
         } elseif ($startDate && $endDate) {
             $start = Carbon::parse($startDate)->subDay()->setTime(6, 0, 0);
-            $end   = Carbon::parse($endDate)->setTime(5, 59, 59);
+            $end = Carbon::parse($endDate)->setTime(5, 59, 59);
         } else {
             $start = Carbon::today()->subDay()->setTime(6, 0, 0);
-            $end   = Carbon::today()->setTime(5, 59, 59);
+            $end = Carbon::today()->setTime(5, 59, 59);
         }
 
         /**
@@ -149,7 +149,7 @@ class TransaksiTenantController extends Controller
 
         if ($filterDate) {
             $start = Carbon::parse($filterDate)->subDay()->setTime(6, 0, 0);
-            $end   = Carbon::parse($filterDate)->setTime(5, 59, 59);
+            $end = Carbon::parse($filterDate)->setTime(5, 59, 59);
             $query->whereBetween('updated_at', [$start, $end]);
         }
 
@@ -184,8 +184,8 @@ class TransaksiTenantController extends Controller
         $pesanan = $transaksi->listTransaksiDetail->map(function ($detail) {
             return [
                 'nama_menu' => $detail->menus->nama ?? 'Menu Tidak Ditemukan',
-                'jumlah'    => $detail->jumlah ?? 0,
-                'harga'     => $detail->harga ?? 0,
+                'jumlah' => $detail->jumlah ?? 0,
+                'harga' => $detail->harga ?? 0,
             ];
         });
 
@@ -213,13 +213,13 @@ class TransaksiTenantController extends Controller
          */
         if ($filterDate) {
             $start = Carbon::parse($filterDate)->subDay()->setTime(6, 0, 0);
-            $end   = Carbon::parse($filterDate)->setTime(5, 59, 59);
+            $end = Carbon::parse($filterDate)->setTime(5, 59, 59);
         } elseif ($startDate && $endDate) {
             $start = Carbon::parse($startDate)->subDay()->setTime(6, 0, 0);
-            $end   = Carbon::parse($endDate)->setTime(5, 59, 59);
+            $end = Carbon::parse($endDate)->setTime(5, 59, 59);
         } else {
             $start = Carbon::today()->subDay()->setTime(6, 0, 0);
-            $end   = Carbon::today()->setTime(5, 59, 59);
+            $end = Carbon::today()->setTime(5, 59, 59);
         }
 
         /**
@@ -417,11 +417,11 @@ class TransaksiTenantController extends Controller
 
         if ($filterDate) {
             $start = Carbon::parse($filterDate)->subDay()->setTime(6, 0, 0);
-            $end   = Carbon::parse($filterDate)->setTime(5, 59, 59);
+            $end = Carbon::parse($filterDate)->setTime(5, 59, 59);
             $query->whereBetween('transaksi.updated_at', [$start, $end]);
         } elseif ($startDate && $endDate) {
             $start = Carbon::parse($startDate)->subDay()->setTime(6, 0, 0);
-            $end   = Carbon::parse($endDate)->setTime(5, 59, 59);
+            $end = Carbon::parse($endDate)->setTime(5, 59, 59);
             $query->whereBetween('transaksi.updated_at', [$start, $end]);
         }
 
@@ -519,7 +519,7 @@ class TransaksiTenantController extends Controller
     public function exportCsvRekap(Request $request)
     {
         $startDate = $request->input('start_date');
-        $endDate   = $request->input('end_date');
+        $endDate = $request->input('end_date');
 
         /**
          * ============================================================
@@ -528,11 +528,11 @@ class TransaksiTenantController extends Controller
          */
         if ($startDate && $endDate) {
             $start = Carbon::parse($startDate)->subDay()->setTime(6, 0, 0);
-            $end   = Carbon::parse($endDate)->setTime(5, 59, 59);
+            $end = Carbon::parse($endDate)->setTime(5, 59, 59);
         } else {
             // default: hari ini
             $start = Carbon::today()->subDay()->setTime(6, 0, 0);
-            $end   = Carbon::today()->setTime(5, 59, 59);
+            $end = Carbon::today()->setTime(5, 59, 59);
         }
 
         /**

@@ -116,7 +116,7 @@ class SaldoKoinController extends Controller
                     $saldo->user->name ?? '-',
                     $saldo->user->email ?? '-',
                     number_format($saldo->jumlah, 0, ',', '.'),
-                    $saldo->updated_at->format('d-m-Y H:i:s'),
+                    $saldo->updated_at ? $saldo->updated_at->format('d-m-Y H:i:s') : '-',
                 ]);
             }
 
