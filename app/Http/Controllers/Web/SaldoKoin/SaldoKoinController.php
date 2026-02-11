@@ -8,6 +8,8 @@ use App\Models\SaldoKoin;
 use App\Models\TransaksiSaldoKoin;
 use App\Models\User;
 use App\Services\Firebases;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class SaldoKoinController extends Controller
 {
@@ -94,35 +96,44 @@ class SaldoKoinController extends Controller
 
         $saldos = SaldoKoin::with('user')->get();
 
-        $fileName = 'saldo_koin_' . now()->format('Y-m-d_H-i-s') . '.csv';
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
 
-        $headers = [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"$fileName\"",
-        ];
+        // Header row
+        $headers = ['No', 'Nama User', 'Email', 'Jumlah Saldo', 'Terakhir Diperbarui'];
+        $sheet->fromArray($headers, null, 'A1');
 
-        $callback = function () use ($saldos) {
-            $file = fopen('php://output', 'w');
+        // Data rows
+        $row = 2;
+        foreach ($saldos as $index => $saldo) {
+            $sheet->fromArray([
+                $index + 1,
+                $saldo->user->name ?? '-',
+                $saldo->user->email ?? '-',
+                $saldo->jumlah ?? 0,
+                $saldo->updated_at ? $saldo->updated_at->format('d-m-Y H:i:s') : '-',
+            ], null, "A{$row}");
+            $row++;
+        }
 
-            // BOM for Excel UTF-8 compatibility
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
+        // Auto-size columns
+        foreach (range('A', $sheet->getHighestColumn()) as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
 
-            // Header row
-            fputcsv($file, ['No', 'Nama User', 'Email', 'Jumlah Saldo', 'Terakhir Diperbarui']);
+        // Format angka pada kolom Jumlah Saldo (D)
+        $lastRow = $sheet->getHighestRow();
+        $sheet->getStyle("D2:D{$lastRow}")
+            ->getNumberFormat()
+            ->setFormatCode('#,##0');
 
-            foreach ($saldos as $index => $saldo) {
-                fputcsv($file, [
-                    $index + 1,
-                    $saldo->user->name ?? '-',
-                    $saldo->user->email ?? '-',
-                    number_format($saldo->jumlah, 0, ',', '.'),
-                    $saldo->updated_at ? $saldo->updated_at->format('d-m-Y H:i:s') : '-',
-                ]);
-            }
+        $fileName = 'saldo_koin_' . date('YmdHis') . '.xlsx';
+        $writer = new Xlsx($spreadsheet);
 
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 }
