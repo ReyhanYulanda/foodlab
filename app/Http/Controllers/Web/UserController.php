@@ -13,11 +13,14 @@ class UserController extends Controller
 {
     public function index(Request $request)
     {
+        if (!auth()->user()->can('read user')) {
+            abort(403, 'Tidak memiliki akses');
+        }
+
         $perPage = $request->input('per_page', 10);
         $search = $request->input('search');
 
         $query = User::with('roles')->whereNotNull('email_verified_at');
-        ;
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -33,12 +36,20 @@ class UserController extends Controller
 
     public function create()
     {
+        if (!auth()->user()->can('create user')) {
+            abort(403, 'Tidak memiliki akses');
+        }
+
         $roles = Role::all();
         return view('pages.konfigurasi.user.create', compact('roles'));
     }
 
     public function store(Request $request)
     {
+        if (!auth()->user()->can('create user')) {
+            abort(403, 'Tidak memiliki akses');
+        }
+
         $request->validate([
             'nama_user' => 'required',
             'email' => 'required',
@@ -82,6 +93,10 @@ class UserController extends Controller
 
     public function edit($id)
     {
+        if (!auth()->user()->can('update user')) {
+            abort(403, 'Tidak memiliki akses');
+        }
+
         $roles = Role::all();
         $user = User::find($id);
         return view('pages.konfigurasi.user.edit', compact('roles', 'user'));
@@ -89,6 +104,10 @@ class UserController extends Controller
 
     public function update(Request $request, $id)
     {
+        if (!auth()->user()->can('update user')) {
+            abort(403, 'Tidak memiliki akses');
+        }
+
         $request->validate([
             'nama_user' => 'required',
             'email' => 'required',
@@ -132,6 +151,10 @@ class UserController extends Controller
 
     public function destroy($id)
     {
+        if (!auth()->user()->can('delete user')) {
+            abort(403, 'Tidak memiliki akses');
+        }
+
         $user = User::destroy($id);
         return redirect()->route('user.index')->with(["status" => "success", 'message' => "User berhasil dihapus"]);
         ;
