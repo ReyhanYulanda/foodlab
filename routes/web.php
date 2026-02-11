@@ -86,6 +86,7 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
     Route::get('/saldo_koin', [SaldoKoinController::class, 'index'])->name('saldoKoin.index');
     Route::get('/saldo_koin/create', [SaldoKoinController::class, 'create'])->name('saldoKoin.create');
     Route::post('/saldo_koin', [SaldoKoinController::class, 'store'])->name('saldoKoin.store');
+    Route::get('/saldo_koin/csv/export', [SaldoKoinController::class, 'exportCsv'])->name('saldoKoin.export');
     Route::get('/saldo_koin/riwayat/{user_id}', [SaldoKoinController::class, 'riwayatTransaksi'])->name('saldoKoin.riwayat');
 
     Route::get('/transaksi_tenant', [TransaksiTenantController::class, 'transaksiTenant'])->name('transaksi.tenant');

@@ -93,7 +93,7 @@ class UserController extends Controller
 
     public function edit($id)
     {
-        if (!auth()->user()->can('update user')) {
+        if (!auth()->user()->can('update user admin')) {
             abort(403, 'Tidak memiliki akses');
         }
 
@@ -104,7 +104,7 @@ class UserController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (!auth()->user()->can('update user')) {
+        if (!auth()->user()->can('update user admin')) {
             abort(403, 'Tidak memiliki akses');
         }
 

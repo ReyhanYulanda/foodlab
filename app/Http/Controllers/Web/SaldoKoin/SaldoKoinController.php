@@ -87,4 +87,42 @@ class SaldoKoinController extends Controller
 
         return view('pages.saldoKoin.riwayat', compact('transaksi'));
     }
+
+    public function exportCsv()
+    {
+        $this->authorize('read saldo_koin');
+
+        $saldos = SaldoKoin::with('user')->get();
+
+        $fileName = 'saldo_koin_' . now()->format('Y-m-d_H-i-s') . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"$fileName\"",
+        ];
+
+        $callback = function () use ($saldos) {
+            $file = fopen('php://output', 'w');
+
+            // BOM for Excel UTF-8 compatibility
+            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            // Header row
+            fputcsv($file, ['No', 'Nama User', 'Email', 'Jumlah Saldo', 'Terakhir Diperbarui']);
+
+            foreach ($saldos as $index => $saldo) {
+                fputcsv($file, [
+                    $index + 1,
+                    $saldo->user->name ?? '-',
+                    $saldo->user->email ?? '-',
+                    number_format($saldo->jumlah, 0, ',', '.'),
+                    $saldo->updated_at->format('d-m-Y H:i:s'),
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
 }
