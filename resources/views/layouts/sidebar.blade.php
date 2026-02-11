@@ -1,6 +1,7 @@
-<nav class="main-sidebar ps-menu">
+<nav class="main-sidebar">
     <aside
-        class="flex h-full w-small_sidebar flex-col items-center overflow-y-auto bg-sidebar px-0 shadow transition-all sm:w-sidebar sm:px-3">
+        class="flex h-full w-small_sidebar flex-col items-center bg-sidebar px-0 shadow transition-all sm:w-sidebar sm:px-3"
+        style="overflow: hidden;">
         <!-- Side Nav Bar-->
 
         <div class="sidebar-header">
@@ -13,9 +14,9 @@
             <div class="close-sidebar action-toggle">
                 <i class="ti-close"></i>
             </div>
-        </div>        
+        </div>
 
-        <div class="sidebar-content">
+        <div class="sidebar-content ps-menu" style="overflow: hidden; height: calc(100vh - 140px);">
             <ul class="flex h-full w-full flex-col">
                 @foreach ($menus as $mm)
                     @can("read $mm->nama")
@@ -31,7 +32,8 @@
                                         class="fas fa-{{ $mm->ikon }} {{ explode('/', request()->path())[0] == $mm->nama ? 'text-white' : 'text-black' }}"></i>
                                 @endif
                                 {{-- <i
-                                    class="fas fa-{{ $mm->ikon }} {{ explode('/', request()->path())[0] == $mm->nama ? 'text-white' : 'text-black' }}"></i> --}}
+                                    class="fas fa-{{ $mm->ikon }} {{ explode('/', request()->path())[0] == $mm->nama ? 'text-white' : 'text-black' }}"></i>
+                                --}}
                                 <span
                                     class="items-center hidden sm:inline-block {{ explode('/', request()->path())[0] == $mm->nama ? 'text-white' : 'text-black' }}">{{ strtoupper($mm->nama) }}</span>
                             </a>

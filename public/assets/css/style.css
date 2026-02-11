@@ -122,7 +122,7 @@ body {
   width: 260px;
   position: fixed;
   background-color: #ffffff;
-  /* overflow: auto; */
+  overflow: hidden;
   transition: width 0.4s ease;
   transition-property: width, margin-left;
   box-shadow: 0.2px 0.2px 5px 0.7px #f1f1f1;
