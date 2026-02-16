@@ -18,7 +18,6 @@ class TenantsFactory extends Factory
             'nama_tenant' => $this->faker->company(),
             'nama_kavling' => $this->faker->companySuffix(),
             'nama_gambar' => $this->faker->imageUrl(),
-            'jam'=> $this->faker->dateTime,
         ];
     }
 }

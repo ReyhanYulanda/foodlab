@@ -11,7 +11,7 @@ use Illuminate\Console\Command;
 use App\Services\Firebases;
 use Illuminate\Support\Facades\Log;
 
-class AutoCompleteSiapDiambil extends Command
+class AutoCompleteCashier extends Command
 {
     protected $signature = 'kasir:auto-complete-pesanan-diproses';
     protected $description = 'Otomatis mengubah status pesanan_diproses kasir menjadi selesai jika sudah lebih dari 1 jam';
@@ -34,13 +34,13 @@ class AutoCompleteSiapDiambil extends Command
 
             if (!empty($fcmUserToken)) {
                 $title = 'Kasir berhasil di selesaikan sistem';
-                $body  = "Kasir pesanan {$cashier->kode_pemesanan} telah di selesaikan sistem.";
+                $body = "Kasir pesanan {$cashier->kode_pemesanan} telah di selesaikan sistem.";
 
                 $firebases->withNotification($title, $body)
                     ->withData([
-                        'title'        => $title,
-                        'body'         => $body,
-                        'type'         => 'cashier',
+                        'title' => $title,
+                        'body' => $body,
+                        'type' => 'cashier',
                         'cashier_id' => $cashier->id,
                         'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                     ])
