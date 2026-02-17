@@ -13,7 +13,7 @@ class TransferCoinController extends Controller
 {
     public function index()
     {
-        $users = User::all();
+        $users = User::whereNotNull('email_verified_at')->get();
         return view('pages.transfer-koin.index', compact('users'));
     }
 
@@ -22,40 +22,40 @@ class TransferCoinController extends Controller
         $this->authorize('read transfer_coin');
 
         $request->validate([
-            'sender_id'   => 'required|exists:users,id',
+            'sender_id' => 'required|exists:users,id',
             'receiver_id' => 'required|exists:users,id|different:sender_id',
-            'jumlah'      => 'required|integer|min:1',
+            'jumlah' => 'required|integer|min:1',
         ]);
 
         return DB::transaction(function () use ($request) {
-            $senderSaldo   = SaldoKoin::where('user_id', $request->sender_id)->lockForUpdate()->first();
+            $senderSaldo = SaldoKoin::where('user_id', $request->sender_id)->lockForUpdate()->first();
             $receiverSaldo = SaldoKoin::where('user_id', $request->receiver_id)->lockForUpdate()->first();
 
             if (!$senderSaldo || $senderSaldo->jumlah < $request->jumlah) {
                 return back()->withErrors(['message' => 'Saldo pengirim tidak mencukupi']);
             }
 
-            $senderUser   = User::find($request->sender_id);
+            $senderUser = User::find($request->sender_id);
             $receiverUser = User::find($request->receiver_id);
 
             $senderSaldo->decrement('jumlah', $request->jumlah);
             $receiverSaldo ? $receiverSaldo->increment('jumlah', $request->jumlah)
                 : SaldoKoin::create([
                     'user_id' => $request->receiver_id,
-                    'jumlah'  => $request->jumlah
+                    'jumlah' => $request->jumlah
                 ]);
 
             TransaksiSaldoKoin::create([
-                'user_id'   => $request->sender_id,
-                'jumlah'    => $request->jumlah * (-1),
-                'tipe'      => 'keluar',
+                'user_id' => $request->sender_id,
+                'jumlah' => $request->jumlah * (-1),
+                'tipe' => 'keluar',
                 'deskripsi' => 'Transfer koin ke ' . $receiverUser->name
             ]);
 
             TransaksiSaldoKoin::create([
-                'user_id'   => $request->receiver_id,
-                'jumlah'    => $request->jumlah,
-                'tipe'      => 'masuk',
+                'user_id' => $request->receiver_id,
+                'jumlah' => $request->jumlah,
+                'tipe' => 'masuk',
                 'deskripsi' => 'Menerima koin dari ' . $senderUser->name
             ]);
 
