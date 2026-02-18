@@ -398,7 +398,7 @@ class AutoCancelOrder extends Command
                 }
 
                 // === NON-MULTITENANT (default) ===
-                $this->refundKoin($transaksi);
+                // $this->refundKoin($transaksi);
                 $transaksi->status = 'refund_selesai';
                 $transaksi->save();
 
