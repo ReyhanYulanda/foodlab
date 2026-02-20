@@ -139,14 +139,41 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        $refundList = DB::table('transaksi')
+        // Refund Monitor Filter
+        $refundMonth = $request->get('refund_month');
+        $refundSelectedYear = $request->get('refund_year', $defaultYear);
+
+        $refundMonths = [
+            1 => 'Januari',
+            2 => 'Februari',
+            3 => 'Maret',
+            4 => 'April',
+            5 => 'Mei',
+            6 => 'Juni',
+            7 => 'Juli',
+            8 => 'Agustus',
+            9 => 'September',
+            10 => 'Oktober',
+            11 => 'November',
+            12 => 'Desember',
+        ];
+
+        $refundQuery = DB::table('transaksi')
             ->join('transaksi_detail', 'transaksi.id', '=', 'transaksi_detail.transaksi_id')
             ->join('menus', 'menus.id', '=', 'transaksi_detail.menu_id')
             ->join('tenants', 'tenants.id', '=', 'menus.tenant_id')
             ->where('transaksi.status', 'refund_selesai')
             ->whereNull('transaksi.deleted_at')
             ->whereNull('transaksi_detail.deleted_at')
-            ->whereNotIn('tenants.nama_tenant', $ignoredTenants)
+            ->whereNotIn('tenants.nama_tenant', $ignoredTenants);
+
+        // Apply date filter to refund query
+        $refundQuery->whereYear('transaksi.created_at', $refundSelectedYear);
+        if ($refundMonth) {
+            $refundQuery->whereMonth('transaksi.created_at', $refundMonth);
+        }
+
+        $refundList = $refundQuery
             ->select(
                 'tenants.user_id as tenant_user_id',
                 'tenants.nama_tenant',
@@ -171,6 +198,9 @@ class DashboardController extends Controller
             'modes',
             'mode',
             'refundList',
+            'refundMonths',
+            'refundMonth',
+            'refundSelectedYear',
             'availableYears',
             'selectedYear'
         ));
