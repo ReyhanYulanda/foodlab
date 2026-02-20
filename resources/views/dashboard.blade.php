@@ -117,6 +117,9 @@
                             <h5 class="fw-bold">Analisis Transaksi & Pendapatan</h5>
                             <form method="GET" action="{{ route('dashboard') }}" class="d-inline-block"
                                 id="dashboardFilterForm">
+                                {{-- Preserve refund filters --}}
+                                <input type="hidden" name="refund_month" value="{{ $refundMonth }}">
+                                <input type="hidden" name="refund_year" value="{{ $refundSelectedYear }}">
                                 <div class="d-flex gap-2">
                                     <select name="mode" onchange="this.form.submit()" class="form-select form-select-sm"
                                         style="width: auto;">
@@ -226,7 +229,34 @@
                 <div class="col-md-4">
                     <div class="card border-0 shadow-sm">
                         <div class="card-header bg-white pt-4">
-                            <h5 class="fw-bold">Monitor Refund</h5>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h5 class="fw-bold mb-0">Monitor Refund</h5>
+                            </div>
+                            <form method="GET" action="{{ route('dashboard') }}" class="d-inline-block"
+                                id="refundFilterForm">
+                                {{-- Preserve main chart filters --}}
+                                <input type="hidden" name="mode" value="{{ $mode }}">
+                                <input type="hidden" name="year" value="{{ $selectedYear }}">
+                                <div class="d-flex gap-2">
+                                    <select name="refund_month" onchange="this.form.submit()"
+                                        class="form-select form-select-sm" style="width: auto;">
+                                        <option value="" {{ !$refundMonth ? 'selected' : '' }}>Semua Bulan</option>
+                                        @foreach ($refundMonths as $key => $label)
+                                            <option value="{{ $key }}" {{ $refundMonth == $key ? 'selected' : '' }}>
+                                                {{ $label }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <select name="refund_year" onchange="this.form.submit()"
+                                        class="form-select form-select-sm" style="width: auto;">
+                                        @foreach ($availableYears as $year)
+                                            <option value="{{ $year }}" {{ $refundSelectedYear == $year ? 'selected' : '' }}>
+                                                Tahun {{ $year }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </form>
                         </div>
                         <div class="card-body p-0">
                             <div class="table-responsive">
