@@ -24,7 +24,8 @@ class MenuRepository
     public function update($id, array $data)
     {
         $menu = Menus::find($id);
-        if (!$menu) return null;
+        if (!$menu)
+            return null;
         $menu->update($data);
         return $menu->fresh();
     }
@@ -33,7 +34,20 @@ class MenuRepository
     public function delete($id)
     {
         $menu = Menus::find($id);
-        if ($menu) return $menu->delete();
+        if ($menu)
+            return $menu->delete();
         return false;
+    }
+
+    public function getTenantIdsByMenuIds(array $menuIds)
+    {
+        return Menus::whereIn('id', $menuIds)
+            ->pluck('tenant_id')
+            ->unique();
+    }
+
+    public function findWithTenant(int $id)
+    {
+        return Menus::with('tenant.pemilik')->find($id);
     }
 }
