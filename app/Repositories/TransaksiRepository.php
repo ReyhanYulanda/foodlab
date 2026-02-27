@@ -59,6 +59,93 @@ class TransaksiRepository
         return Transaksi::with('user')->find($id);
     }
 
+    public function getUserOrdersPaginated(int $userId, int $perPage, int $page)
+    {
+        return Transaksi::with([
+            'listTransaksiDetail.menus.tenants',
+            'user',
+            'checkout'
+        ])
+            ->whereHas('listTransaksiDetail.menus.tenants', function ($query) use ($userId) {
+                $query->where('user_id', '!=', $userId);
+            })
+            ->where('user_id', $userId)
+            ->orderByDesc('created_at')
+            ->paginate($perPage, ['*'], 'page', $page);
+    }
+
+    public function getUserOrTenantOrderById(int $userId, int $orderId)
+    {
+        return Transaksi::with([
+            'listTransaksiDetail.menus.tenants',
+            'user',
+            'checkout'
+        ])
+            ->forUserOrTenant($userId)
+            ->where('id', $orderId)
+            ->first();
+    }
+
+    public function getAllOrdersPaginated(int $perPage, int $page)
+    {
+        return Transaksi::with([
+            'listTransaksiDetail.menus.tenants',
+            'user',
+            'checkout'
+        ])
+            ->orderByDesc('created_at')
+            ->paginate($perPage, ['*'], 'page', $page);
+    }
+
+    public function getTenantOrdersPaginated(int $tenantId, int $perPage, int $page, ?string $searchQuery = null)
+    {
+        $orderQuery = Transaksi::with([
+            'listTransaksiDetail.menus.tenants',
+            'user'
+        ])->whereHas('listTransaksiDetail.menus', function ($q) use ($tenantId) {
+            $q->where('tenant_id', $tenantId);
+        });
+
+        if ($searchQuery) {
+            $orderQuery->where(function ($query) use ($searchQuery) {
+                $query->where('kode_pemesanan', 'like', '%' . $searchQuery . '%')
+                    ->orWhereHas('user', function ($q) use ($searchQuery) {
+                        $q->where('name', 'like', '%' . $searchQuery . '%');
+                    });
+            });
+        }
+
+        return $orderQuery->orderByDesc('created_at')->paginate($perPage, ['*'], 'page', $page);
+    }
+
+    public function getDriverOrdersPaginated(int $driverId, int $perPage, int $page)
+    {
+        return Transaksi::with([
+            'listTransaksiDetail.menus.tenants',
+            'user'
+        ])
+            ->where('isAntar', true)
+            ->where('status', '!=', 'pesanan_masuk')
+            ->where('status', '!=', 'pending')
+            ->where(function ($query) use ($driverId) {
+                $query->whereNull('driver_id')
+                    ->orWhere('driver_id', $driverId);
+            })
+            ->orderByRaw("FIELD(status, 'siap_diantar') DESC")
+            ->orderBy('id', 'asc')
+            ->paginate($perPage, ['*'], 'page', $page);
+    }
+
+    public function getDriverLeaderboard()
+    {
+        return Transaksi::where('status', 'selesai')
+            ->whereNotNull('driver_id')
+            ->select('driver_id', DB::raw('COUNT(*) as total_transaksi'))
+            ->groupBy('driver_id')
+            ->orderByDesc('total_transaksi')
+            ->get();
+    }
+
     public function save(Transaksi $transaksi): void
     {
         $transaksi->save();
