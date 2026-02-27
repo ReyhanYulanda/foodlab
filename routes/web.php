@@ -70,6 +70,7 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
 
     Route::get('/notifikasi/kirim', [NotifikasiController::class, 'index'])->name('notifikasi.index');
     Route::post('/notifikasi/kirim', [NotifikasiController::class, 'kirim'])->name('notifikasi.kirim');
+    Route::post('/notifikasi/kirim-semua', [NotifikasiController::class, 'kirimSemua'])->name('notifikasi.kirimSemua');
 
     Route::get('/list-driver', [ListAktifDriverController::class, 'index'])->name('list-driver.index');
     Route::post('/list-driver/{user}/set-offline', [ListAktifDriverController::class, 'setOffline'])->name('list-driver.setOffline');

@@ -39,7 +39,11 @@
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <button type="button" class="btn btn-secondary" id="save-temp-btn">Simpan
                                 Sementara</button>
-                            <button type="submit" class="btn btn-primary">Kirim Notif</button>
+                            <div>
+                                <button type="submit" formaction="{{ route('notifikasi.kirimSemua') }}"
+                                    class="btn btn-warning me-2" id="kirim-semua-btn">Kirim ke Semua</button>
+                                <button type="submit" class="btn btn-primary">Kirim Notif</button>
+                            </div>
                         </div>
 
                         <table class="table table-responsive w-full">
@@ -90,7 +94,7 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             let initial = document.getElementById('selected_ids').value;
             let selectedIds = new Set(initial ? initial.split(',') : []);
 
@@ -115,7 +119,7 @@
             function registerCheckboxEvents() {
                 document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
                     cb.checked = selectedIds.has(cb.value);
-                    cb.addEventListener('change', function() {
+                    cb.addEventListener('change', function () {
                         if (this.checked) {
                             selectedIds.add(this.value);
                         } else {
@@ -127,7 +131,7 @@
             }
 
             if (selectAll) {
-                selectAll.addEventListener('click', function() {
+                selectAll.addEventListener('click', function () {
                     let checked = this.checked;
                     let pageUserIds = [];
                     document.querySelectorAll('input[name="user_ids[]"]').forEach(cb => {
@@ -147,7 +151,7 @@
 
             let saveTempBtn = document.getElementById('save-temp-btn');
             if (saveTempBtn) {
-                saveTempBtn.addEventListener('click', function() {
+                saveTempBtn.addEventListener('click', function () {
                     let url = new URL(window.location.href);
                     url.searchParams.set('search', ''); // kosong
                     url.searchParams.set('selected_ids', Array.from(selectedIds).join(','));
@@ -158,7 +162,7 @@
             let searchBtn = document.getElementById('search-btn');
             let searchInput = document.getElementById('search-input');
             if (searchBtn && searchInput) {
-                searchBtn.addEventListener('click', function() {
+                searchBtn.addEventListener('click', function () {
                     let q = searchInput.value;
                     let url = new URL(window.location.href);
                     url.searchParams.set('search', q);

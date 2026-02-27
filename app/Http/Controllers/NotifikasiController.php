@@ -72,4 +72,40 @@ class NotifikasiController extends Controller
 
         return redirect()->route('notifikasi.index')->with('success', 'Notifikasi berhasil dikirim!');
     }
+
+    public function kirimSemua(Request $request, Firebases $firebases)
+    {
+        $request->validate([
+            'judul' => 'required|string',
+            'isi' => 'required|string',
+        ]);
+
+        $tokens = User::with('fcmTokens')
+            ->whereHas('fcmTokens', function ($query) {
+                $query->whereNotNull('fcm_token');
+            })
+            ->get()
+            ->flatMap(function ($user) {
+                return $user->fcmTokens->pluck('fcm_token');
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
+
+        if (!empty($tokens)) {
+            $firebases
+                ->withNotification($request->judul, $request->isi)
+                ->withData([
+                    'title' => $request->judul,
+                    'body' => $request->isi,
+                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                ])
+                ->sendToFallback($tokens);
+        } else {
+            return redirect()->route('notifikasi.index')->with('error', 'Tidak ada user yang memiliki token FCM!');
+        }
+
+        return redirect()->route('notifikasi.index')->with('success', 'Notifikasi berhasil dikirim ke semua user!');
+    }
 }
