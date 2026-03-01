@@ -110,7 +110,7 @@ class AutoCompleteSiapDiambil extends Command
         }
 
         $this->info("$count transaksi berhasil diupdate menjadi selesai.");
-        Log::info("$count transaksi selesai otomatis (>1 jam) pada " . Carbon::now('Asia/Jakarta')->toDateTimeString());
+        // Log::info("$count transaksi selesai otomatis (>1 jam) pada " . Carbon::now('Asia/Jakarta')->toDateTimeString());
 
         return Command::SUCCESS;
     }
@@ -134,7 +134,8 @@ class AutoCompleteSiapDiambil extends Command
     // ==============================
     private function processCashback($transaksi, $firebases)
     {
-        if ($transaksi->cashback_amount <= 0) return;
+        if ($transaksi->cashback_amount <= 0)
+            return;
 
         $user = $transaksi->user;
 
@@ -147,9 +148,9 @@ class AutoCompleteSiapDiambil extends Command
         $saldo->save();
 
         TransaksiSaldoKoin::create([
-            'user_id'   => $user->id,
-            'jumlah'    => $transaksi->cashback_amount,
-            'tipe'      => 'masuk',
+            'user_id' => $user->id,
+            'jumlah' => $transaksi->cashback_amount,
+            'tipe' => 'masuk',
             'deskripsi' => "Cashback pesanan {$transaksi->kode_pemesanan} telah masuk",
         ]);
 
@@ -159,7 +160,7 @@ class AutoCompleteSiapDiambil extends Command
 
         if (!empty($tokens)) {
             $title = 'Cashback berhasil didapatkan';
-            $body  = "Cashback sebanyak {$transaksi->cashback_amount} berhasil masuk ke akunmu.";
+            $body = "Cashback sebanyak {$transaksi->cashback_amount} berhasil masuk ke akunmu.";
 
             $firebases->withNotification($title, $body)
                 ->withData([
@@ -190,9 +191,9 @@ class AutoCompleteSiapDiambil extends Command
         $saldo->save();
 
         TransaksiSaldoKoin::create([
-            'user_id'   => $user->id,
-            'jumlah'    => $transaksi->total,
-            'tipe'      => 'masuk',
+            'user_id' => $user->id,
+            'jumlah' => $transaksi->total,
+            'tipe' => 'masuk',
             'deskripsi' => "Pengembalian dana refund multitenant pesanan {$transaksi->kode_pemesanan}",
         ]);
 
@@ -202,9 +203,9 @@ class AutoCompleteSiapDiambil extends Command
             $saldo->save();
 
             TransaksiSaldoKoin::create([
-                'user_id'   => $user->id,
-                'jumlah'    => $transaksi->cashback_amount,
-                'tipe'      => 'masuk',
+                'user_id' => $user->id,
+                'jumlah' => $transaksi->cashback_amount,
+                'tipe' => 'masuk',
                 'deskripsi' => "Pengembalian cashback refund multitenant pesanan {$transaksi->kode_pemesanan}",
             ]);
 
@@ -214,7 +215,7 @@ class AutoCompleteSiapDiambil extends Command
 
             if (!empty($tokens)) {
                 $title = 'Cashback telah masuk ke akunmu';
-                $body  = "Cashback sebanyak {$transaksi->cashback_amount} telah masuk ke akunmu.";
+                $body = "Cashback sebanyak {$transaksi->cashback_amount} telah masuk ke akunmu.";
 
                 $firebases->withNotification($title, $body)
                     ->withData([
@@ -234,7 +235,7 @@ class AutoCompleteSiapDiambil extends Command
 
         if (!empty($tokens)) {
             $title = 'Dana refund dikembalikan';
-            $body  = "Dana sebanyak {$transaksi->total} telah dikembalikan ke saldomu karena pembatalan pesanan.";
+            $body = "Dana sebanyak {$transaksi->total} telah dikembalikan ke saldomu karena pembatalan pesanan.";
 
             $firebases->withNotification($title, $body)
                 ->withData([

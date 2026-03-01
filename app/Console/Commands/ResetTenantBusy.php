@@ -22,7 +22,7 @@ class ResetTenantBusy extends Command
                 $this->info("Tenant {$tenant->id} sudah direset is_busy.");
             }
         }
-        Log::info('Reset is_busy tenant selesai.');
+        // Log::info('Reset is_busy tenant selesai.');
         return Command::SUCCESS;
     }
 }
