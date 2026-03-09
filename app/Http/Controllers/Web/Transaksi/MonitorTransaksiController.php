@@ -363,33 +363,33 @@ class MonitorTransaksiController extends Controller
                     $this->sendMultitenantRefundNotification($transaksi, $totalRefund, $firebases);
                 }
             } else {
-                // Tambahkan ke saldo koin user
-                $saldo = \App\Models\SaldoKoin::firstOrCreate(['user_id' => $transaksi->user_id]);
-                $saldo->jumlah += $transaksi->total;
-                $saldo->save();
+                // // Tambahkan ke saldo koin user
+                // $saldo = \App\Models\SaldoKoin::firstOrCreate(['user_id' => $transaksi->user_id]);
+                // $saldo->jumlah += $transaksi->total;
+                // $saldo->save();
 
-                // Catat transaksi saldo koin
-                \App\Models\TransaksiSaldoKoin::create([
-                    'user_id' => $transaksi->user_id,
-                    'jumlah' => $transaksi->total,
-                    'tipe' => 'masuk',
-                    'deskripsi' => 'Refund pesanan #' . $transaksi->id,
-                ]);
+                // // Catat transaksi saldo koin
+                // \App\Models\TransaksiSaldoKoin::create([
+                //     'user_id' => $transaksi->user_id,
+                //     'jumlah' => $transaksi->total,
+                //     'tipe' => 'masuk',
+                //     'deskripsi' => 'Refund pesanan #' . $transaksi->id,
+                // ]);
 
-                // Kirim notifikasi ke user
-                if (!empty($fcmUserToken)) {
-                    $firebases
-                        ->withNotification(
-                            'Pesanan Dibatalkan',
-                            "Pesanan #{$transaksi->kode_pemesanan} telah dibatalkan. Saldo sebesar Rp " . number_format($transaksi->total, 0, ',', '.') . " telah dikembalikan."
-                        )
-                        ->withData([
-                            'title' => 'Pesanan Dibatalkan',
-                            'body' => "Saldo Rp " . number_format($transaksi->total, 0, ',', '.') . " telah dikembalikan ke akun Anda.",
-                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
-                        ])
-                        ->sendToFallback($fcmUserToken);
-                }
+                // // Kirim notifikasi ke user
+                // if (!empty($fcmUserToken)) {
+                //     $firebases
+                //         ->withNotification(
+                //             'Pesanan Dibatalkan',
+                //             "Pesanan #{$transaksi->kode_pemesanan} telah dibatalkan. Saldo sebesar Rp " . number_format($transaksi->total, 0, ',', '.') . " telah dikembalikan."
+                //         )
+                //         ->withData([
+                //             'title' => 'Pesanan Dibatalkan',
+                //             'body' => "Saldo Rp " . number_format($transaksi->total, 0, ',', '.') . " telah dikembalikan ke akun Anda.",
+                //             'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+                //         ])
+                //         ->sendToFallback($fcmUserToken);
+                // }
             }
 
             if ($transaksi->isPriority) {
