@@ -143,7 +143,7 @@ class MonitorTransaksiController extends Controller
 
                 // Cek apakah masih ada transaksi aktif dalam grup multitenant
                 $stillActive = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
-                    ->whereIn('status', ['pesanan_masuk', 'pesanan_diproses', 'siap_diantar', 'diantar'])
+                    ->whereIn('status', ['pesanan_masuk', 'pesanan_diproses', 'siap_diambil', 'siap_diantar', 'diantar'])
                     ->exists();
 
                 // === cek apakah ini adalah tenant PERTAMA yang melakukan refund (first-cancel) ===
@@ -330,9 +330,9 @@ class MonitorTransaksiController extends Controller
 
                     // Catat transaksi saldo koin
                     \App\Models\TransaksiSaldoKoin::create([
-                        'user_id'   => $transaksi->user_id,
-                        'jumlah'    => $totalRefund,
-                        'tipe'      => 'masuk',
+                        'user_id' => $transaksi->user_id,
+                        'jumlah' => $totalRefund,
+                        'tipe' => 'masuk',
                         'deskripsi' => 'Refund pesanan multitenant #' . $transaksi->multitenant_id,
                     ]);
 
@@ -370,9 +370,9 @@ class MonitorTransaksiController extends Controller
 
                 // Catat transaksi saldo koin
                 \App\Models\TransaksiSaldoKoin::create([
-                    'user_id'   => $transaksi->user_id,
-                    'jumlah'    => $transaksi->total,
-                    'tipe'      => 'masuk',
+                    'user_id' => $transaksi->user_id,
+                    'jumlah' => $transaksi->total,
+                    'tipe' => 'masuk',
                     'deskripsi' => 'Refund pesanan #' . $transaksi->id,
                 ]);
 
@@ -385,7 +385,7 @@ class MonitorTransaksiController extends Controller
                         )
                         ->withData([
                             'title' => 'Pesanan Dibatalkan',
-                            'body'  => "Saldo Rp " . number_format($transaksi->total, 0, ',', '.') . " telah dikembalikan ke akun Anda.",
+                            'body' => "Saldo Rp " . number_format($transaksi->total, 0, ',', '.') . " telah dikembalikan ke akun Anda.",
                             'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
                         ])
                         ->sendToFallback($fcmUserToken);
@@ -458,7 +458,8 @@ class MonitorTransaksiController extends Controller
     private function sendCancelNotification($transaksi, $firebases)
     {
         $user = User::with('fcmTokens')->find($transaksi->user_id);
-        if (!$user) return;
+        if (!$user)
+            return;
 
         $tokens = $user->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray();
 
@@ -467,7 +468,7 @@ class MonitorTransaksiController extends Controller
                 ->withNotification('Pesanan Dibatalkan', "{$transaksi->catatan_penolakan}")
                 ->withData([
                     'title' => 'Pesanan Dibatalkan',
-                    'body'  => "{$transaksi->catatan_penolakan}",
+                    'body' => "{$transaksi->catatan_penolakan}",
                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
                 ])
                 ->sendToFallback($tokens);
@@ -477,7 +478,8 @@ class MonitorTransaksiController extends Controller
     private function sendRefundSuccessNotification($transaksi, $firebases)
     {
         $user = User::with('fcmTokens')->find($transaksi->user_id);
-        if (!$user) return;
+        if (!$user)
+            return;
 
         $tokens = $user->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray();
 
@@ -486,7 +488,7 @@ class MonitorTransaksiController extends Controller
                 ->withNotification('Refund Berhasil', 'Koin dari pesanan #' . $transaksi->id . ' telah dikembalikan.')
                 ->withData([
                     'title' => 'Refund Berhasil',
-                    'body'  => 'Koin dari pesanan #' . $transaksi->id . ' telah dikembalikan.',
+                    'body' => 'Koin dari pesanan #' . $transaksi->id . ' telah dikembalikan.',
                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
                 ])
                 ->sendToFallback($tokens);
@@ -496,7 +498,8 @@ class MonitorTransaksiController extends Controller
     private function sendMultitenantRefundNotification($transaksi, $totalRefund, $firebases)
     {
         $user = User::with('fcmTokens')->find($transaksi->user_id);
-        if (!$user) return;
+        if (!$user)
+            return;
 
         $tokens = $user->fcmTokens->pluck('fcm_token')->filter()->unique()->toArray();
 
@@ -508,7 +511,7 @@ class MonitorTransaksiController extends Controller
                 )
                 ->withData([
                     'title' => 'Pesanan Multitenant Dibatalkan',
-                    'body'  => "Saldo Rp " . number_format($totalRefund, 0, ',', '.') . " telah dikembalikan.",
+                    'body' => "Saldo Rp " . number_format($totalRefund, 0, ',', '.') . " telah dikembalikan.",
                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
                 ])
                 ->sendToFallback($tokens);
@@ -600,19 +603,15 @@ class MonitorTransaksiController extends Controller
              * 🔥 FUNCTION UNTUK SEND NOTIF ONLINE
              * ===================================================
              */
-            $sendToDrivers = function ($title, $body, $type) use (
-                $firebases,
-                $transaksi,
-                $masbroTokens
-            ) {
+            $sendToDrivers = function ($title, $body, $type) use ($firebases, $transaksi, $masbroTokens) {
                 if (!empty($masbroTokens)) {
                     $firebases->withNotification($title, $body)
                         ->withData([
-                            'title'          => $title,
-                            'body'           => $body,
-                            'type'           => $type,
-                            'transaksi_id'   => $transaksi->id,
-                            'click_action'   => 'FLUTTER_NOTIFICATION_CLICK',
+                            'title' => $title,
+                            'body' => $body,
+                            'type' => $type,
+                            'transaksi_id' => $transaksi->id,
+                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                         ])
                         ->sendToDriver($masbroTokens);
                 }
@@ -624,19 +623,15 @@ class MonitorTransaksiController extends Controller
              * 🔥 FUNCTION UNTUK SEND NOTIF OFFLINE
              * ===================================================
              */
-            $sendToOfflineDrivers = function ($title, $body, $type) use (
-                $firebases,
-                $transaksi,
-                $masbroOfflineTokens
-            ) {
+            $sendToOfflineDrivers = function ($title, $body, $type) use ($firebases, $transaksi, $masbroOfflineTokens) {
                 if (!empty($masbroOfflineTokens)) {
                     $firebases->withNotification($title, $body)
                         ->withData([
-                            'title'          => $title,
-                            'body'           => $body,
-                            'type'           => $type,
-                            'transaksi_id'   => $transaksi->id,
-                            'click_action'   => 'FLUTTER_NOTIFICATION_CLICK',
+                            'title' => $title,
+                            'body' => $body,
+                            'type' => $type,
+                            'transaksi_id' => $transaksi->id,
+                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                         ])
                         ->sendToFallback($masbroOfflineTokens);
                 }
