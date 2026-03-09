@@ -1482,7 +1482,7 @@ class TransaksiController extends Controller
 
                     // Cek apakah masih ada transaksi aktif dalam grup multitenant
                     $stillActive = Transaksi::where('multitenant_id', $transaksi->multitenant_id)
-                        ->whereIn('status', ['pesanan_masuk', 'pesanan_diproses', 'siap_diantar', 'diantar'])
+                        ->whereIn('status', ['pesanan_masuk', 'pesanan_diproses', 'siap_diambil', 'siap_diantar', 'diantar'])
                         ->exists();
 
                     // === cek apakah ini adalah tenant PERTAMA yang melakukan refund (first-cancel) ===
