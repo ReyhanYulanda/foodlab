@@ -12,6 +12,7 @@ use App\Response\ResponseApi;
 use App\Services\Firebases;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -93,9 +94,22 @@ class AuthController extends Controller
             return ResponseApi::error($validate->errors()->all(), 422);
         }
 
+        // IP Rate Limiter & TLS Fingerprint
+        $ip = $request->ip();
+        $tlsFingerprint = $request->header('X-TLS-Fingerprint') ?? $request->header('User-Agent') ?? 'unknown';
+        $throttleKey = 'login_attempt:' . $ip . '|' . md5($tlsFingerprint);
+
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            return ResponseApi::error('Terlalu banyak percobaan login. Silakan coba lagi dalam ' . $seconds . ' detik.', 429);
+        }
+
         if (!Auth::attempt($request->only(['email', 'password']))) {
+            RateLimiter::hit($throttleKey, 60); // 1 minute block after 5 failed attempts
             return ResponseApi::error('email atau password salah');
         }
+
+        RateLimiter::clear($throttleKey);
 
         $user = User::where('email', $request->email)->first();
 
@@ -119,7 +133,7 @@ class AuthController extends Controller
 
         $token = $user->createToken('secret', $permission)->plainTextToken;
         $data = [
-            'id' => $user->id, 
+            'id' => $user->id,
             'nama' => $user->name,
             'email' => $user->email,
             'token' => $token,
@@ -191,9 +205,9 @@ class AuthController extends Controller
             return ResponseApi::error('Invalid Google token', 401);
         }
 
-        $googleId     = $payload['sub'];
-        $googleEmail  = $payload['email'];
-        $googleName   = $payload['name'] ?? $googleEmail;
+        $googleId = $payload['sub'];
+        $googleEmail = $payload['email'];
+        $googleName = $payload['name'] ?? $googleEmail;
         $googleAvatar = $payload['picture'] ?? null;
 
         try {
@@ -205,15 +219,15 @@ class AuthController extends Controller
                 if ($user) {
                     $user->update([
                         'google_id' => $googleId,
-                        'image'     => $googleAvatar,
+                        'image' => $googleAvatar,
                     ]);
                 } else {
                     $user = User::create([
-                        'name'      => $googleName,
-                        'email'     => $googleEmail,
+                        'name' => $googleName,
+                        'email' => $googleEmail,
                         'google_id' => $googleId,
-                        'image'     => $googleAvatar,
-                        'password'  => bcrypt(Str::random(16)),
+                        'image' => $googleAvatar,
+                        'password' => bcrypt(Str::random(16)),
                         'email_verified_at' => now(), // auto verified, karena dari Google
                     ]);
                     $user->assignRole('user'); // assign role user
@@ -241,7 +255,7 @@ class AuthController extends Controller
             if ($request->filled('fcm_token')) {
                 FcmToken::updateOrCreate(
                     [
-                        'user_id'   => $user->id,
+                        'user_id' => $user->id,
                         'fcm_token' => $request->fcm_token,
                     ],
                     [
@@ -251,12 +265,12 @@ class AuthController extends Controller
             }
 
             $data = [
-                'nama'       => $user->name,
-                'email'      => $user->email,
-                'token'      => $token,
+                'nama' => $user->name,
+                'email' => $user->email,
+                'token' => $token,
                 'token_type' => 'Bearer',
-                'role'       => $user->getRoleNames(),
-                'menu'       => $menu,
+                'role' => $user->getRoleNames(),
+                'menu' => $menu,
                 'permission' => $permission,
             ];
 
@@ -280,15 +294,15 @@ class AuthController extends Controller
                 if ($user) {
                     $user->update([
                         'google_id' => $googleUser->getId(),
-                        'image'     => $googleUser->getAvatar(),
+                        'image' => $googleUser->getAvatar(),
                     ]);
                 } else {
                     $user = User::create([
-                        'name'              => $googleUser->getName(),
-                        'email'             => $googleUser->getEmail(),
-                        'google_id'         => $googleUser->getId(),
-                        'image'             => $googleUser->getAvatar(),
-                        'password'          => bcrypt(Str::random(16)),
+                        'name' => $googleUser->getName(),
+                        'email' => $googleUser->getEmail(),
+                        'google_id' => $googleUser->getId(),
+                        'image' => $googleUser->getAvatar(),
+                        'password' => bcrypt(Str::random(16)),
                         'email_verified_at' => now(), // auto verified karena Google sudah validasi email
                     ]);
                     $user->assignRole('user');
