@@ -23,6 +23,7 @@ use Throwable;
 use Illuminate\Support\Str;
 use Google\Client as GoogleClient;
 use Laravel\Socialite\Facades\Socialite;
+use Illuminate\Support\Facades\RateLimiter;
 
 class AuthController extends Controller
 {
@@ -93,9 +94,25 @@ class AuthController extends Controller
             return ResponseApi::error($validate->errors()->all(), 422);
         }
 
+        // Terapkan Rate Limiter berdasarkan IP address dan TLS Fingerprint
+        $ip = $request->ip();
+        // Cek header X-TLS-Fingerprint, cf-tls-fingerprint, atau ambil dari input 'tls_fingerprint'
+        $tlsFingerprint = $request->header('X-TLS-Fingerprint', $request->header('cf-tls-fingerprint', $request->input('tls_fingerprint', 'unknown')));
+        $throttleKey = 'login_attempts:' . $ip . ':' . $tlsFingerprint;
+        $maxAttempts = 5; // maksimal 5 kali percobaan
+        $decayMinutes = 1; // waktu blokir 1 menit
+
+        if (RateLimiter::tooManyAttempts($throttleKey, $maxAttempts)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            return ResponseApi::error("Terlalu banyak percobaan login. Silakan coba lagi dalam {$seconds} detik.", 429);
+        }
+
         if (!Auth::attempt($request->only(['email', 'password']))) {
+            RateLimiter::hit($throttleKey, $decayMinutes * 60);
             return ResponseApi::error('email atau password salah');
         }
+
+        RateLimiter::clear($throttleKey);
 
         $user = User::where('email', $request->email)->first();
 
