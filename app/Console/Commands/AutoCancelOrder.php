@@ -117,7 +117,7 @@ class AutoCancelOrder extends Command
                                 Log::info("🔄 [AUTO CANCEL] SWAP: transaksi #{$cancelTx->id} ({$tempOngkir}) <-> #{$activeTx->id} ({$activeTx->ongkos_kirim})");
 
                                 // Jika totalItems > 10, kurangi ongkir activeTx dengan X
-                                if ($totalItems > 10) {
+                                if ($totalItems > 10 && $transaksi->isAntar == 1) {
                                     $newOngkir = max($activeTx->ongkos_kirim - $x, 0);
                                     Log::info("📉 [AUTO CANCEL] Kurangi X={$x} untuk transaksi aktif #{$activeTx->id}: {$activeTx->ongkos_kirim} -> {$newOngkir}");
                                     $activeTx->ongkos_kirim = $newOngkir;
@@ -127,7 +127,7 @@ class AutoCancelOrder extends Command
                                 $cancelTx->total = $cancelTx->sub_total + $cancelOngkirMulti + $this->extraFeeRefundSalahSatu($cancelItems, $activeItems, $totalItems);
                                 if ($transaksi->isPriority) {
                                     $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $activeOngkirPriority + $this->extraFee($totalItems)) - $x;
-                                    if ($totalItems <= 10) {
+                                    if ($totalItems <= 10 && $transaksi->isAntar == 1) {
                                         $activeTx->total += $multitenantOngkir; //new code
                                         $activeTx->ongkos_kirim += $multitenantOngkir; //new code
                                     }
@@ -146,7 +146,7 @@ class AutoCancelOrder extends Command
                                 Log::info("   - Cancel ongkir (#{$cancelTx->id}): {$cancelTx->ongkos_kirim}");
                                 Log::info("   - Active ongkir (#{$activeTx->id}): {$activeTx->ongkos_kirim}");
                                 Log::info("   - Need swap: " . ($needSwap ? 'YES' : 'NO'));
-                                if ($totalItems <= 10) {
+                                if ($totalItems <= 10 && $transaksi->isAntar == 1) {
                                     if ($transaksi->isPriority) {
                                         $activeTx->total += $multitenantOngkir; //new code
                                         $activeTx->ongkos_kirim += $multitenantOngkir; //new code
@@ -155,7 +155,7 @@ class AutoCancelOrder extends Command
                                 }
 
                                 // PERBAIKAN: JIKA TIDAK SWAP, tetap kurangi X dari ongkir active jika totalItems > 10
-                                if ($totalItems > 10) {
+                                if ($totalItems > 10 && $transaksi->isAntar == 1) {
                                     // Tapi tunggu! Jika tidak swap, mungkin X perlu dikurangi dari ongkir yang lebih besar?
                                     // Sesuai case 2: ongkir besar ada di cancel (10500), kecil di active (0)
                                     // Maka kurangi X dari ongkir cancel karena dia yang lebih besar
@@ -207,7 +207,7 @@ class AutoCancelOrder extends Command
 
                         $totalItems = $activeItems + $cancelItems;
 
-                        if ($totalItems <= 10) {
+                        if ($totalItems <= 10 && $transaksi->isAntar == 1) {
                             if ($transaksi->isPriority && $transaksi->isAntar == 1) {
                                 $activeTx->total -= $multitenantOngkir;
                                 $activeTx->ongkos_kirim -= $multitenantOngkir;
