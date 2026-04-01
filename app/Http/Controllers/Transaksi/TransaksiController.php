@@ -1434,6 +1434,37 @@ class TransaksiController extends Controller
                         Log::info("Voucher #{$voucher->id} dikembalikan karena refund transaksi #{$transaksi->id}");
                     }
                 }
+
+                // Mark as ditolak → refund
+                $transaksi->status = 'pesanan_ditolak';
+                $transaksi->save();
+
+                // Notifikasi pembatalan
+                // $this->sendCancelNotification($transaksi, $firebases);
+
+                try {
+                    // Refund saldo
+                    $transaksi->refundKoin();
+
+                    TransaksiSaldoKoin::create([
+                        'user_id' => $transaksi->user_id,
+                        'jumlah' => $transaksi->total,
+                        'tipe' => 'masuk',
+                        'deskripsi' => 'Refund pesanan #' . $transaksi->id,
+                    ]);
+
+                    $transaksi->status = 'refund_selesai';
+                    $transaksi->save();
+
+                    // $this->sendRefundSuccessNotification($transaksi, $firebases);
+                } catch (\Throwable $e) {
+                    $transaksi->status = 'refund_selesai';
+                    $transaksi->save();
+
+                    DB::commit();
+                    Log::warning("Refund gagal: " . $e->getMessage());
+                    return redirect()->back()->with('error', "Transaksi dibatalkan, tapi refund gagal. Silakan hubungi admin.");
+                }
             }
 
             $transaksi->status = 'pesanan_ditolak';
