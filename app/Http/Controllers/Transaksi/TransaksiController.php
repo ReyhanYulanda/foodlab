@@ -471,6 +471,10 @@ class TransaksiController extends Controller
             $isMultiTenant = $tenants->count() > 1;
             $multitenantId = null;
             if ($isMultiTenant) {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => ['Pesanan Multitenant sedang tidak dapat dilakukan']
+                ], 400);
 
                 $multitenantId = (Transaksi::max('multitenant_id') ?? 0) + 1;
 
