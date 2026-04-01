@@ -208,7 +208,7 @@ class AutoCancelOrder extends Command
                         $totalItems = $activeItems + $cancelItems;
 
                         if ($totalItems <= 10) {
-                            if ($transaksi->isPriority) {
+                            if ($transaksi->isPriority && $transaksi->isAntar == 1) {
                                 $activeTx->total -= $multitenantOngkir;
                                 $activeTx->ongkos_kirim -= $multitenantOngkir;
                                 $activeTx->save();
@@ -375,9 +375,9 @@ class AutoCancelOrder extends Command
 
                     // Catat transaksi saldo koin
                     \App\Models\TransaksiSaldoKoin::create([
-                        'user_id'   => $transaksi->user_id,
-                        'jumlah'    => $transaksi->total,
-                        'tipe'      => 'masuk',
+                        'user_id' => $transaksi->user_id,
+                        'jumlah' => $transaksi->total,
+                        'tipe' => 'masuk',
                         'deskripsi' => 'Refund pesanan #' . $transaksi->id,
                     ]);
 
@@ -390,7 +390,7 @@ class AutoCancelOrder extends Command
                             )
                             ->withData([
                                 'title' => 'Pesanan Dibatalkan',
-                                'body'  => "Saldo Rp " . number_format($transaksi->total, 0, ',', '.') . " telah dikembalikan ke akun Anda.",
+                                'body' => "Saldo Rp " . number_format($transaksi->total, 0, ',', '.') . " telah dikembalikan ke akun Anda.",
                                 'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
                             ])
                             ->sendToFallback($fcmUserToken);
