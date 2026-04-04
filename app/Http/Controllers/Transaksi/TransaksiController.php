@@ -847,9 +847,9 @@ class TransaksiController extends Controller
                     ];
 
                     \Midtrans\Config::$serverKey = config('custom.midtrans_server_key');
-                    \Midtrans\Config::$isProduction = true;
-                    \Midtrans\Config::$isSanitized = true;
-                    \Midtrans\Config::$is3ds = true;
+                    \Midtrans\Config::$isProduction = config('custom.midtrans_is_production');
+                    \Midtrans\Config::$isSanitized = config('custom.midtrans_is_sanitized');
+                    \Midtrans\Config::$is3ds = config('custom.midtrans_is_3ds');
 
                     $snap = \Midtrans\CoreApi::charge($params);
 
