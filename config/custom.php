@@ -24,6 +24,9 @@ return [
     'midtrans_server_key' => env('MIDTRANS_SERVER_KEY'),
     'midtrans_get_api_url' => env('MIDTRANS_GET_API_URL', 'https://api.midtrans.com/v2'),
     'midtrans_client_key' => env('MIDTRANS_CLIENT_KEY', null), // optional
+    'midtrans_is_production' => env('MIDTRANS_IS_PRODUCTION', false),
+    'midtrans_is_sanitized' => env('MIDTRANS_IS_SANITIZED', true),
+    'midtrans_is_3ds' => env('MIDTRANS_IS_3DS', true),
     // 'midtrans_get_api_url' => env('MIDTRANS_API_URL', 'https://api.midtrans.com/v2/status'),
 
 ];

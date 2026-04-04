@@ -179,9 +179,9 @@ class CashierController extends Controller
             ];
 
             \Midtrans\Config::$serverKey = config('custom.midtrans_server_key');
-            \Midtrans\Config::$isProduction = false;
-            \Midtrans\Config::$isSanitized = true;
-            \Midtrans\Config::$is3ds = true;
+            \Midtrans\Config::$isProduction = config('custom.midtrans_is_production');
+            \Midtrans\Config::$isSanitized = config('custom.midtrans_is_sanitized');
+            \Midtrans\Config::$is3ds = config('custom.midtrans_is_3ds');
             $snap = \Midtrans\CoreApi::charge($params);
 
             Checkout::create([
@@ -262,8 +262,8 @@ class CashierController extends Controller
             if ($c->checkout) {
                 $extra = [
                     'order_id_midtrans' => $c->checkout->midtrans_request_id,
-                    'qr_url'            => $c->checkout->kode_bayar,
-                    'expiry'            => $c->checkout->tgl_akhir_tagihan,
+                    'qr_url' => $c->checkout->kode_bayar,
+                    'expiry' => $c->checkout->tgl_akhir_tagihan,
                 ];
             }
 
@@ -314,8 +314,8 @@ class CashierController extends Controller
         if ($cashier->checkout) {
             $extra = [
                 'order_id_midtrans' => $cashier->checkout->midtrans_request_id,
-                'qr_url'            => $cashier->checkout->kode_bayar,
-                'expiry'            => $cashier->checkout->tgl_akhir_tagihan,
+                'qr_url' => $cashier->checkout->kode_bayar,
+                'expiry' => $cashier->checkout->tgl_akhir_tagihan,
             ];
         }
 
