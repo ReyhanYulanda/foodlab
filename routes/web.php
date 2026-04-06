@@ -98,6 +98,8 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
     Route::get('/export-transaksi-tenant-rekap', [TransaksiTenantController::class, 'exportCsvRekap'])->name('export.transaksi.tenant.rekap');
 
     Route::get('/transaksi_driver', [TransaksiDriverController::class, 'transaksiDriver'])->name('transaksi.driver');
+    Route::get('/transaksi_driver/payout', [TransaksiDriverController::class, 'payoutDriverView'])->name('transaksi.driver.payout');
+    Route::post('/transaksi_driver/payout/export', [TransaksiDriverController::class, 'exportPayoutDriverCsv'])->name('transaksi.driver.payout.export');
     Route::get('/transaksi_driver/{id}', [TransaksiDriverController::class, 'detailTransaksiDriver'])->name('detail.transaksi.driver');
     Route::get('/transaksi_driver/pencairan/{id}', [TransaksiDriverController::class, 'detailPencairanTransaksiDriver'])->name('detail.pencairan.transaksi.driver');
     Route::get('/transaksi-driver/export', [TransaksiDriverController::class, 'exportTransaksiDriverCsv'])

@@ -17,7 +17,7 @@ class TransaksiDriverController extends Controller
     {
         // Ambil persentase biaya ongkir (default 10%)
         $pengaturanPotongan = Pengaturan::where('nama', 'biaya_ongkos_kirim')->first();
-        $persentasePotongan = $pengaturanPotongan ? (float)$pengaturanPotongan->nilai : 10;
+        $persentasePotongan = $pengaturanPotongan ? (float) $pengaturanPotongan->nilai : 10;
 
         // Query transaksi
         $query = Transaksi::select(
@@ -71,11 +71,112 @@ class TransaksiDriverController extends Controller
         return view('pages.transaksi.rincianTransaksiDriver.index', compact('driver', 'transaksi'));
     }
 
+    public function payoutDriverView()
+    {
+        return view('pages.transaksi.driver.payout');
+    }
+
+    public function exportPayoutDriverCsv(Request $request)
+    {
+        $driversData = json_decode($request->input('payout_data'), true);
+
+        $headers = [
+            "Content-type" => "text/csv",
+            "Content-Disposition" => "attachment; filename=driver_payout_" . date('YmdHis') . ".csv",
+            "Pragma" => "no-cache",
+            "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
+            "Expires" => "0"
+        ];
+
+        return response()->stream(function () use ($driversData) {
+            $handle = fopen('php://output', 'w');
+            $rekeningSumber = '1400054005005';
+            $tanggal = now()->format('Ymd');
+
+            $totalBaris = 0;
+            $totalAmount = 0;
+            $rows = [];
+
+            if ($driversData && is_array($driversData)) {
+                foreach ($driversData as $p) {
+                    $namaDriver = str_replace(['"', ','], '', $p['nama'] ?? '');
+                    $noRekening = $p['no_rekening'] ?? 'belum ada rekening';
+                    $jumlahPayout = $p['jumlah_payout'] ?? 0;
+
+                    $totalBaris++;
+                    $totalAmount += $jumlahPayout;
+
+                    $rows[] = [
+                        $noRekening,
+                        $namaDriver,
+                        '',
+                        '',
+                        '',
+                        'IDR',
+                        $jumlahPayout,
+                        '',
+                        '',
+                        'IBU',
+                        '',
+                        'MANDIRI',
+                        'Surabaya',
+                        '',
+                        '',
+                        '',
+                        'N',
+                        '',
+                        '',
+                        '',
+                        '',
+                        'Y',
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        'OUR',
+                        '1',
+                        'E',
+                        '',
+                        '',
+                        '',
+                    ];
+                }
+            }
+
+            // HEADER CSV
+            fputcsv($handle, [
+                'P',
+                $tanggal,
+                $rekeningSumber,
+                $totalBaris,
+                $totalAmount
+            ]);
+
+            foreach ($rows as $row) {
+                fwrite($handle, implode(',', $row) . "\n");
+            }
+
+            fclose($handle);
+        }, 200, $headers);
+    }
+
     public function exportTransaksiDriverCsv(Request $request)
     {
         // Ambil persentase biaya ongkir (default 10%)
         $pengaturanPotongan = Pengaturan::where('nama', 'biaya_ongkos_kirim')->first();
-        $persentasePotongan = $pengaturanPotongan ? (float)$pengaturanPotongan->nilai : 10;
+        $persentasePotongan = $pengaturanPotongan ? (float) $pengaturanPotongan->nilai : 10;
 
         // Query transaksi (sama seperti halaman index)
         $query = Transaksi::select(
