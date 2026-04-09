@@ -120,6 +120,10 @@ Route::middleware(['shared', 'auth', 'role:tenant|kdh|admin'])->group(function (
 
     Route::get('/user_review', [UserReviewController::class, 'index'])->name('user_review.index');
     Route::get('/user_review/export', [UserReviewController::class, 'exportCsv'])->name('user_review.export');
+
+    Route::get('/api-docs/{file?}', [\App\Http\Controllers\Web\ApiDocsController::class, 'show'])
+        ->where('file', '.*')
+        ->name('api-docs.show');
 });
 
 require __DIR__ . '/auth.php';

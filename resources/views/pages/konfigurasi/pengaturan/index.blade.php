@@ -12,7 +12,8 @@
                             @can('create pengaturan')
                                 <a class="btn btn-primary add" href="{{ route('pengaturan.create') }}">Tambah</a>
                             @endcan
-                            <a class="btn btn-info" href="{{ asset('api-docs/index.html') }}" target="_blank">
+                            <a class="btn btn-info" href="{{ route('api-docs.show', ['file' => 'index.html']) }}"
+                                target="_blank">
                                 📖 Dokumentasi
                             </a>
                         </div>
