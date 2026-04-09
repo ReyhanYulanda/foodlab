@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Documentation</title>
+    <meta name="description" content="Premium API Documentation">
+    <!-- Modern Font: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>🍔 API Docs</h2>
+                <button id="theme-toggle" class="theme-toggle" aria-label="Toggle Dark Mode">
+                    <span class="icon-sun">☀️</span>
+                    <span class="icon-moon">🌙</span>
+                </button>
+            </div>
+            
+            <a href="index.html" class="nav-link" style="margin-bottom: 0.5rem;">📖 API Reference</a>
+            <a href="erd.html" class="nav-link" style="margin-bottom: 0.5rem;">📊 Database ERD</a>
+            <a href="guide.html" class="nav-link" style="margin-bottom: 1.5rem;">📑 FoodLab Guide</a>
+            
+            <nav id="nav-container">
+                <!-- Dynamic Navigation Links -->
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content" id="main-content">
+            <div class="hero">
+                <h1 id="hero-title">API Reference</h1>
+                <p>Welcome to the API reference. Here you'll find comprehensive guides and documentation to help you start working with the API as quickly as possible.</p>
+            </div>
+            <div id="endpoints-container">
+                <!-- Dynamic Endpoint Sections -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Error Toast -->
+    <div id="error-toast" class="toast hidden">Failed to load API Data</div>
+
+    <script src="script.js"></script>
+</body>
+</html>

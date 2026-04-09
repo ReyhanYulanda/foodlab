@@ -12,6 +12,9 @@
                             @can('create pengaturan')
                                 <a class="btn btn-primary add" href="{{ route('pengaturan.create') }}">Tambah</a>
                             @endcan
+                            <a class="btn btn-info" href="{{ asset('api-docs/index.html') }}" target="_blank">
+                                📖 Dokumentasi
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -35,12 +38,12 @@
                         <tbody>
                             @foreach ($pengaturan as $pg)
                                 <tr>
-                                    <td>{{ ($pengaturan->currentPage() - 1) * $pengaturan->perPage() + $loop->iteration }}</td>
+                                    <td>{{ ($pengaturan->currentPage() - 1) * $pengaturan->perPage() + $loop->iteration }}
+                                    </td>
                                     <td>{{ $pg->nama }}</td>
                                     <td>{{ $pg->nilai ?? '-' }}</td>
                                     <td>
-                                        <a href="{{ route('pengaturan.edit', $pg->id) }}"
-                                            class="btn btn-secondary">Edit</a>
+                                        <a href="{{ route('pengaturan.edit', $pg->id) }}" class="btn btn-secondary">Edit</a>
                                         <form action="{{ route('pengaturan.destroy', $pg->id) }}" class="d-inline"
                                             method="POST">
                                             @csrf
@@ -55,7 +58,8 @@
                     <div class="d-flex justify-content-between align-items-center mt-3">
                         <div class="form-group mb-0 d-flex align-items-center">
                             <label for="perPage" class="mr-2 mb-0">Tampilkan:</label>
-                            <select class="form-control d-inline-block w-auto" id="perPage" onchange="window.location.href = this.value;">
+                            <select class="form-control d-inline-block w-auto" id="perPage"
+                                onchange="window.location.href = this.value;">
                                 @foreach ([10, 25, 50, 100] as $perPageOption)
                                     <option value="{{ request()->fullUrlWithQuery(['per_page' => $perPageOption]) }}" {{ (request('per_page', 10) == $perPageOption) ? 'selected' : '' }}>
                                         {{ $perPageOption }}
