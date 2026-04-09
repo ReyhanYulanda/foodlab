@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database ERD - FoodLab</title>
+    <!-- Modern Font: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .erd-container {
+            margin-bottom: 3rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 1rem;
+            overflow: auto;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .erd-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: var(--radius);
+        }
+        .domain-section {
+            margin-bottom: 4rem;
+        }
+        .domain-section h2 {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+            font-size: 1.6rem;
+            font-weight: 700;
+        }
+        .table-def {
+            background: rgba(0,0,0,0.02);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--accent);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            margin-bottom: 1.5rem;
+        }
+        [data-theme="dark"] .table-def {
+            background: rgba(255,255,255,0.02);
+        }
+        .table-def h3 {
+            margin-top: 0;
+            color: var(--accent);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 1.25rem;
+        }
+        .table-def ul {
+            padding-left: 1.5rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+        .table-def p {
+            color: var(--text-main);
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>🍔 API Docs</h2>
+                <button id="theme-toggle" class="theme-toggle" aria-label="Toggle Dark Mode">
+                    <span class="icon-sun">☀️</span>
+                    <span class="icon-moon">🌙</span>
+                </button>
+            </div>
+            
+            <a href="index.html" class="nav-link" style="margin-bottom: 0.5rem;">📖 API Reference</a>
+            <a href="erd.html" class="nav-link active" style="margin-bottom: 0.5rem;">📊 Database ERD</a>
+            <a href="guide.html" class="nav-link" style="margin-bottom: 1.5rem;">📑 FoodLab Guide</a>
+            
+            <nav id="nav-container">
+                <!-- Dynamic Navigation Links Populated by script.js -->
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content" id="main-content">
+            <div class="hero">
+                <h1 id="hero-title">Database Entity Relationship Diagram</h1>
+                <p>Welcome to the database schema registry. This page outlines the core database tables and their structural relationships underpinning the API.</p>
+            </div>
+            
+            <div class="erd-container">
+                <img src="foodlab.png" alt="FoodLab Database ERD">
+            </div>
+
+            <div class="domain-section">
+                <h2>1. Authentication & Users</h2>
+                <div class="table-def">
+                    <h3>users</h3>
+                    <p>The core table storing account information for all application users (Admins, Buyers, Cashiers).</p>
+                    <ul>
+                        <li><strong>Relationships:</strong> One-To-Many with <code>fcm_tokens</code>, <code>transaksi</code>, <code>saldo_koin</code>, and <code>ratings</code>.</li>
+                        <li><strong>Auth Linking:</strong> Uses Spatie Roles/Permissions linking to <code>model_has_roles</code> granting access levels.</li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>roles & permissions</h3>
+                    <p>Tables dictating access control metrics dynamically mapped to standard Laravel Spatie structures.</p>
+                    <ul>
+                        <li><strong>Relationships:</strong> Many-to-Many resolution tables via <code>role_has_permissions</code> and <code>model_has_permissions</code>.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>2. Food Operations & Menus</h2>
+                <div class="table-def">
+                    <h3>tenants</h3>
+                    <p>Stores data regarding individual food stalls or vendors operating within the ecosystem.</p>
+                    <ul>
+                        <li><strong>Relationships:</strong> One-To-Many to <code>menus</code>. Controls operational flags like <code>jam_buka</code> (open), <code>is_busy</code>, etc.</li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>menus & kategori</h3>
+                    <p>Hold itemized data corresponding to Food/Drink sales entities.</p>
+                    <ul>
+                        <li><strong>Relationships:</strong> Each <code>menu</code> belongs to one <code>kategori</code> and to one <code>tenant</code>.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>3. Orders & Transactions</h2>
+                <div class="table-def">
+                    <h3>transaksi & transaksi_detail</h3>
+                    <p>Captures all checkout processes and the itemization of those checkouts.</p>
+                    <ul>
+                        <li><strong>Relationships:</strong> <code>transaksi</code> links to the <code>users</code> (buyer), <code>tenants</code> (seller), and <code>ruangan</code> (delivery location). </li>
+                        <li><code>transaksi_detail</code> maps individual <code>menus</code> ordered back to the single parent <code>transaksi</code>, recording quantities and snapshot prices.</li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>checkout & cashiers</h3>
+                    <p>Manages payment portals and direct cashier validation logic for non-app purchases or assisted checkouts.</p>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>4. App Finances (Coins & Refunds)</h2>
+                <div class="table-def">
+                    <h3>saldo_koin & transaksi_saldo_koin</h3>
+                    <p>Digital wallet module designed to handle app-specific currency (koin).</p>
+                    <ul>
+                        <li><strong>Relationships:</strong> <code>saldo_koin</code> links to <code>users</code> summing the total balance. <code>transaksi_saldo_koin</code> yields the history of increments/decrements (e.g., Refunds on cancelled orders).</li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>vouchers & cashbacks</h3>
+                    <p>Promotional metric logic storing coupon multipliers for checkout reductions.</p>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>5. Metadata & Hardware</h2>
+                <div class="table-def">
+                    <h3>gedung & ruangan</h3>
+                    <p>Navigational/Physical coordinates inside the institution denoting delivery locations for "Antar" flag transactions.</p>
+                </div>
+                <div class="table-def">
+                    <h3>device & menu_device</h3>
+                    <p>Captures IoT or specific hardware endpoints (e.g. POS system hardware APIs or notification systems).</p>
+                </div>
+            </div>
+            
+        </main>
+    </div>
+
+    <!-- The exact script parsing handles the sidebar automatically but cancels rendering the API endpoints on this page because #endpoints-container is missing. -->
+    <script src="script.js"></script>
+</body>
+</html>

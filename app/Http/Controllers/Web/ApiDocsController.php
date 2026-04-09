@@ -22,7 +22,7 @@ class ApiDocsController extends Controller
 
         // Hindari directory traversal attack
         $file = str_replace('..', '', $file);
-        $path = storage_path('app/api-docs/' . $file);
+        $path = resource_path('api-docs/' . $file);
 
         if (!File::exists($path)) {
             if ($request->wantsJson() || \Illuminate\Support\Str::endsWith($file, '.json')) {
