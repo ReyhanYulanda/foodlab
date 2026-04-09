@@ -34,7 +34,23 @@ class ApiDocsController extends Controller
             abort(404, 'File not found');
         }
 
+        // Set Mime Type
+        $mimeType = File::mimeType($path);
+
+        // Force mime type based on extension 
+        // fallback in case standard mime guessing fails for css/js
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        if ($extension === 'css') {
+            $mimeType = 'text/css';
+        } elseif ($extension === 'js') {
+            $mimeType = 'application/javascript';
+        } elseif ($extension === 'json') {
+            $mimeType = 'application/json';
+        } elseif ($extension === 'html') {
+            $mimeType = 'text/html';
+        }
+
         // Return the protected file
-        return response()->file($path);
+        return response()->file($path, ['Content-Type' => $mimeType]);
     }
 }
