@@ -33,9 +33,9 @@ class CashierController extends Controller
         ], 200);
     }
 
-    public function getHistoryById(Request $request, $id, GetCashierHistoryByIdAction $action)
+    public function getHistoryById(Request $request, $cashierId, GetCashierHistoryByIdAction $action)
     {
-        $result = $action->execute($id, $request);
+        $result = $action->execute($cashierId, $request);
 
         if ($result['error'] ?? false) {
             return response()->json([
@@ -51,9 +51,9 @@ class CashierController extends Controller
         ], 200);
     }
 
-    public function update(Request $request, $id, UpdateCashierAction $action)
+    public function update(Request $request, $cashierId, UpdateCashierAction $action)
     {
-        $result = $action->execute($id, $request);
+        $result = $action->execute($cashierId, $request);
 
         if ($result['error'] ?? false) {
             return response()->json([
@@ -69,9 +69,9 @@ class CashierController extends Controller
         ], 200);
     }
 
-    public function destroy(Request $request, $id, DestroyCashierAction $action)
+    public function destroy(Request $request, $cashierId, DestroyCashierAction $action)
     {
-        $result = $action->execute($id, $request);
+        $result = $action->execute($cashierId, $request);
 
         if ($result['error'] ?? false) {
             return response()->json([
