@@ -7,7 +7,6 @@ use App\Services\SaldoKoin\Actions\CekSaldoAction;
 use App\Services\SaldoKoin\Actions\RiwayatTransaksiAction;
 use App\Services\SaldoKoin\Actions\TransferCoinAction;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class SaldoKoinController extends Controller
 {
@@ -15,7 +14,7 @@ class SaldoKoinController extends Controller
     {
         $this->authorize('read saldo_koin');
 
-        $result = $action->execute(Auth::id());
+        $result = $action->execute(auth()->id());
 
         return response()->json([
             'success' => true,
@@ -30,7 +29,7 @@ class SaldoKoinController extends Controller
         $perPage = $request->input('per_page', 10);
         $page = $request->input('page', 1);
 
-        $transaksi = $action->execute(Auth::id(), $perPage, $page);
+        $transaksi = $action->execute(auth()->id(), $perPage, $page);
 
         return response()->json([
             'success' => true,
@@ -57,3 +56,4 @@ class SaldoKoinController extends Controller
         ]);
     }
 }
+?>
