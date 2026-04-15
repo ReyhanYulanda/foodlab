@@ -14,3 +14,7 @@ yarn-error.log
 /.idea
 /.vscode
 masbro.json
+
+
+#Ignore vscode AI rules
+.github\instructions\codacy.instructions.md
