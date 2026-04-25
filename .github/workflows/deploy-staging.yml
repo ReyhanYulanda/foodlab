@@ -1,0 +1,38 @@
+name: Deploy Foodlab Staging
+
+on:
+  push:
+    branches:
+      - staging
+
+permissions:
+  contents: read
+
+concurrency:
+  group: foodlab-staging-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to Oracle Cloud
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.ORACLE_SSH_KEY }}" > ~/.ssh/oracle_foodlab_key
+          chmod 600 ~/.ssh/oracle_foodlab_key
+          ssh-keyscan -p "${{ secrets.ORACLE_SSH_PORT }}" -H "${{ secrets.ORACLE_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy on server
+        run: |
+          ssh \
+            -i ~/.ssh/oracle_foodlab_key \
+            -p "${{ secrets.ORACLE_SSH_PORT }}" \
+            "${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }}" \
+            "/opt/stacks/foodlab/deploy-staging.sh"
