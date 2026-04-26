@@ -123,7 +123,6 @@ class TransaksiController extends Controller
             'data' => $transaksiData
         ]);
     }
-
     public function orderUser(Request $request)
     {
         $user = $request->user();
@@ -471,6 +470,10 @@ class TransaksiController extends Controller
             $isMultiTenant = $tenants->count() > 1;
             $multitenantId = null;
             if ($isMultiTenant) {
+                // return response()->json([
+                //     'status' => 'failed',
+                //     'message' => ['Pesanan Multitenant sedang dalam perbaikan, silahkan hapus dan pilih satu tenant saja']
+                // ], 400);
 
                 $multitenantId = (Transaksi::max('multitenant_id') ?? 0) + 1;
 
@@ -1154,7 +1157,7 @@ class TransaksiController extends Controller
                         ],
                     ];
                     \Midtrans\Config::$serverKey = config('custom.midtrans_server_key');
-                    \Midtrans\Config::$isProduction = false;
+                    \Midtrans\Config::$isProduction = true;
                     \Midtrans\Config::$isSanitized = true;
                     \Midtrans\Config::$is3ds = true;
                     $snap = \Midtrans\CoreApi::charge($params);
@@ -1748,7 +1751,7 @@ class TransaksiController extends Controller
                         Log::info("Multitenant #{$transaksi->multitenant_id} seluruhnya telah dibatalkan. Total refund: {$totalRefund}");
                     }
                 }
-                // } else {
+                // else {
                 //     // Tambahkan ke saldo koin user
                 //     $saldo = \App\Models\SaldoKoin::firstOrCreate(['user_id' => $transaksi->user_id]);
                 //     $saldo->jumlah += $transaksi->total;
