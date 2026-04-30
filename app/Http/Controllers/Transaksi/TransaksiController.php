@@ -53,9 +53,6 @@ class TransaksiController extends Controller
             ], 403);
         }
 
-        $perPage = $request->input('per_page', 20);
-        $page = $request->input('page', 1);
-
         $transaksi = Transaksi::with([
             'listTransaksiDetail.menus.tenants',
             'user',
@@ -65,7 +62,7 @@ class TransaksiController extends Controller
                 $tenant->where('user_id', '!=', $user->id);
             })
             ->orderByDesc('created_at')
-            ->paginate($perPage, ['*'], 'page', $page);
+            ->get();
 
         // Ambil semua multitenant_id yang ada dalam hasil query
         $multitenantIds = $transaksi->pluck('multitenant_id')->filter()->unique()->values();
@@ -96,7 +93,7 @@ class TransaksiController extends Controller
         $transaksiData = $transaksi->toArray();
 
         // Tambahkan data checkout ke setiap item transaksi
-        $transaksiData['data'] = collect($transaksiData['data'])->map(function ($item) use ($checkoutByMultitenant) {
+        $transaksiData = collect($transaksiData)->map(function ($item) use ($checkoutByMultitenant) {
             $transaksiModel = Transaksi::find($item['id']);
             $checkout = $transaksiModel->checkout;
 
