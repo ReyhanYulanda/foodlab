@@ -53,18 +53,22 @@ document.addEventListener('DOMContentLoaded', () => {
             return response.json();
         })
         .then(data => {
-            document.title = `${data.info.name} - API Documentation`;
-            const heroTitle = document.getElementById('hero-title');
-            if (heroTitle) heroTitle.textContent = `${data.info.name} API Reference`;
+            if (endpointsContainer) {
+                document.title = `${data.info.name} - API Documentation`;
+                const heroTitle = document.getElementById('hero-title');
+                if (heroTitle) heroTitle.textContent = `${data.info.name} API Reference`;
+            }
             
             parseCollection(data.item);
         })
         .catch(err => {
             console.error('Error fetching collection:', err);
             const toast = document.getElementById('error-toast');
-            toast.classList.remove('hidden');
-            toast.textContent = 'Failed to load FoodLab.postman_collection.json. Please ensure it is served via a local web server (e.g. VSCode Live Server, http-server, or npx serve). CORS blocks fetching local files directly in the browser.';
-            setTimeout(() => toast.classList.add('hidden'), 10000);
+            if (toast) {
+                toast.classList.remove('hidden');
+                toast.textContent = 'Failed to load FoodLab.postman_collection.json. Please ensure it is served via a local web server (e.g. VSCode Live Server, http-server, or npx serve). CORS blocks fetching local files directly in the browser.';
+                setTimeout(() => toast.classList.add('hidden'), 10000);
+            }
         });
 
     function parseCollection(items, folderName = '') {

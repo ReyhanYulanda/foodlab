@@ -108,6 +108,9 @@ body {
     font-size: 1.25rem;
     font-weight: 700;
     color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
 }
 
 .theme-toggle {
@@ -156,10 +159,20 @@ body {
     color: var(--text-main);
     font-size: 0.95rem;
     padding: 0.5rem 0.75rem;
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
     border-radius: var(--radius);
     border-left: 3px solid transparent;
     transition: background-color 0.2s, color 0.2s, border-left-color 0.2s;
+}
+
+.nav-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.1rem;
+    flex: 0 0 1.1rem;
 }
 
 .nav-link:hover {

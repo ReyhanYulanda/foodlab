@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker &amp; NPM - FoodLab Docs</title>
+    <meta name="description" content="Step-by-step setup Docker, FoodLab, and Nginx Proxy Manager">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .domain-section { margin-bottom: 4rem; }
+        .domain-section h2 { border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1.5rem; font-size: 1.6rem; font-weight: 700; color: var(--text-main); }
+        .guide-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .guide-box h3 { margin-top: 0; color: var(--accent); font-size: 1.25rem; font-weight: 600; }
+        .guide-box p, .guide-box li { color: var(--text-main); line-height: 1.6; margin-bottom: 0.5rem; font-size: 0.95rem; }
+        .guide-box ul, .guide-box ol { padding-left: 1.25rem; }
+        .guide-box code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.88em; }
+        .command-block {
+            background: var(--bg-code);
+            color: var(--text-code);
+            padding: 1rem;
+            border-radius: var(--radius);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            border: 1px solid rgba(255,255,255,0.1);
+            white-space: pre;
+            line-height: 1.55;
+        }
+        .info-callout {
+            border-left: 4px solid var(--accent);
+            background: rgba(37, 99, 235, 0.08);
+            padding: 1rem;
+            border-radius: var(--radius);
+            margin: 1rem 0;
+        }
+        [data-theme="dark"] .info-callout {
+            background: rgba(251, 191, 36, 0.08);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2><span class="nav-icon">&#127828;</span> API Docs</h2>
+                <button id="theme-toggle" class="theme-toggle" aria-label="Toggle Dark Mode">
+                    <span class="icon-sun">&#9728;&#65039;</span>
+                    <span class="icon-moon">&#127769;</span>
+                </button>
+            </div>
+
+            <a href="index.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128214;</span> API Reference</a>
+            <a href="erd.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128202;</span> Database ERD</a>
+            <a href="docker-npm.html" class="nav-link active" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128011;</span> Docker &amp; NPM</a>
+            <a href="log-management.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128220;</span> Log Management</a>
+            <a href="grafana-dashboard.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128200;</span> Grafana Dashboard</a>
+            <a href="setup-komodo.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#9881;&#65039;</span> Setup Komodo</a>
+            <a href="cicd-komodo.html" class="nav-link" style="margin-bottom: 1.5rem;"><span class="nav-icon">&#128260;</span> CI/CD Komodo</a>
+
+            <nav id="nav-container">
+                <!-- Dynamic Navigation Links Populated by script.js -->
+            </nav>
+        </aside>
+
+        <main class="main-content" id="main-content">
+            <div class="hero">
+                <h1 id="hero-title">Docker &amp; Nginx Proxy Manager</h1>
+                <p>Step-by-step deployment guide untuk menyiapkan Docker, Nginx Proxy Manager, MySQL host service, project FoodLab, reverse proxy, SSL, dan deploy script di server.</p>
+            </div>
+
+            <div class="domain-section">
+                <h2>0. Akses Server &amp; DNS</h2>
+                <div class="guide-box">
+                    <h3>Security List</h3>
+                    <p>Di instance VPS, buka port berikut saja. Port NPM admin sebaiknya dibatasi ke IP pribadi.</p>
+                    <div class="command-block">22/tcp    SSH
+80/tcp    HTTP
+443/tcp   HTTPS
+81/tcp    NPM admin, idealnya batasi ke IP kamu saja</div>
+                    <div class="info-callout">
+                        <p><strong>Jangan buka 3306 ke publik.</strong> MySQL boleh diakses container Docker melalui network internal, tapi tidak untuk public internet.</p>
+                    </div>
+                    <p>Update DNS domain ke public IP server baru.</p>
+                    <div class="command-block">foodlabpens.com      A -&gt; NEW_PUBLIC_IP
+www.foodlabpens.com  A -&gt; NEW_PUBLIC_IP</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>1. Install Package Dasar + Docker</h2>
+                <div class="guide-box">
+                    <h3>Install dependency server dan Docker Engine</h3>
+                    <p>Jalankan command berikut di VPS. Docker official apt repository mendukung Ubuntu 22.04/24.04.</p>
+                    <div class="command-block">sudo apt update
+sudo apt install -y ca-certificates curl git unzip zip nano htop mysql-server iptables-persistent
+
+# Remove conflicting Docker packages if any
+for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do
+  sudo apt remove -y "$pkg" || true
+done
+
+# Docker official apt repo
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+sudo bash -lc 'cat &gt; /etc/apt/sources.list.d/docker.sources &lt;&lt;EOF
+Types: deb
+URIs: https://download.docker.com/linux/ubuntu
+Suites: $(. /etc/os-release &amp;&amp; echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
+Components: stable
+Architectures: $(dpkg --print-architecture)
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF'
+
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+sudo systemctl enable --now docker
+sudo usermod -aG docker ubuntu
+
+docker --version
+docker compose version</div>
+                    <p>Logout-login ulang SSH setelah <code>usermod</code>, atau jalankan sementara:</p>
+                    <div class="command-block">newgrp docker</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>2. Buat Struktur /opt/stacks</h2>
+                <div class="guide-box">
+                    <h3>Folder convention dan Docker network</h3>
+                    <p>Gunakan rule satu project satu folder: <code>/opt/stacks/{project}</code>. Contoh: <code>npm</code>, <code>foodlab</code>, dan nanti bisa ditambah <code>monitoring</code>.</p>
+                    <div class="command-block">sudo mkdir -p /opt/stacks/{npm,foodlab}
+sudo chown -R ubuntu:ubuntu /opt/stacks
+
+cd /opt/stacks
+docker network create proxy || true</div>
+                    <p>Struktur target:</p>
+                    <div class="command-block">/opt/stacks
+|-- npm
+|   `-- compose.yaml
+`-- foodlab
+    |-- compose.yaml
+    |-- deploy-staging.sh
+    |-- docker
+    |   |-- nginx
+    |   |   `-- default.conf
+    |   `-- php
+    |       `-- Dockerfile
+    `-- src</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>3. Setup Nginx Proxy Manager</h2>
+                <div class="guide-box">
+                    <h3>Buat compose NPM</h3>
+                    <p>NPM memakai image <code>jc21/nginx-proxy-manager:latest</code>, expose port <code>80</code>, <code>443</code>, dan <code>81</code>, lalu join ke external network <code>proxy</code>.</p>
+                    <div class="command-block">mkdir -p /opt/stacks/npm
+cd /opt/stacks/npm
+
+cat &gt; compose.yaml &lt;&lt;'YAML'
+services:
+  npm:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: nginx-proxy-manager
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "81:81"
+    environment:
+      TZ: Asia/Jakarta
+      DISABLE_IPV6: "true"
+    volumes:
+      - ./data:/data
+      - ./letsencrypt:/etc/letsencrypt
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
+YAML
+
+docker compose up -d
+docker ps</div>
+                    <p>Buka dashboard NPM, lalu langsung ganti email dan password admin setelah login pertama.</p>
+                    <div class="command-block">http://NEW_PUBLIC_IP:81</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>4. Setup MySQL Host untuk FoodLab</h2>
+                <div class="guide-box">
+                    <h3>Konfigurasi MySQL host service</h3>
+                    <p>FoodLab menggunakan MySQL host service, bukan container DB. Database yang dipakai adalah <code>foodlab</code>, user app <code>foodlab</code>, dan container connect via host pattern <code>foodlab@172.%</code>.</p>
+                    <div class="command-block">sudo nano /etc/mysql/mysql.conf.d/mysqld.cnf</div>
+                    <p>Pastikan bind address:</p>
+                    <div class="command-block">bind-address = 0.0.0.0</div>
+                    <p>Restart dan cek service:</p>
+                    <div class="command-block">sudo systemctl enable --now mysql
+sudo systemctl restart mysql
+sudo ss -tulpn | grep 3306</div>
+                    <p>Buat database dan user aplikasi:</p>
+                    <div class="command-block">sudo mysql</div>
+                    <div class="command-block">CREATE DATABASE IF NOT EXISTS foodlab CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE USER IF NOT EXISTS 'foodlab'@'172.%' IDENTIFIED BY 'CHANGE_ME_DB_PASSWORD';
+GRANT ALL PRIVILEGES ON foodlab.* TO 'foodlab'@'172.%';
+
+CREATE USER IF NOT EXISTS 'foodlab'@'localhost' IDENTIFIED BY 'CHANGE_ME_DB_PASSWORD';
+GRANT ALL PRIVILEGES ON foodlab.* TO 'foodlab'@'localhost';
+
+CREATE USER IF NOT EXISTS 'foodlab'@'127.0.0.1' IDENTIFIED BY 'CHANGE_ME_DB_PASSWORD';
+GRANT ALL PRIVILEGES ON foodlab.* TO 'foodlab'@'127.0.0.1';
+
+FLUSH PRIVILEGES;
+EXIT;</div>
+                    <p>Allow Docker subnet ke MySQL host. Ini menghindari error <code>SQLSTATE[HY000] [2002] No route to host</code>.</p>
+                    <div class="command-block">sudo iptables -I INPUT 1 -s 172.16.0.0/12 -p tcp --dport 3306 -j ACCEPT
+sudo netfilter-persistent save
+sudo systemctl enable netfilter-persistent</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>5. Setup Folder FoodLab</h2>
+                <div class="guide-box">
+                    <h3>Buat folder dan clone repository</h3>
+                    <div class="command-block">mkdir -p /opt/stacks/foodlab/docker/nginx
+mkdir -p /opt/stacks/foodlab/docker/php
+cd /opt/stacks/foodlab</div>
+                    <p>Clone branch <code>staging</code> dari repository FoodLab.</p>
+                    <div class="command-block">git clone -b staging https://github.com/foodlabdev/foodlab.git src</div>
+                    <p>Kalau repository private, gunakan SSH deploy key:</p>
+                    <div class="command-block">git clone -b staging git@github.com:foodlabdev/foodlab.git src</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>6. Compose, PHP Dockerfile, dan Nginx Internal</h2>
+                <div class="guide-box">
+                    <h3>Buat compose.yaml FoodLab</h3>
+                    <p><code>foodlab-app</code> adalah PHP-FPM Laravel, <code>foodlab-web</code> adalah nginx internal. Hanya <code>foodlab-web</code> yang join network <code>proxy</code>.</p>
+                    <div class="command-block">cd /opt/stacks/foodlab
+
+cat &gt; compose.yaml &lt;&lt;'YAML'
+services:
+  foodlab-app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: foodlab-app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    env_file:
+      - ./src/.env
+    volumes:
+      - ./src:/var/www/html
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - foodlab-internal
+
+  foodlab-web:
+    image: nginx:1.27-alpine
+    container_name: foodlab-web
+    restart: unless-stopped
+    depends_on:
+      - foodlab-app
+    volumes:
+      - ./src:/var/www/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    expose:
+      - "80"
+    networks:
+      - foodlab-internal
+      - proxy
+
+networks:
+  foodlab-internal:
+    driver: bridge
+  proxy:
+    external: true
+YAML</div>
+                </div>
+
+                <div class="guide-box">
+                    <h3>Buat PHP Dockerfile</h3>
+                    <p>FoodLab memakai base <code>php:7.4-fpm-bullseye</code> dan extension Laravel/MySQL seperti <code>pdo_mysql</code>, <code>mbstring</code>, <code>gd</code>, <code>zip</code>, dan <code>intl</code>.</p>
+                    <div class="command-block">cat &gt; /opt/stacks/foodlab/docker/php/Dockerfile &lt;&lt;'DOCKERFILE'
+FROM php:7.4-fpm-bullseye
+
+RUN apt-get update &amp;&amp; apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    unzip \
+    zip \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    libzip-dev \
+    libonig-dev \
+    libxml2-dev \
+    libicu-dev \
+    default-mysql-client \
+    &amp;&amp; docker-php-ext-configure gd --with-freetype --with-jpeg \
+    &amp;&amp; docker-php-ext-install \
+        pdo_mysql \
+        mbstring \
+        exif \
+        pcntl \
+        bcmath \
+        gd \
+        zip \
+        intl \
+    &amp;&amp; apt-get clean \
+    &amp;&amp; rm -rf /var/lib/apt/lists/*
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /var/www/html
+
+RUN usermod -u 1000 www-data &amp;&amp; groupmod -g 1000 www-data
+
+CMD ["php-fpm"]
+DOCKERFILE</div>
+                </div>
+
+                <div class="guide-box">
+                    <h3>Buat nginx internal config FoodLab</h3>
+                    <p>Nginx internal Laravel harus mengarah ke <code>/var/www/html/public</code>, memakai <code>try_files</code>, lalu <code>fastcgi_pass foodlab-app:9000</code>.</p>
+                    <div class="command-block">cat &gt; /opt/stacks/foodlab/docker/nginx/default.conf &lt;&lt;'NGINX'
+server {
+    listen 80;
+    server_name _;
+
+    root /var/www/html/public;
+    index index.php index.html;
+
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    client_max_body_size 64M;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        try_files $uri =404;
+
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_pass foodlab-app:9000;
+        fastcgi_index index.php;
+
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        fastcgi_param DOCUMENT_ROOT $realpath_root;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}
+NGINX</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>7. Environment dan Start FoodLab</h2>
+                <div class="guide-box">
+                    <h3>Buat .env FoodLab</h3>
+                    <div class="command-block">cd /opt/stacks/foodlab/src
+cp .env.example .env || true
+nano .env</div>
+                    <p>Minimal pastikan konfigurasi berikut:</p>
+                    <div class="command-block">APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://dk.foodlabpens.com
+
+DB_CONNECTION=mysql
+DB_HOST=host.docker.internal
+DB_PORT=3306
+DB_DATABASE=foodlab
+DB_USERNAME=foodlab
+DB_PASSWORD=CHANGE_ME_DB_PASSWORD
+
+SESSION_SECURE_COOKIE=true</div>
+                    <p>Kalau DB gagal, cek gateway network FoodLab:</p>
+                    <div class="command-block">docker network inspect foodlab_foodlab-internal | grep Gateway</div>
+                </div>
+
+                <div class="guide-box">
+                    <h3>Build, start container, dan install dependency Laravel</h3>
+                    <div class="command-block">cd /opt/stacks/foodlab
+
+docker compose build
+docker compose up -d
+
+docker compose ps
+docker logs --tail=100 foodlab-app
+docker logs --tail=100 foodlab-web</div>
+                    <div class="command-block">docker exec -it foodlab-app sh -lc 'cd /var/www/html &amp;&amp; git config --global --add safe.directory /var/www/html'
+docker exec -it foodlab-app sh -lc 'cd /var/www/html &amp;&amp; composer install --no-dev --optimize-autoloader'
+docker exec -it foodlab-app sh -lc 'cd /var/www/html &amp;&amp; php artisan key:generate --force'
+docker exec -it foodlab-app sh -lc 'cd /var/www/html &amp;&amp; php artisan migrate --force'
+docker exec -it foodlab-app sh -lc 'cd /var/www/html &amp;&amp; php artisan optimize:clear'
+docker exec -it foodlab-app sh -lc 'cd /var/www/html &amp;&amp; php artisan config:cache'
+docker exec -it foodlab-app sh -lc 'cd /var/www/html &amp;&amp; php artisan view:cache'
+docker exec -it foodlab-app sh -lc 'cd /var/www/html &amp;&amp; chown -R www-data:www-data storage bootstrap/cache'
+docker restart foodlab-app foodlab-web</div>
+                    <div class="info-callout">
+                        <p><strong>Jangan jalankan <code>php artisan route:cache</code> dulu.</strong> Deploy lama pernah gagal karena duplicate route name <code>verification.verify</code>. Deploy sukses melewati route cache dan hanya cache config/views.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>8. Setup Proxy Host di NPM</h2>
+                <div class="guide-box">
+                    <h3>Proxy Host dan SSL</h3>
+                    <p>Di Nginx Proxy Manager, buka <code>Proxy Hosts -&gt; Add Proxy Host</code>, lalu isi:</p>
+                    <div class="command-block">Domain Names:
+dk.foodlabpens.com
+www.dk.foodlabpens.com
+
+Scheme:
+http
+
+Forward Hostname / IP:
+foodlab-web
+
+Forward Port:
+80
+
+Block Common Exploits:
+ON
+
+Websockets Support:
+ON</div>
+                    <p>Tab SSL:</p>
+                    <div class="command-block">Request a new SSL Certificate
+Force SSL: ON
+HTTP/2 Support: ON
+HSTS: OFF dulu
+Email: email kamu
+Agree Let's Encrypt TOS: ON
+Save</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>9. Laravel TrustProxies</h2>
+                <div class="guide-box">
+                    <h3>Trust reverse proxy</h3>
+                    <p>Karena FoodLab berada di belakang NPM, Laravel harus trust reverse proxy. Ini mencegah form/action masih generate <code>http://</code> saat user membuka HTTPS.</p>
+                    <div class="command-block">nano /opt/stacks/foodlab/src/app/Http/Middleware/TrustProxies.php</div>
+                    <p>Isi ideal:</p>
+                    <div class="command-block">&lt;?php
+
+namespace App\Http\Middleware;
+
+use Illuminate\Http\Middleware\TrustProxies as Middleware;
+use Illuminate\Http\Request;
+
+class TrustProxies extends Middleware
+{
+    protected $proxies = '*';
+
+    protected $headers =
+        Request::HEADER_X_FORWARDED_FOR |
+        Request::HEADER_X_FORWARDED_HOST |
+        Request::HEADER_X_FORWARDED_PORT |
+        Request::HEADER_X_FORWARDED_PROTO;
+}</div>
+                    <p>Lalu clear cache dan restart:</p>
+                    <div class="command-block">docker exec -it foodlab-app php artisan optimize:clear
+docker exec -it foodlab-app php artisan config:cache
+docker restart foodlab-app foodlab-web</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>10. Deploy Script</h2>
+                <div class="guide-box">
+                    <h3>Buat deploy-staging.sh</h3>
+                    <div class="command-block">cat &gt; /opt/stacks/foodlab/deploy-staging.sh &lt;&lt;'BASH'
+#!/usr/bin/env bash
+set -e
+
+echo "==&gt; Starting FoodLab staging deploy"
+date
+
+echo "==&gt; Fetch latest code"
+cd /opt/stacks/foodlab/src
+git config --global --add safe.directory /opt/stacks/foodlab/src
+git fetch origin staging
+git checkout staging
+git pull origin staging
+git log -1 --oneline
+
+echo "==&gt; Build and start containers"
+cd /opt/stacks/foodlab
+docker compose up -d --build
+
+echo "==&gt; Composer install"
+docker compose exec -T foodlab-app sh -lc 'cd /var/www/html &amp;&amp; git config --global --add safe.directory /var/www/html'
+docker compose exec -T foodlab-app sh -lc 'cd /var/www/html &amp;&amp; composer install --no-dev --optimize-autoloader'
+
+echo "==&gt; Laravel cache and migrate"
+docker compose exec -T foodlab-app sh -lc 'cd /var/www/html &amp;&amp; php artisan optimize:clear'
+docker compose exec -T foodlab-app sh -lc 'cd /var/www/html &amp;&amp; php artisan migrate --force'
+docker compose exec -T foodlab-app sh -lc 'cd /var/www/html &amp;&amp; php artisan config:cache'
+docker compose exec -T foodlab-app sh -lc 'cd /var/www/html &amp;&amp; php artisan view:cache'
+
+# NOTE:
+# Jangan route:cache dulu karena FoodLab pernah gagal:
+# duplicate route name verification.verify.
+
+echo "==&gt; Fix permissions"
+docker compose exec -T foodlab-app sh -lc 'cd /var/www/html &amp;&amp; chown -R www-data:www-data storage bootstrap/cache'
+
+echo "==&gt; Restart app containers"
+docker compose restart foodlab-app foodlab-web
+
+echo "==&gt; Container status"
+docker compose ps
+
+echo "==&gt; Deploy finished successfully"
+date
+BASH
+
+chmod +x /opt/stacks/foodlab/deploy-staging.sh</div>
+                    <p>Run deploy:</p>
+                    <div class="command-block">/opt/stacks/foodlab/deploy-staging.sh</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>11. Test Cepat dan Logs</h2>
+                <div class="guide-box">
+                    <h3>Health check container, database, dan domain</h3>
+                    <div class="command-block">docker ps
+docker network ls
+
+cd /opt/stacks/foodlab
+docker compose ps
+docker compose config --services
+
+docker exec -it foodlab-app php artisan migrate:status
+docker exec -it foodlab-app sh -lc 'mysql -h host.docker.internal -P 3306 -u foodlab -p foodlab'
+
+curl -I http://127.0.0.1
+curl -I https://dk.foodlabpens.com</div>
+                    <p>Logs penting untuk troubleshooting:</p>
+                    <div class="command-block"># Laravel
+tail -f /opt/stacks/foodlab/src/storage/logs/laravel.log
+
+# FoodLab app/web
+docker logs -f foodlab-app
+docker logs -f foodlab-web
+
+# NPM
+docker logs -f nginx-proxy-manager
+
+# NPM proxy logs
+docker exec -it nginx-proxy-manager sh -lc 'ls -lah /data/logs'
+docker exec -it nginx-proxy-manager sh -lc 'tail -f /data/logs/proxy-host-*_access.log /data/logs/proxy-host-*_error.log'</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>12. Urutan Paling Aman</h2>
+                <div class="guide-box">
+                    <h3>Checklist eksekusi</h3>
+                    <ol>
+                        <li>Allow firewall port <code>22/80/443/81</code>.</li>
+                        <li>Update DNS ke IP Singapore.</li>
+                        <li>Install Docker.</li>
+                        <li>Buat <code>/opt/stacks</code> dan Docker network <code>proxy</code>.</li>
+                        <li>Start NPM.</li>
+                        <li>Setup MySQL host, database <code>foodlab</code>, dan user <code>foodlab</code>.</li>
+                        <li>Clone FoodLab ke <code>/opt/stacks/foodlab/src</code>.</li>
+                        <li>Buat <code>compose.yaml</code>, <code>Dockerfile</code>, dan nginx <code>default.conf</code>.</li>
+                        <li>Buat <code>.env</code>.</li>
+                        <li>Jalankan <code>docker compose up -d --build</code>.</li>
+                        <li>Jalankan <code>composer install</code>, <code>artisan migrate</code>, dan cache config/view.</li>
+                        <li>Setup Proxy Host NPM ke <code>foodlab-web:80</code>.</li>
+                        <li>Test HTTPS.</li>
+                        <li>Simpan dan gunakan <code>deploy-staging.sh</code>.</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>13. Akses Root MySQL untuk Admin</h2>
+                <div class="guide-box">
+                    <h3>Opsional: set password root untuk SSH tunnel atau DBeaver</h3>
+                    <p>Jalankan di VPS, bukan di DBeaver:</p>
+                    <div class="command-block">sudo mysql</div>
+                    <p>Di prompt MySQL:</p>
+                    <div class="command-block">ALTER USER 'root'@'localhost'
+IDENTIFIED WITH mysql_native_password
+BY 'CHANGE_ME_ROOT_PASSWORD';
+
+FLUSH PRIVILEGES;
+EXIT;</div>
+                    <p>Test dari server:</p>
+                    <div class="command-block">mysql -u root -p -h 127.0.0.1</div>
+                    <p>Konfigurasi DBeaver via SSH tunnel:</p>
+                    <div class="command-block">Host: 127.0.0.1
+Port: 3306
+Database: foodlab
+Username: root
+Password: CHANGE_ME_ROOT_PASSWORD</div>
+                    <div class="info-callout">
+                        <p><strong>Jangan pakai root untuk Laravel/FoodLab <code>.env</code>.</strong> Root hanya untuk admin via SSH tunnel atau DBeaver. Untuk aplikasi tetap pakai user <code>foodlab</code>.</p>
+                    </div>
+                    <p>Kalau command <code>mysql_native_password</code> error, pakai alternatif:</p>
+                    <div class="command-block">ALTER USER 'root'@'localhost'
+IDENTIFIED BY 'CHANGE_ME_ROOT_PASSWORD';
+
+FLUSH PRIVILEGES;
+EXIT;</div>
+                    <p>Cek user yang ada:</p>
+                    <div class="command-block">SELECT user, host, plugin FROM mysql.user;</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>Referensi</h2>
+                <div class="guide-box">
+                    <ul>
+                        <li><a href="https://docs.docker.com/engine/install/ubuntu/" target="_blank" style="color:var(--accent)">Install Docker Engine on Ubuntu</a></li>
+                        <li><a href="https://nginxproxymanager.com/setup/" target="_blank" style="color:var(--accent)">Nginx Proxy Manager Full Setup Instructions</a></li>
+                    </ul>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

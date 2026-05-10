@@ -62,6 +62,55 @@
             margin-bottom: 1rem;
             line-height: 1.5;
         }
+        .schema-grid {
+            column-width: 340px;
+            column-gap: 1rem;
+        }
+        .schema-grid .table-def {
+            display: inline-block;
+            width: 100%;
+            margin-bottom: 1rem;
+            break-inside: avoid;
+        }
+        .schema-columns {
+            list-style: none;
+            padding: 0;
+            margin: 0.75rem 0 0;
+            display: grid;
+            gap: 0.45rem;
+        }
+        .schema-columns li {
+            display: grid;
+            grid-template-columns: minmax(120px, 0.9fr) minmax(0, 1.6fr);
+            gap: 0.75rem;
+            align-items: start;
+            padding: 0.45rem 0;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-main);
+            line-height: 1.45;
+            font-size: 0.92rem;
+        }
+        .schema-columns li:last-child {
+            border-bottom: 0;
+        }
+        .schema-columns code {
+            color: var(--accent);
+            overflow-wrap: anywhere;
+        }
+        .schema-columns span {
+            color: var(--text-main);
+            overflow-wrap: anywhere;
+        }
+        @media (max-width: 520px) {
+            .schema-grid {
+                column-width: auto;
+                column-count: 1;
+            }
+            .schema-columns li {
+                grid-template-columns: 1fr;
+                gap: 0.2rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -69,17 +118,21 @@
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <h2>🍔 API Docs</h2>
+                <h2><span class="nav-icon">&#127828;</span> API Docs</h2>
                 <button id="theme-toggle" class="theme-toggle" aria-label="Toggle Dark Mode">
-                    <span class="icon-sun">☀️</span>
-                    <span class="icon-moon">🌙</span>
+                    <span class="icon-sun">&#9728;&#65039;</span>
+                    <span class="icon-moon">&#127769;</span>
                 </button>
             </div>
-            
-            <a href="index.html" class="nav-link" style="margin-bottom: 0.5rem;">📖 API Reference</a>
-            <a href="erd.html" class="nav-link active" style="margin-bottom: 0.5rem;">📊 Database ERD</a>
-            <a href="guide.html" class="nav-link" style="margin-bottom: 1.5rem;">📑 FoodLab Guide</a>
-            
+
+            <a href="index.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128214;</span> API Reference</a>
+            <a href="erd.html" class="nav-link active" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128202;</span> Database ERD</a>
+            <a href="docker-npm.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128011;</span> Docker &amp; NPM</a>
+            <a href="log-management.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128220;</span> Log Management</a>
+            <a href="grafana-dashboard.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128200;</span> Grafana Dashboard</a>
+            <a href="setup-komodo.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#9881;&#65039;</span> Setup Komodo</a>
+            <a href="cicd-komodo.html" class="nav-link" style="margin-bottom: 1.5rem;"><span class="nav-icon">&#128260;</span> CI/CD Komodo</a>
+
             <nav id="nav-container">
                 <!-- Dynamic Navigation Links Populated by script.js -->
             </nav>
@@ -89,7 +142,7 @@
         <main class="main-content" id="main-content">
             <div class="hero">
                 <h1 id="hero-title">Database Entity Relationship Diagram</h1>
-                <p>Welcome to the database schema registry. This page outlines the core database tables and their structural relationships underpinning the API.</p>
+                <p>Dokumentasi skema database FoodLab berdasarkan file migration. Bagian bawah gambar ERD menjelaskan fungsi setiap table beserta kolom dan tipe datanya.</p>
             </div>
             
             <div class="erd-container">
@@ -97,82 +150,558 @@
             </div>
 
             <div class="domain-section">
-                <h2>1. Authentication & Users</h2>
-                <div class="table-def">
+                <h2>Skema Table FoodLab</h2>
+                <div class="schema-grid">
+                    <div class="table-def">
                     <h3>users</h3>
-                    <p>The core table storing account information for all application users (Admins, Buyers, Cashiers).</p>
-                    <ul>
-                        <li><strong>Relationships:</strong> One-To-Many with <code>fcm_tokens</code>, <code>transaksi</code>, <code>saldo_koin</code>, and <code>ratings</code>.</li>
-                        <li><strong>Auth Linking:</strong> Uses Spatie Roles/Permissions linking to <code>model_has_roles</code> granting access levels.</li>
+                    <p>Menyimpan akun pengguna aplikasi, termasuk admin, tenant, pembeli, driver, dan kasir.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>name</code><span>VARCHAR(255)</span></li>
+                        <li><code>email</code><span>VARCHAR(255) UNIQUE</span></li>
+                        <li><code>google_id</code><span>VARCHAR(255) NULL UNIQUE</span></li>
+                        <li><code>phone</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>image</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>email_verified_at</code><span>TIMESTAMP NULL</span></li>
+                        <li><code>password</code><span>VARCHAR(255)</span></li>
+                        <li><code>fcm_token</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>isOnline</code><span>BOOLEAN DEFAULT true</span></li>
+                        <li><code>manual_offline</code><span>BOOLEAN DEFAULT false</span></li>
+                        <li><code>manual_override</code><span>BOOLEAN DEFAULT false</span></li>
+                        <li><code>remember_token</code><span>VARCHAR(100) NULL</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
                     </ul>
                 </div>
                 <div class="table-def">
-                    <h3>roles & permissions</h3>
-                    <p>Tables dictating access control metrics dynamically mapped to standard Laravel Spatie structures.</p>
-                    <ul>
-                        <li><strong>Relationships:</strong> Many-to-Many resolution tables via <code>role_has_permissions</code> and <code>model_has_permissions</code>.</li>
+                    <h3>password_resets</h3>
+                    <p>Menyimpan token reset password Laravel.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>email</code><span>VARCHAR(255) INDEX</span></li>
+                        <li><code>token</code><span>VARCHAR(255)</span></li>
+                        <li><code>created_at</code><span>TIMESTAMP NULL</span></li>
                     </ul>
                 </div>
-            </div>
-
-            <div class="domain-section">
-                <h2>2. Food Operations & Menus</h2>
+                <div class="table-def">
+                    <h3>personal_access_tokens</h3>
+                    <p>Menyimpan token autentikasi API dari Laravel Sanctum.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>tokenable_type</code><span>VARCHAR(255)</span></li>
+                        <li><code>tokenable_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>name</code><span>VARCHAR(255)</span></li>
+                        <li><code>token</code><span>VARCHAR(64) UNIQUE</span></li>
+                        <li><code>abilities</code><span>TEXT NULL</span></li>
+                        <li><code>last_used_at</code><span>TIMESTAMP NULL</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>failed_jobs</h3>
+                    <p>Mencatat queue job Laravel yang gagal diproses.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>uuid</code><span>VARCHAR(255) UNIQUE</span></li>
+                        <li><code>connection</code><span>TEXT</span></li>
+                        <li><code>queue</code><span>TEXT</span></li>
+                        <li><code>payload</code><span>LONGTEXT</span></li>
+                        <li><code>exception</code><span>LONGTEXT</span></li>
+                        <li><code>failed_at</code><span>TIMESTAMP DEFAULT CURRENT_TIMESTAMP</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>websockets_statistics_entries</h3>
+                    <p>Menyimpan statistik koneksi dan pesan websocket.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>INT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>app_id</code><span>VARCHAR(255)</span></li>
+                        <li><code>peak_connection_count</code><span>INT</span></li>
+                        <li><code>websocket_message_count</code><span>INT</span></li>
+                        <li><code>api_message_count</code><span>INT</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>permissions</h3>
+                    <p>Daftar permission dari package Spatie Permission.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>name</code><span>VARCHAR(255)</span></li>
+                        <li><code>guard_name</code><span>VARCHAR(255)</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>roles</h3>
+                    <p>Daftar role akses pengguna dari package Spatie Permission.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>name</code><span>VARCHAR(255)</span></li>
+                        <li><code>guard_name</code><span>VARCHAR(255)</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>model_has_permissions</h3>
+                    <p>Pivot permission langsung ke model pengguna.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>permission_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>model_type</code><span>VARCHAR(255)</span></li>
+                        <li><code>model_id</code><span>BIGINT UNSIGNED</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>model_has_roles</h3>
+                    <p>Pivot role ke model pengguna.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>role_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>model_type</code><span>VARCHAR(255)</span></li>
+                        <li><code>model_id</code><span>BIGINT UNSIGNED</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>role_has_permissions</h3>
+                    <p>Pivot permission yang dimiliki setiap role.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>permission_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>role_id</code><span>BIGINT UNSIGNED</span></li>
+                    </ul>
+                </div>
                 <div class="table-def">
                     <h3>tenants</h3>
-                    <p>Stores data regarding individual food stalls or vendors operating within the ecosystem.</p>
-                    <ul>
-                        <li><strong>Relationships:</strong> One-To-Many to <code>menus</code>. Controls operational flags like <code>jam_buka</code> (open), <code>is_busy</code>, etc.</li>
+                    <p>Menyimpan data tenant/kantin beserta jadwal, rekening, dan status operasional.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>nama_tenant</code><span>VARCHAR(255)</span></li>
+                        <li><code>nama_kavling</code><span>VARCHAR(255)</span></li>
+                        <li><code>nama_gambar</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>user_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>no_rekening_toko</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>no_rekening_pribadi</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>jam_buka</code><span>TIME NULL</span></li>
+                        <li><code>jam_tutup</code><span>TIME NULL</span></li>
+                        <li><code>is_busy</code><span>DATETIME NULL</span></li>
+                        <li><code>busy_until</code><span>DATETIME NULL</span></li>
+                        <li><code>is_interupt</code><span>DATETIME NULL</span></li>
+                        <li><code>deleted_at</code><span>TIMESTAMP NULL</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
                     </ul>
                 </div>
                 <div class="table-def">
-                    <h3>menus & kategori</h3>
-                    <p>Hold itemized data corresponding to Food/Drink sales entities.</p>
-                    <ul>
-                        <li><strong>Relationships:</strong> Each <code>menu</code> belongs to one <code>kategori</code> and to one <code>tenant</code>.</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="domain-section">
-                <h2>3. Orders & Transactions</h2>
-                <div class="table-def">
-                    <h3>transaksi & transaksi_detail</h3>
-                    <p>Captures all checkout processes and the itemization of those checkouts.</p>
-                    <ul>
-                        <li><strong>Relationships:</strong> <code>transaksi</code> links to the <code>users</code> (buyer), <code>tenants</code> (seller), and <code>ruangan</code> (delivery location). </li>
-                        <li><code>transaksi_detail</code> maps individual <code>menus</code> ordered back to the single parent <code>transaksi</code>, recording quantities and snapshot prices.</li>
+                    <h3>kategori</h3>
+                    <p>Menyimpan kategori menu makanan/minuman.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>nama</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
                     </ul>
                 </div>
                 <div class="table-def">
-                    <h3>checkout & cashiers</h3>
-                    <p>Manages payment portals and direct cashier validation logic for non-app purchases or assisted checkouts.</p>
-                </div>
-            </div>
-
-            <div class="domain-section">
-                <h2>4. App Finances (Coins & Refunds)</h2>
-                <div class="table-def">
-                    <h3>saldo_koin & transaksi_saldo_koin</h3>
-                    <p>Digital wallet module designed to handle app-specific currency (koin).</p>
-                    <ul>
-                        <li><strong>Relationships:</strong> <code>saldo_koin</code> links to <code>users</code> summing the total balance. <code>transaksi_saldo_koin</code> yields the history of increments/decrements (e.g., Refunds on cancelled orders).</li>
+                    <h3>menus</h3>
+                    <p>Menyimpan katalog menu yang dijual tenant.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>nama</code><span>VARCHAR(255)</span></li>
+                        <li><code>kategori_id</code><span>BIGINT UNSIGNED NULL</span></li>
+                        <li><code>gambar</code><span>TEXT NULL</span></li>
+                        <li><code>isReady</code><span>BOOLEAN DEFAULT true</span></li>
+                        <li><code>deskripsi</code><span>TEXT NULL</span></li>
+                        <li><code>harga</code><span>INT NULL</span></li>
+                        <li><code>tenant_id</code><span>BIGINT UNSIGNED NULL</span></li>
+                        <li><code>deleted_at</code><span>TIMESTAMP NULL</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
                     </ul>
                 </div>
                 <div class="table-def">
-                    <h3>vouchers & cashbacks</h3>
-                    <p>Promotional metric logic storing coupon multipliers for checkout reductions.</p>
+                    <h3>menus_kelola</h3>
+                    <p>Table lama untuk pengelolaan menu tenant sebelum beberapa kolom dipindahkan ke <code>menus</code>.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>nama</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>deskripsi</code><span>TEXT NULL</span></li>
+                        <li><code>harga</code><span>INT</span></li>
+                        <li><code>gambar</code><span>VARCHAR(255)</span></li>
+                        <li><code>tenant_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>menu_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>isReady</code><span>BOOLEAN DEFAULT true</span></li>
+                        <li><code>deleted_at</code><span>TIMESTAMP NULL</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
                 </div>
-            </div>
-
-            <div class="domain-section">
-                <h2>5. Metadata & Hardware</h2>
                 <div class="table-def">
-                    <h3>gedung & ruangan</h3>
-                    <p>Navigational/Physical coordinates inside the institution denoting delivery locations for "Antar" flag transactions.</p>
+                    <h3>menu</h3>
+                    <p>Menyimpan konfigurasi menu navigasi aplikasi/dashboard.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>nama</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>url</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>kategori</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>ikon</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>urutan</code><span>INT DEFAULT 0</span></li>
+                        <li><code>aktif</code><span>BOOLEAN DEFAULT true</span></li>
+                        <li><code>main_menu_id</code><span>BIGINT UNSIGNED NULL</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
                 </div>
                 <div class="table-def">
-                    <h3>device & menu_device</h3>
-                    <p>Captures IoT or specific hardware endpoints (e.g. POS system hardware APIs or notification systems).</p>
+                    <h3>menu_permission</h3>
+                    <p>Pivot antara menu dashboard dan permission.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>menu_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>permission_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>device</h3>
+                    <p>Menyimpan master device/perangkat yang dapat dikaitkan dengan menu.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>nama</code><span>VARCHAR(255)</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>menu_device</h3>
+                    <p>Pivot antara menu dan device.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>menu_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>device_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>gedung</h3>
+                    <p>Menyimpan master gedung untuk lokasi pengantaran.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>nama</code><span>VARCHAR(255)</span></li>
+                        <li><code>ongkir</code><span>INT DEFAULT 0</span></li>
+                        <li><code>ongkir_multitenant</code><span>INT DEFAULT 0</span></li>
+                        <li><code>deleted_at</code><span>TIMESTAMP NULL</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>ruangan</h3>
+                    <p>Menyimpan ruangan dan koordinat lokasi di dalam gedung.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>nama</code><span>VARCHAR(255)</span></li>
+                        <li><code>kode_ruangan</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>lat</code><span>DECIMAL(10,8) NULL</span></li>
+                        <li><code>lng</code><span>DECIMAL(11,8) NULL</span></li>
+                        <li><code>gedung_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>transaksi</h3>
+                    <p>Menyimpan order utama pembeli, metode pembayaran, status, biaya, voucher, dan data pengantaran.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>kode_pemesanan</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>verification_code</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>user_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>status</code><span>VARCHAR(255) DEFAULT 'pending'</span></li>
+                        <li><code>ruangan_id</code><span>BIGINT UNSIGNED NULL</span></li>
+                        <li><code>total</code><span>INT</span></li>
+                        <li><code>cashback_amount</code><span>INT DEFAULT 0</span></li>
+                        <li><code>voucher_id</code><span>BIGINT UNSIGNED NULL</span></li>
+                        <li><code>ongkos_kirim</code><span>INT DEFAULT 1000</span></li>
+                        <li><code>biaya_layanan</code><span>INT DEFAULT 1000</span></li>
+                        <li><code>isAntar</code><span>BOOLEAN</span></li>
+                        <li><code>isPriority</code><span>BOOLEAN DEFAULT false</span></li>
+                        <li><code>metode_pembayaran</code><span>ENUM('transfer','cod','koin','qris')</span></li>
+                        <li><code>driver_id</code><span>BIGINT UNSIGNED NULL</span></li>
+                        <li><code>tenant_id</code><span>BIGINT UNSIGNED NULL</span></li>
+                        <li><code>multitenant_id</code><span>INT NULL</span></li>
+                        <li><code>catatan</code><span>TEXT NULL</span></li>
+                        <li><code>catatan_lokasi_pengantaran</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>catatan_penolakan</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>bukti_pengantaran</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>deleted_at</code><span>TIMESTAMP NULL</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>transaksi_detail</h3>
+                    <p>Menyimpan item menu yang dipesan pada setiap transaksi.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>transaksi_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>menu_id</code><span>BIGINT UNSIGNED NULL</span></li>
+                        <li><code>jumlah</code><span>INT</span></li>
+                        <li><code>harga</code><span>INT</span></li>
+                        <li><code>status</code><span>VARCHAR(255) NULL DEFAULT 'pesanan_masuk'</span></li>
+                        <li><code>catatan</code><span>TEXT NULL</span></li>
+                        <li><code>deleted_at</code><span>TIMESTAMP NULL</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>checkout</h3>
+                    <p>Menyimpan tagihan pembayaran Midtrans/QRIS untuk transaksi atau cashier.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>user_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>transaksi_id</code><span>BIGINT UNSIGNED NULL</span></li>
+                        <li><code>cashier_id</code><span>BIGINT UNSIGNED NULL</span></li>
+                        <li><code>nominal</code><span>INT</span></li>
+                        <li><code>status_bayar</code><span>VARCHAR(255) DEFAULT 'pending'</span></li>
+                        <li><code>midtrans_request_id</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>kode_bayar</code><span>TEXT NULL</span></li>
+                        <li><code>tgl_bayar</code><span>DATETIME NULL</span></li>
+                        <li><code>tgl_akhir_tagihan</code><span>DATETIME NULL</span></li>
+                        <li><code>isTf</code><span>BOOLEAN DEFAULT false</span></li>
+                        <li><code>biaya_midtrans</code><span>INT DEFAULT 0</span></li>
+                        <li><code>biaya_ubisma</code><span>INT DEFAULT 0</span></li>
+                        <li><code>total_biaya_admin</code><span>INT DEFAULT 0</span></li>
+                        <li><code>total_bayar_user</code><span>INT DEFAULT 0</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>pembayaran_masbro</h3>
+                    <p>Menyimpan data pembayaran legacy Masbro.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>user_id</code><span>BIGINT UNSIGNED NULL</span></li>
+                        <li><code>total</code><span>INT</span></li>
+                        <li><code>status</code><span>VARCHAR(255) DEFAULT 'pending'</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>saldo_koin</h3>
+                    <p>Menyimpan saldo koin per pengguna.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>user_id</code><span>BIGINT UNSIGNED UNIQUE</span></li>
+                        <li><code>jumlah</code><span>BIGINT DEFAULT 0</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>transaksi_saldo_koin</h3>
+                    <p>Mencatat riwayat penambahan dan pengurangan saldo koin.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>user_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>jumlah</code><span>BIGINT</span></li>
+                        <li><code>tipe</code><span>ENUM('masuk','keluar')</span></li>
+                        <li><code>deskripsi</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>deleted_at</code><span>TIMESTAMP NULL</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>top_ups</h3>
+                    <p>Menyimpan transaksi top up saldo koin dan informasi biaya admin.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>user_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>request_id</code><span>BIGINT UNSIGNED NULL</span></li>
+                        <li><code>midtrans_request_id</code><span>VARCHAR(255) NULL UNIQUE</span></li>
+                        <li><code>nominal</code><span>INT</span></li>
+                        <li><code>status_bayar</code><span>VARCHAR(255) DEFAULT '0'</span></li>
+                        <li><code>kode_bayar</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>tgl_bayar</code><span>DATETIME NULL</span></li>
+                        <li><code>tgl_akhir_tagihan</code><span>DATETIME NULL</span></li>
+                        <li><code>isTf</code><span>BOOLEAN DEFAULT false</span></li>
+                        <li><code>biaya_midtrans</code><span>INT DEFAULT 0</span></li>
+                        <li><code>biaya_ubsima</code><span>INT DEFAULT 0</span></li>
+                        <li><code>total_biaya_admin</code><span>INT DEFAULT 0</span></li>
+                        <li><code>total_bayar_user</code><span>INT DEFAULT 0</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>cashbacks</h3>
+                    <p>Menyimpan master promo cashback/referral.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>value</code><span>FLOAT</span></li>
+                        <li><code>quantity</code><span>INT DEFAULT 0</span></li>
+                        <li><code>is_valid</code><span>BOOLEAN DEFAULT true</span></li>
+                        <li><code>referral_code</code><span>VARCHAR(255) UNIQUE</span></li>
+                        <li><code>minimal_beli</code><span>INT DEFAULT 0</span></li>
+                        <li><code>max_cashback</code><span>INT DEFAULT 0</span></li>
+                        <li><code>max_used</code><span>INT DEFAULT 1</span></li>
+                        <li><code>start_date</code><span>DATE NULL</span></li>
+                        <li><code>end_date</code><span>DATE NULL</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>vouchers</h3>
+                    <p>Menyimpan voucher cashback yang dimiliki pengguna.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>user_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>cashback_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>quantity</code><span>INT DEFAULT 1</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>catat_vouchers</h3>
+                    <p>Mencatat penggunaan voucher pada transaksi.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>user_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>transaksi_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>voucher_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>quantity_voucher</code><span>INT NULL</span></li>
+                        <li><code>cashback_amount</code><span>INT NULL</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>fcm_tokens</h3>
+                    <p>Menyimpan token FCM per user dan device untuk push notification.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>user_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>fcm_token</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>device_id</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>chat_messages</h3>
+                    <p>Menyimpan pesan chat terkait transaksi, tenant, dan driver.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>transaksi_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>sender_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>sender_name</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>message</code><span>TEXT</span></li>
+                        <li><code>chat_type</code><span>ENUM('tenant','driver') NULL</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>driver_details</h3>
+                    <p>Menyimpan data tambahan untuk user driver.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>user_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>no_rekening</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>ratings</h3>
+                    <p>Menyimpan rating pengguna terhadap layanan.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>user_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>rating</code><span>TINYINT UNSIGNED</span></li>
+                        <li><code>description</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>version</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>rating_moods</h3>
+                    <p>Menyimpan master mood/kategori alasan rating.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>name</code><span>VARCHAR(100)</span></li>
+                        <li><code>order</code><span>INT DEFAULT 0</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>detail_mood_rating</h3>
+                    <p>Pivot antara rating dan mood rating yang dipilih.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>rating_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>rating_mood_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>cashiers</h3>
+                    <p>Menyimpan transaksi pembelian langsung melalui kasir.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>user_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>tenant_id</code><span>BIGINT UNSIGNED NULL</span></li>
+                        <li><code>order_tenant</code><span>INT UNSIGNED NULL</span></li>
+                        <li><code>kode_pemesanan</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>nama_pembeli</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>total</code><span>INT DEFAULT 0</span></li>
+                        <li><code>status</code><span>ENUM('gagal_bayar','pending','pesanan_diproses','selesai') DEFAULT 'pending'</span></li>
+                        <li><code>fcm_token</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>cashiers_detail</h3>
+                    <p>Menyimpan item menu dalam transaksi kasir.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>cashier_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>menu_id</code><span>BIGINT UNSIGNED</span></li>
+                        <li><code>jumlah</code><span>INT DEFAULT 1</span></li>
+                        <li><code>harga</code><span>INT DEFAULT 0</span></li>
+                        <li><code>catatan</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
+                <div class="table-def">
+                    <h3>pengaturan</h3>
+                    <p>Menyimpan konfigurasi key-value aplikasi.</p>
+                    <p><strong>Kolom dan tipe data:</strong></p>
+                    <ul class="schema-columns">
+                        <li><code>id</code><span>BIGINT UNSIGNED AUTO_INCREMENT</span></li>
+                        <li><code>nama</code><span>VARCHAR(255) NULL</span></li>
+                        <li><code>nilai</code><span>TEXT NULL</span></li>
+                        <li><code>created_at / updated_at</code><span>TIMESTAMP NULL</span></li>
+                    </ul>
+                </div>
                 </div>
             </div>
             

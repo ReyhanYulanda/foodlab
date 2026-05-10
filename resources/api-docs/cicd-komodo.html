@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CI/CD Komodo - FoodLab Docs</title>
+    <meta name="description" content="Step-by-step setup GitHub webhook CI/CD with Komodo for FoodLab staging deploys">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .domain-section { margin-bottom: 4rem; }
+        .domain-section h2 { border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1.5rem; font-size: 1.6rem; font-weight: 700; color: var(--text-main); }
+        .guide-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .guide-box h3 { margin-top: 0; color: var(--accent); font-size: 1.25rem; font-weight: 600; }
+        .guide-box p, .guide-box li { color: var(--text-main); line-height: 1.6; margin-bottom: 0.5rem; font-size: 0.95rem; }
+        .guide-box ul, .guide-box ol { padding-left: 1.25rem; }
+        .guide-box code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.88em; }
+        .command-block {
+            background: var(--bg-code);
+            color: var(--text-code);
+            padding: 1rem;
+            border-radius: var(--radius);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            border: 1px solid rgba(255,255,255,0.1);
+            white-space: pre;
+            line-height: 1.55;
+        }
+        .info-callout {
+            border-left: 4px solid var(--accent);
+            background: rgba(37, 99, 235, 0.08);
+            padding: 1rem;
+            border-radius: var(--radius);
+            margin: 1rem 0;
+        }
+        [data-theme="dark"] .info-callout {
+            background: rgba(251, 191, 36, 0.08);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2><span class="nav-icon">&#127828;</span> API Docs</h2>
+                <button id="theme-toggle" class="theme-toggle" aria-label="Toggle Dark Mode">
+                    <span class="icon-sun">&#9728;&#65039;</span>
+                    <span class="icon-moon">&#127769;</span>
+                </button>
+            </div>
+
+            <a href="index.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128214;</span> API Reference</a>
+            <a href="erd.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128202;</span> Database ERD</a>
+            <a href="docker-npm.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128011;</span> Docker &amp; NPM</a>
+            <a href="log-management.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128220;</span> Log Management</a>
+            <a href="grafana-dashboard.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128200;</span> Grafana Dashboard</a>
+            <a href="setup-komodo.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#9881;&#65039;</span> Setup Komodo</a>
+            <a href="cicd-komodo.html" class="nav-link active" style="margin-bottom: 1.5rem;"><span class="nav-icon">&#128260;</span> CI/CD Komodo</a>
+
+            <nav id="nav-container">
+                <!-- Dynamic Navigation Links Populated by script.js -->
+            </nav>
+        </aside>
+
+        <main class="main-content" id="main-content">
+            <div class="hero">
+                <h1>CI/CD Komodo</h1>
+                <p>Panduan membuat deploy otomatis FoodLab dari push branch staging melalui GitHub Webhook, Komodo Action, dan script deploy di server.</p>
+            </div>
+
+            <div class="domain-section">
+                <h2>Target Flow</h2>
+                <div class="guide-box">
+                    <h3>Alur deployment staging</h3>
+                    <div class="command-block">Developer push ke branch staging
+  - GitHub Webhook
+  - Komodo Action / Procedure
+  - Run /opt/stacks/foodlab/deploy-staging.sh
+  - git pull staging
+  - docker compose up -d --build foodlab-app foodlab-web
+  - composer install
+  - artisan optimize/migrate/cache
+  - restart container
+  - health check https://foodlabpens.com</div>
+                    <p>Komodo mendukung webhook dari Git provider. Untuk <code>Action</code> atau <code>Procedure</code>, webhook execution bisa diarahkan ke nama branch seperti <code>/staging</code>, sehingga push branch lain tidak menjalankan deploy staging.</p>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>Step 1. Import FoodLab sebagai Stack</h2>
+                <div class="guide-box">
+                    <h3>Import existing compose project</h3>
+                    <p>Di Komodo, buka:</p>
+                    <div class="command-block">Resources -&gt; Stacks -&gt; New Stack</div>
+                    <p>Isi konfigurasi stack:</p>
+                    <div class="command-block">Name: foodlab
+Server: server-prod / nama server Komodo kamu
+Source: Files on host
+Run directory: /opt/stacks/foodlab
+Compose files: compose.yaml
+Project name: foodlab</div>
+                    <p>Struktur folder yang dipakai:</p>
+                    <div class="command-block">/opt/stacks/foodlab
+|-- compose.yaml
+|-- deploy-staging.sh
+|-- docker/
+`-- src/</div>
+                    <div class="info-callout">
+                        <p>Setelah dibuat, klik <strong>Refresh</strong> dulu supaya Komodo membaca status container existing. Setelah aman, test <strong>Deploy</strong> dari UI.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>Step 2. Rapikan Deploy Script FoodLab</h2>
+                <div class="guide-box">
+                    <h3>File /opt/stacks/foodlab/deploy-staging.sh</h3>
+                    <p>Simpan script berikut sebagai <code>/opt/stacks/foodlab/deploy-staging.sh</code>.</p>
+                    <div class="command-block">#!/usr/bin/env bash
+set -Eeuo pipefail
+
+APP_DIR="/opt/stacks/foodlab"
+SRC_DIR="/opt/stacks/foodlab/src"
+BRANCH="staging"
+DOMAIN="https://foodlabpens.com"
+LOCK_FILE="/tmp/foodlab-staging-deploy.lock"
+
+exec 9&gt;"$LOCK_FILE"
+if ! flock -n 9; then
+  echo "==&gt; Another Foodlab staging deploy is already running"
+  exit 1
+fi
+
+trap 'echo "==&gt; Deploy failed at line $LINENO"; date' ERR
+
+echo "==&gt; Starting Foodlab staging deploy"
+date
+
+echo "==&gt; Current directory check"
+cd "$SRC_DIR"
+
+echo "==&gt; Mark host git directory as safe"
+git config --global --add safe.directory "$SRC_DIR"
+
+echo "==&gt; Fetch latest code"
+git fetch origin "$BRANCH"
+
+echo "==&gt; Checkout branch"
+git checkout "$BRANCH"
+
+echo "==&gt; Pull latest commit"
+git pull --ff-only origin "$BRANCH"
+
+echo "==&gt; Latest commit"
+git log -1 --oneline
+
+echo "==&gt; Ensure containers are running"
+cd "$APP_DIR"
+docker compose up -d --build foodlab-app foodlab-web
+
+echo "==&gt; Mark container git directory as safe"
+docker exec foodlab-app git config --global --add safe.directory /var/www/html || true
+
+echo "==&gt; Composer install"
+docker exec foodlab-app composer install \
+  --no-dev \
+  --prefer-dist \
+  --no-interaction \
+  --optimize-autoloader
+
+echo "==&gt; Laravel clear old cache"
+docker exec foodlab-app php artisan optimize:clear
+
+echo "==&gt; Laravel migrate"
+docker exec foodlab-app php artisan migrate --force
+
+echo "==&gt; Laravel cache config"
+docker exec foodlab-app php artisan config:cache
+
+# Disabled because Foodlab currently has duplicate route name verification.verify.
+# Enable again only after duplicate route name is fixed.
+# docker exec foodlab-app php artisan route:cache
+
+echo "==&gt; Laravel cache views"
+docker exec foodlab-app php artisan view:cache
+
+echo "==&gt; Fix Laravel permissions"
+docker exec foodlab-app chown -R www-data:www-data storage bootstrap/cache
+docker exec foodlab-app chmod -R ug+rwx storage bootstrap/cache
+
+echo "==&gt; Restart app containers"
+docker compose restart foodlab-app foodlab-web
+
+echo "==&gt; Container status"
+docker compose ps
+
+echo "==&gt; Health check"
+curl -fsS --retry 5 --retry-delay 2 "$DOMAIN" &gt; /dev/null
+
+echo "==&gt; Deploy finished successfully"
+date</div>
+                    <p>Pastikan executable:</p>
+                    <div class="command-block">chmod +x /opt/stacks/foodlab/deploy-staging.sh</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>Step 3. Buat Komodo Action</h2>
+                <div class="guide-box">
+                    <h3>Action untuk menjalankan script</h3>
+                    <p>Di Komodo, buka:</p>
+                    <div class="command-block">Resources -&gt; Actions -&gt; New Action</div>
+                    <p>Isi metadata:</p>
+                    <div class="command-block">Name: foodlab-deploy-staging
+Description: Deploy Foodlab from staging branch using existing deploy script</div>
+                    <p>Isi script Action TypeScript:</p>
+                    <div class="command-block">await komodo.execute_server_terminal(
+  {
+    server: "server-prod",
+    command: "bash -lc '/opt/stacks/foodlab/deploy-staging.sh'",
+    init: { command: "bash" },
+  },
+  {
+    onLine: (line) =&gt; console.log(line),
+    onFinish: (code) =&gt; console.log("Exit code:", code),
+  }
+);</div>
+                    <p>Ganti <code>server-prod</code> dengan nama Server resource kamu di Komodo. Setelah Action dibuat, klik <strong>Run</strong> manual sekali dari UI Komodo. Kalau sukses, script siap dipanggil webhook.</p>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>Step 4. Buat Webhook GitHub ke Komodo</h2>
+                <div class="guide-box">
+                    <h3>Webhook branch staging</h3>
+                    <p>Di Komodo, buka:</p>
+                    <div class="command-block">Action foodlab-deploy-staging -&gt; Config -&gt; Webhooks</div>
+                    <p>Copy webhook URL. Bentuknya kurang lebih:</p>
+                    <div class="command-block">https://KOMODO_DOMAIN/listener/github/action/foodlab-deploy-staging/staging</div>
+                    <p>Di GitHub repo FoodLab, buka:</p>
+                    <div class="command-block">Repository -&gt; Settings -&gt; Webhooks -&gt; Add webhook</div>
+                    <p>Isi:</p>
+                    <div class="command-block">Payload URL: URL webhook dari Komodo
+Content type: application/json
+Secret: KOMODO_WEBHOOK_SECRET
+Events: Just the push event
+Active: checked</div>
+                    <div class="info-callout">
+                        <p>Dengan URL branch <code>/staging</code>, push ke branch lain tidak akan menjalankan deploy staging.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>Step 5. Test End-to-End</h2>
+                <div class="guide-box">
+                    <h3>Trigger dari local</h3>
+                    <div class="command-block">git checkout staging
+git commit --allow-empty -m "test: komodo staging deploy"
+git push origin staging</div>
+                    <p>Lalu cek di Komodo:</p>
+                    <div class="command-block">Action foodlab-deploy-staging -&gt; Updates / Logs</div>
+                    <p>Expected log:</p>
+                    <div class="command-block">==&gt; Starting Foodlab staging deploy
+==&gt; Fetch latest code
+==&gt; Pull latest commit
+==&gt; Ensure containers are running
+==&gt; Composer install
+==&gt; Laravel migrate
+==&gt; Laravel cache config
+==&gt; Laravel cache views
+==&gt; Restart app containers
+==&gt; Health check
+==&gt; Deploy finished successfully</div>
+                    <p>Kalau health check gagal, cek:</p>
+                    <div class="command-block">docker compose ps
+docker logs --tail=100 foodlab-web
+docker logs --tail=100 foodlab-app
+docker exec foodlab-app php artisan migrate:status</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>Referensi</h2>
+                <div class="guide-box">
+                    <ul>
+                        <li><a href="https://komo.do/docs/automate/webhooks" target="_blank" style="color:var(--accent)">Komodo Webhooks</a></li>
+                        <li><a href="https://komo.do/docs/deploy/compose" target="_blank" style="color:var(--accent)">Komodo Docker Compose</a></li>
+                        <li><a href="https://github.com/moghtech/komodo/blob/main/docsite/docs/automate/procedures.md" target="_blank" style="color:var(--accent)">Komodo procedures example</a></li>
+                    </ul>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

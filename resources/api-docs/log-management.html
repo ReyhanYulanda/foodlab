@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Management - FoodLab Docs</title>
+    <meta name="description" content="Step-by-step setup Grafana, Prometheus, Loki, Alloy, and FoodLab log management">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .domain-section { margin-bottom: 4rem; }
+        .domain-section h2 { border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1.5rem; font-size: 1.6rem; font-weight: 700; color: var(--text-main); }
+        .guide-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .guide-box h3 { margin-top: 0; color: var(--accent); font-size: 1.25rem; font-weight: 600; }
+        .guide-box p, .guide-box li { color: var(--text-main); line-height: 1.6; margin-bottom: 0.5rem; font-size: 0.95rem; }
+        .guide-box ul, .guide-box ol { padding-left: 1.25rem; }
+        .guide-box code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.88em; }
+        .command-block {
+            background: var(--bg-code);
+            color: var(--text-code);
+            padding: 1rem;
+            border-radius: var(--radius);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            border: 1px solid rgba(255,255,255,0.1);
+            white-space: pre;
+            line-height: 1.55;
+        }
+        .info-callout {
+            border-left: 4px solid var(--accent);
+            background: rgba(37, 99, 235, 0.08);
+            padding: 1rem;
+            border-radius: var(--radius);
+            margin: 1rem 0;
+        }
+        [data-theme="dark"] .info-callout {
+            background: rgba(251, 191, 36, 0.08);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2><span class="nav-icon">&#127828;</span> API Docs</h2>
+                <button id="theme-toggle" class="theme-toggle" aria-label="Toggle Dark Mode">
+                    <span class="icon-sun">&#9728;&#65039;</span>
+                    <span class="icon-moon">&#127769;</span>
+                </button>
+            </div>
+
+            <a href="index.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128214;</span> API Reference</a>
+            <a href="erd.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128202;</span> Database ERD</a>
+            <a href="docker-npm.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128011;</span> Docker &amp; NPM</a>
+            <a href="log-management.html" class="nav-link active" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128220;</span> Log Management</a>
+            <a href="grafana-dashboard.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128200;</span> Grafana Dashboard</a>
+            <a href="setup-komodo.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#9881;&#65039;</span> Setup Komodo</a>
+            <a href="cicd-komodo.html" class="nav-link" style="margin-bottom: 1.5rem;"><span class="nav-icon">&#128260;</span> CI/CD Komodo</a>
+
+            <nav id="nav-container">
+                <!-- Dynamic Navigation Links Populated by script.js -->
+            </nav>
+        </aside>
+
+        <main class="main-content" id="main-content">
+            <div class="hero">
+                <h1>Log Management</h1>
+                <p>Step-by-step setup monitoring dan log management FoodLab menggunakan Prometheus, Grafana, node-exporter, cAdvisor, Loki, Alloy, dan Nginx Proxy Manager.</p>
+            </div>
+
+            <div class="domain-section">
+                <h2>1. Buat Network Monitoring dan Proxy</h2>
+                <div class="guide-box">
+                    <h3>Network eksternal Docker</h3>
+                    <p>Stack monitoring memakai network external <code>monitoring</code>. Grafana juga perlu join network <code>proxy</code> supaya bisa di-forward dari Nginx Proxy Manager.</p>
+                    <div class="command-block">networks:
+  monitoring:
+    external: true</div>
+                    <p>Cek network yang sudah ada:</p>
+                    <div class="command-block">docker network ls | grep -E 'monitoring|proxy'</div>
+                    <p>Harus ada:</p>
+                    <div class="command-block">monitoring
+proxy</div>
+                    <p>Kalau belum ada, buat network:</p>
+                    <div class="command-block">docker network create proxy || true
+
+docker network rm monitoring 2&gt;/dev/null || true
+docker network create monitoring</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>2. Buat Monitoring Compose</h2>
+                <div class="guide-box">
+                    <h3>File /opt/stacks/monitoring/compose.yaml</h3>
+                    <p>Stack ini berisi Prometheus, Grafana, node-exporter, dan cAdvisor. Ganti password Grafana sebelum dijalankan.</p>
+                    <div class="command-block">mkdir -p /opt/stacks/monitoring
+
+cat &gt; /opt/stacks/monitoring/compose.yaml &lt;&lt;'YAML'
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: monitoring-prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    expose:
+      - "9090"
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: monitoring-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: "CHANGE_ME_GRAFANA_PASSWORD"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: "https://grafana.dk.foodlabpens.com"
+      GF_SERVER_DOMAIN: "grafana.dk.foodlabpens.com"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    expose:
+      - "3000"
+    networks:
+      - monitoring
+      - proxy
+    depends_on:
+      - prometheus
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: monitoring-node-exporter
+    restart: unless-stopped
+    command:
+      - "--path.rootfs=/host"
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+    expose:
+      - "9100"
+    networks:
+      - monitoring
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: monitoring-cadvisor
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    expose:
+      - "8080"
+    networks:
+      - monitoring
+
+volumes:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  monitoring:
+    external: true
+  proxy:
+    external: true
+YAML</div>
+                    <p>Ganti password Grafana:</p>
+                    <div class="command-block">nano /opt/stacks/monitoring/compose.yaml</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>3. Buat Prometheus Config</h2>
+                <div class="guide-box">
+                    <h3>Scrape Prometheus, node-exporter, dan cAdvisor</h3>
+                    <div class="command-block">mkdir -p /opt/stacks/monitoring/prometheus
+
+cat &gt; /opt/stacks/monitoring/prometheus/prometheus.yml &lt;&lt;'YAML'
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets:
+          - "prometheus:9090"
+
+  - job_name: "node-exporter"
+    static_configs:
+      - targets:
+          - "node-exporter:9100"
+
+  - job_name: "cadvisor"
+    static_configs:
+      - targets:
+          - "cadvisor:8080"
+YAML</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>4. Start Monitoring</h2>
+                <div class="guide-box">
+                    <h3>Jalankan stack metrics</h3>
+                    <div class="command-block">cd /opt/stacks/monitoring
+docker compose up -d
+docker compose ps</div>
+                    <p>Test readiness dan metrics endpoint dari dalam container Prometheus:</p>
+                    <div class="command-block">docker exec -it monitoring-prometheus wget -qO- http://prometheus:9090/-/ready
+docker exec -it monitoring-prometheus wget -qO- http://node-exporter:9100/metrics | head
+docker exec -it monitoring-prometheus wget -qO- http://cadvisor:8080/metrics | head</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>5. Buat Observability Compose</h2>
+                <div class="guide-box">
+                    <h3>File /opt/stacks/observability/compose.yaml</h3>
+                    <p>Stack observability berisi Loki sebagai log store dan Alloy sebagai log collector. Alloy membaca log Laravel FoodLab dan log NPM.</p>
+                    <div class="command-block">mkdir -p /opt/stacks/observability/{loki,alloy}
+
+cat &gt; /opt/stacks/observability/compose.yaml &lt;&lt;'YAML'
+services:
+  monitoring-loki:
+    image: grafana/loki:3.7.0
+    container_name: monitoring-loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/loki-config.yaml
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - ./loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - ./loki/data:/loki
+    networks:
+      - monitoring
+
+  monitoring-alloy:
+    image: grafana/alloy:latest
+    container_name: monitoring-alloy
+    restart: unless-stopped
+    user: "0:0"
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - ./alloy/data:/var/lib/alloy/data
+      - /opt/stacks/foodlab/src/storage/logs:/logs/foodlab/laravel:ro
+      - /opt/stacks/npm/data/logs:/logs/npm:ro
+    depends_on:
+      - monitoring-loki
+    networks:
+      - monitoring
+
+networks:
+  monitoring:
+    external: true
+YAML</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>6. Buat Loki Config</h2>
+                <div class="guide-box">
+                    <h3>File loki-config.yaml</h3>
+                    <p>Konfigurasi ini memakai filesystem storage, schema TSDB v13, dan retention 720 jam.</p>
+                    <div class="command-block">cat &gt; /opt/stacks/observability/loki/loki-config.yaml &lt;&lt;'YAML'
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+  log_level: info
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  retention_period: 720h
+  allow_structured_metadata: false
+
+compactor:
+  working_directory: /loki/compactor
+  retention_enabled: true
+  delete_request_store: filesystem
+
+analytics:
+  reporting_enabled: false
+YAML</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>7. Buat Alloy Config</h2>
+                <div class="guide-box">
+                    <h3>File config.alloy lengkap</h3>
+                    <p>Konfigurasi ini membaca Laravel log, menangani multiline stack trace, memberi label env/level, lalu mengirimnya ke Loki. NPM access/error log juga ikut dikirim.</p>
+                    <div class="command-block">cat &gt; /opt/stacks/observability/alloy/config.alloy &lt;&lt;'ALLOY'
+local.file_match "foodlab_laravel_logs" {
+  path_targets = [
+    {
+      "__path__" = "/logs/foodlab/laravel/*.log",
+      "job"      = "foodlab-laravel",
+      "app"      = "foodlab",
+      "service"  = "laravel",
+      "server"   = "singapore",
+    },
+  ]
+
+  sync_period = "5s"
+}
+
+loki.source.file "foodlab_laravel" {
+  targets       = local.file_match.foodlab_laravel_logs.targets
+  tail_from_end = false
+  forward_to    = [loki.process.foodlab_laravel.receiver]
+}
+
+loki.process "foodlab_laravel" {
+  stage.multiline {
+    firstline     = "^\\[[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\\]"
+    max_wait_time = "3s"
+  }
+
+  stage.regex {
+    expression = "^\\[(?P&lt;timestamp&gt;[^\\]]+)\\] (?P&lt;laravel_env&gt;[^.]+)\\.(?P&lt;level&gt;[A-Z]+):"
+  }
+
+  stage.labels {
+    values = {
+      laravel_env = "laravel_env",
+      level       = "level",
+    }
+  }
+
+  forward_to = [loki.write.local.receiver]
+}
+
+local.file_match "npm_logs" {
+  path_targets = [
+    {
+      "__path__" = "/logs/npm/*access.log",
+      "job"      = "nginx-proxy-manager",
+      "app"      = "npm",
+      "service"  = "nginx-proxy-manager",
+      "type"     = "access",
+      "server"   = "singapore",
+    },
+    {
+      "__path__" = "/logs/npm/*error.log",
+      "job"      = "nginx-proxy-manager",
+      "app"      = "npm",
+      "service"  = "nginx-proxy-manager",
+      "type"     = "error",
+      "server"   = "singapore",
+    },
+  ]
+
+  sync_period = "5s"
+}
+
+loki.source.file "npm" {
+  targets       = local.file_match.npm_logs.targets
+  tail_from_end = false
+  forward_to    = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://monitoring-loki:3100/loki/api/v1/push"
+  }
+}
+ALLOY</div>
+                    <p>Validasi akhir file:</p>
+                    <div class="command-block">tail -n 30 /opt/stacks/observability/alloy/config.alloy</div>
+                    <p>Akhir file harus seperti ini:</p>
+                    <div class="command-block">loki.write "local" {
+  endpoint {
+    url = "http://monitoring-loki:3100/loki/api/v1/push"
+  }
+}</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>8. Start Observability</h2>
+                <div class="guide-box">
+                    <h3>Jalankan Loki dan Alloy</h3>
+                    <div class="command-block">cd /opt/stacks/observability
+docker compose up -d
+docker compose ps</div>
+                    <p>Sekarang tidak boleh ada error:</p>
+                    <div class="command-block">network monitoring declared as external, but could not be found</div>
+                    <p>Kalau masih muncul, cek lagi network monitoring:</p>
+                    <div class="command-block">docker network ls | grep monitoring</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>9. Test Loki dan Alloy</h2>
+                <div class="guide-box">
+                    <h3>Readiness dan log container</h3>
+                    <div class="command-block">curl http://127.0.0.1:3100/ready
+
+docker logs --tail=120 monitoring-loki
+docker logs --tail=120 monitoring-alloy</div>
+                    <p>Cek dari Grafana ke Loki:</p>
+                    <div class="command-block">docker exec -it monitoring-grafana wget -qO- http://monitoring-loki:3100/ready</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>10. Tambahkan Grafana ke NPM</h2>
+                <div class="guide-box">
+                    <h3>Proxy Host Grafana</h3>
+                    <p>Di Nginx Proxy Manager, buka <code>Proxy Hosts -&gt; Add Proxy Host</code>, lalu isi:</p>
+                    <div class="command-block">Domain Names:
+grafana.foodlabpens.com
+www.grafana.foodlabpens.com
+
+Scheme:
+HTTP
+
+Forward Hostname / IP:
+monitoring-grafana
+
+Forward Port:
+3000
+
+Block Common Exploits:
+ON
+
+Websockets Support:
+ON</div>
+                    <p>Tab SSL:</p>
+                    <div class="command-block">SSL Certificate:
+Request a new certificate
+
+Force SSL:
+ON
+
+HTTP/2 Support:
+ON
+
+Klik Save</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>11. Generate Test Log FoodLab</h2>
+                <div class="guide-box">
+                    <h3>Kirim log manual ke Laravel log</h3>
+                    <div class="command-block">printf "[%s] production.ERROR: Loki test from Foodlab server baru {\"source\":\"manual-test\"}\n" "$(date '+%Y-%m-%d %H:%M:%S')" | sudo tee -a /opt/stacks/foodlab/src/storage/logs/laravel.log &gt; /dev/null</div>
+                    <p>Tunggu sekitar 10 detik, lalu query Loki:</p>
+                    <div class="command-block">curl -G -s "http://127.0.0.1:3100/loki/api/v1/query" \
+  --data-urlencode 'query={app="foodlab"}' | head -c 1500</div>
+                    <p>Kalau masuk, cek di Grafana Explore menggunakan datasource Loki:</p>
+                    <div class="command-block">{app="foodlab"}</div>
+                    <p>Error Laravel:</p>
+                    <div class="command-block">{app="foodlab", level="ERROR"}</div>
+                    <p>NPM logs:</p>
+                    <div class="command-block">{app="npm"}</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>12. Final Container Check</h2>
+                <div class="guide-box">
+                    <h3>Cek container dan network</h3>
+                    <div class="command-block">docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"</div>
+                    <p>Harus ada container:</p>
+                    <div class="command-block">monitoring-prometheus
+monitoring-grafana
+monitoring-node-exporter
+monitoring-cadvisor
+monitoring-loki
+monitoring-alloy</div>
+                    <p>Network <code>monitoring</code> harus memperlihatkan semua container ini:</p>
+                    <div class="command-block">docker network inspect monitoring | grep -E '"Name"|monitoring-prometheus|monitoring-grafana|monitoring-node-exporter|monitoring-cadvisor|monitoring-loki|monitoring-alloy'</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

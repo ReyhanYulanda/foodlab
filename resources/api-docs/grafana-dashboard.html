@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grafana Dashboard - FoodLab Docs</title>
+    <meta name="description" content="Step-by-step setup Grafana datasources, imported dashboards, and custom FoodLab dashboards">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .domain-section { margin-bottom: 4rem; }
+        .domain-section h2 { border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1.5rem; font-size: 1.6rem; font-weight: 700; color: var(--text-main); }
+        .guide-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .guide-box h3 { margin-top: 0; color: var(--accent); font-size: 1.25rem; font-weight: 600; }
+        .guide-box p, .guide-box li { color: var(--text-main); line-height: 1.6; margin-bottom: 0.5rem; font-size: 0.95rem; }
+        .guide-box ul, .guide-box ol { padding-left: 1.25rem; }
+        .guide-box code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.88em; }
+        .command-block {
+            background: var(--bg-code);
+            color: var(--text-code);
+            padding: 1rem;
+            border-radius: var(--radius);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            border: 1px solid rgba(255,255,255,0.1);
+            white-space: pre;
+            line-height: 1.55;
+        }
+        .info-callout {
+            border-left: 4px solid var(--accent);
+            background: rgba(37, 99, 235, 0.08);
+            padding: 1rem;
+            border-radius: var(--radius);
+            margin: 1rem 0;
+        }
+        [data-theme="dark"] .info-callout {
+            background: rgba(251, 191, 36, 0.08);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2><span class="nav-icon">&#127828;</span> API Docs</h2>
+                <button id="theme-toggle" class="theme-toggle" aria-label="Toggle Dark Mode">
+                    <span class="icon-sun">&#9728;&#65039;</span>
+                    <span class="icon-moon">&#127769;</span>
+                </button>
+            </div>
+
+            <a href="index.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128214;</span> API Reference</a>
+            <a href="erd.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128202;</span> Database ERD</a>
+            <a href="docker-npm.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128011;</span> Docker &amp; NPM</a>
+            <a href="log-management.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128220;</span> Log Management</a>
+            <a href="grafana-dashboard.html" class="nav-link active" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128200;</span> Grafana Dashboard</a>
+            <a href="setup-komodo.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#9881;&#65039;</span> Setup Komodo</a>
+            <a href="cicd-komodo.html" class="nav-link" style="margin-bottom: 1.5rem;"><span class="nav-icon">&#128260;</span> CI/CD Komodo</a>
+
+            <nav id="nav-container">
+                <!-- Dynamic Navigation Links Populated by script.js -->
+            </nav>
+        </aside>
+
+        <main class="main-content" id="main-content">
+            <div class="hero">
+                <h1>Grafana Dashboard</h1>
+                <p>Panduan membuat datasource Prometheus dan Loki, import dashboard server/container metrics, serta membuat dashboard custom untuk FoodLab logs dan overview.</p>
+            </div>
+
+            <div class="domain-section">
+                <h2>1. Login Grafana</h2>
+                <div class="guide-box">
+                    <h3>Buka domain reverse proxy</h3>
+                    <div class="command-block">https://grafana.dk.foodlabpens.com</div>
+                    <p>Login dengan akun admin Grafana:</p>
+                    <div class="command-block">Username: admin
+Password: password di GF_SECURITY_ADMIN_PASSWORD</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>2. Tambahkan Datasource Prometheus</h2>
+                <div class="guide-box">
+                    <h3>Datasource metrics</h3>
+                    <p>Masuk ke menu:</p>
+                    <div class="command-block">Connections -&gt; Data sources -&gt; Add data source -&gt; Prometheus</div>
+                    <p>Isi konfigurasi:</p>
+                    <div class="command-block">Name: Prometheus
+Prometheus server URL: http://prometheus:9090</div>
+                    <p>Klik:</p>
+                    <div class="command-block">Save &amp; test</div>
+                    <p>Harus muncul sukses. Kalau gagal, test dari server:</p>
+                    <div class="command-block">docker exec -it monitoring-grafana wget -qO- http://prometheus:9090/-/ready</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>3. Tambahkan Datasource Loki</h2>
+                <div class="guide-box">
+                    <h3>Datasource logs</h3>
+                    <p>Masuk ke menu:</p>
+                    <div class="command-block">Connections -&gt; Data sources -&gt; Add data source -&gt; Loki</div>
+                    <p>Isi konfigurasi:</p>
+                    <div class="command-block">Name: Loki
+URL: http://monitoring-loki:3100</div>
+                    <p>Klik:</p>
+                    <div class="command-block">Save &amp; test</div>
+                    <p>Karena Loki sudah ready di stack log management, datasource harus sukses. Cek dari Grafana ke Loki kalau perlu:</p>
+                    <div class="command-block">docker exec -it monitoring-grafana wget -qO- http://monitoring-loki:3100/ready</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>4. Buat Folder Dashboard</h2>
+                <div class="guide-box">
+                    <h3>Folder FoodLab Monitoring</h3>
+                    <p>Supaya dashboard rapi, buat folder baru:</p>
+                    <div class="command-block">Dashboards -&gt; New -&gt; New folder</div>
+                    <p>Nama folder:</p>
+                    <div class="command-block">Foodlab Monitoring</div>
+                    <p>Nanti semua dashboard masuk folder ini.</p>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>5. Import Dashboard Server Metrics</h2>
+                <div class="guide-box">
+                    <h3>Node Exporter Full</h3>
+                    <p>Dashboard ini untuk CPU, RAM, disk, dan network host/server.</p>
+                    <div class="command-block">Dashboards -&gt; New -&gt; Import</div>
+                    <p>Isi dashboard ID:</p>
+                    <div class="command-block">1860</div>
+                    <p>Klik <code>Load</code>, lalu set:</p>
+                    <div class="command-block">Folder: Foodlab Monitoring
+Prometheus datasource: Prometheus</div>
+                    <p>Klik:</p>
+                    <div class="command-block">Import</div>
+                    <p>Setelah import, kalau variable <code>job</code> muncul, pilih:</p>
+                    <div class="command-block">node-exporter</div>
+                    <p>Prometheus config kita memakai job name:</p>
+                    <div class="command-block">job_name: "node-exporter"</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>6. Import Dashboard Docker Metrics</h2>
+                <div class="guide-box">
+                    <h3>cAdvisor Docker/container metrics</h3>
+                    <p>Dashboard ini untuk container seperti <code>foodlab-app</code>, <code>foodlab-web</code>, <code>nginx-proxy-manager</code>, <code>monitoring-grafana</code>, <code>monitoring-loki</code>, dan <code>monitoring-alloy</code>.</p>
+                    <div class="command-block">Dashboards -&gt; New -&gt; Import</div>
+                    <p>Coba dashboard ID ini dulu:</p>
+                    <div class="command-block">19908</div>
+                    <p>Set:</p>
+                    <div class="command-block">Folder: Foodlab Monitoring
+Prometheus datasource: Prometheus</div>
+                    <p>Klik:</p>
+                    <div class="command-block">Import</div>
+                    <p>Kalau panel kosong, coba alternatif yang juga cocok untuk cAdvisor:</p>
+                    <div class="command-block">19792</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>7. Buat Dashboard Custom FoodLab Logs</h2>
+                <div class="guide-box">
+                    <h3>Mulai dashboard logs</h3>
+                    <p>Dashboard community kadang label-nya tidak cocok dengan setup Alloy. Karena Alloy mengirim label berikut, lebih aman buat dashboard custom:</p>
+                    <div class="command-block">app="foodlab"
+service="laravel"
+server="singapore"
+level="ERROR" / INFO / WARNING / ...</div>
+                    <p>Masuk ke:</p>
+                    <div class="command-block">Dashboards -&gt; New -&gt; New dashboard
+Add visualization
+Datasource: Loki</div>
+                </div>
+
+                <div class="guide-box">
+                    <h3>Panel FoodLab Logs</h3>
+                    <p>Panel 1: Laravel Logs Stream</p>
+                    <div class="command-block">Panel type: Logs
+Query: {app="foodlab"}
+Title: Foodlab Laravel Logs</div>
+                    <p>Panel 2: Laravel Error Logs</p>
+                    <div class="command-block">Panel type: Logs
+Query: {app="foodlab", level="ERROR"}
+Title: Foodlab Error Logs</div>
+                    <p>Panel 3: Error count last 5 minutes</p>
+                    <div class="command-block">Panel type: Stat
+Query: sum(count_over_time({app="foodlab", level="ERROR"}[5m]))
+Title: Laravel Errors - Last 5m</div>
+                    <p>Panel 4: SQLSTATE / database errors</p>
+                    <div class="command-block">Panel type: Logs
+Query: {app="foodlab"} |= "SQLSTATE"
+Title: Database / SQLSTATE Errors</div>
+                    <p>Panel 5: NPM access logs</p>
+                    <div class="command-block">Panel type: Logs
+Query: {app="npm", type="access"}
+Title: Nginx Proxy Manager Access Logs</div>
+                    <p>Panel 6: NPM error logs</p>
+                    <div class="command-block">Panel type: Logs
+Query: {app="npm", type="error"}
+Title: Nginx Proxy Manager Error Logs</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>8. Save FoodLab Logs Dashboard</h2>
+                <div class="guide-box">
+                    <h3>Simpan dashboard logs</h3>
+                    <p>Klik kanan atas:</p>
+                    <div class="command-block">Save dashboard</div>
+                    <p>Isi:</p>
+                    <div class="command-block">Title: Foodlab Logs
+Folder: Foodlab Monitoring</div>
+                    <p>Klik:</p>
+                    <div class="command-block">Save</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>9. Buat Dashboard Custom FoodLab Overview</h2>
+                <div class="guide-box">
+                    <h3>Mulai dashboard overview</h3>
+                    <div class="command-block">Dashboards -&gt; New -&gt; New dashboard</div>
+                    <p>Tambahkan panel-panel berikut.</p>
+                </div>
+
+                <div class="guide-box">
+                    <h3>Panel logs overview</h3>
+                    <p>Panel 1: Total Laravel logs per minute</p>
+                    <div class="command-block">Datasource: Loki
+Panel type: Time series
+Query: sum(rate({app="foodlab"}[1m]))
+Title: Laravel Log Rate</div>
+                    <p>Panel 2: Error rate</p>
+                    <div class="command-block">Datasource: Loki
+Panel type: Time series
+Query: sum(rate({app="foodlab", level="ERROR"}[1m]))
+Title: Laravel Error Rate</div>
+                    <p>Panel 3: Error count by level</p>
+                    <div class="command-block">Datasource: Loki
+Panel type: Bar chart
+Query: sum by (level) (count_over_time({app="foodlab"}[15m]))
+Title: Logs by Level - Last 15m</div>
+                </div>
+
+                <div class="guide-box">
+                    <h3>Panel infrastructure overview</h3>
+                    <p>Panel 4: Container CPU</p>
+                    <div class="command-block">Datasource: Prometheus
+Panel type: Time series
+Query: sum by (name) (rate(container_cpu_usage_seconds_total{name!=""}[5m]))
+Title: Container CPU Usage</div>
+                    <p>Panel 5: Container memory</p>
+                    <div class="command-block">Datasource: Prometheus
+Panel type: Time series
+Query: container_memory_usage_bytes{name!=""}
+Title: Container Memory Usage</div>
+                    <p>Panel 6: Server memory usage</p>
+                    <div class="command-block">Datasource: Prometheus
+Panel type: Gauge
+Query: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
+Title: Server Memory Usage %</div>
+                    <p>Panel 7: Server CPU usage</p>
+                    <div class="command-block">Datasource: Prometheus
+Panel type: Gauge
+Query: 100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+Title: Server CPU Usage %</div>
+                </div>
+
+                <div class="guide-box">
+                    <h3>Simpan dashboard overview</h3>
+                    <div class="command-block">Title: Foodlab Overview
+Folder: Foodlab Monitoring</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>10. Set Dashboard sebagai Homepage</h2>
+                <div class="guide-box">
+                    <h3>Default preference Grafana</h3>
+                    <p>Masuk ke:</p>
+                    <div class="command-block">Administration -&gt; General -&gt; Default preferences</div>
+                    <p>Cari:</p>
+                    <div class="command-block">Home dashboard</div>
+                    <p>Pilih:</p>
+                    <div class="command-block">Foodlab Overview</div>
+                    <p>Lalu klik <code>Save</code>. Kalau menu berbeda, buka dashboard <code>Foodlab Overview</code> dan klik icon star agar masuk favorites.</p>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>11. Test Data Muncul</h2>
+                <div class="guide-box">
+                    <h3>Generate log dan cek dashboard</h3>
+                    <p>Di server, generate log test:</p>
+                    <div class="command-block">printf "[%s] production.ERROR: Grafana dashboard test {\"source\":\"manual-dashboard-test\"}\n" "$(date '+%Y-%m-%d %H:%M:%S')" | sudo tee -a /opt/stacks/foodlab/src/storage/logs/laravel.log &gt; /dev/null</div>
+                    <p>Tunggu 10 detik. Di dashboard <code>Foodlab Logs</code>, panel berikut harus muncul:</p>
+                    <div class="command-block">Foodlab Error Logs
+Laravel Errors - Last 5m</div>
+                    <p>Kalau belum muncul, cek langsung dari server:</p>
+                    <div class="command-block">curl -G -s "http://127.0.0.1:3100/loki/api/v1/query" \
+  --data-urlencode 'query={app="foodlab"}' | head -c 1500</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>Referensi</h2>
+                <div class="guide-box">
+                    <ul>
+                        <li><a href="https://grafana.com/docs/grafana/latest/datasources/loki/" target="_blank" style="color:var(--accent)">Configure the Loki data source</a></li>
+                        <li><a href="https://grafana.com/grafana/dashboards/1860-node-exporter-full/" target="_blank" style="color:var(--accent)">Node Exporter Full dashboard 1860</a></li>
+                        <li><a href="https://grafana.com/grafana/dashboards/19908-docker-container-monitoring-with-prometheus-and-cadvisor/" target="_blank" style="color:var(--accent)">cAdvisor Docker Insights dashboard 19908</a></li>
+                        <li><a href="https://grafana.com/grafana/dashboards/19792-cadvisor-dashboard/" target="_blank" style="color:var(--accent)">cAdvisor dashboard 19792</a></li>
+                    </ul>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

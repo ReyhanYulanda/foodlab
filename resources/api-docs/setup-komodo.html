@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Komodo - FoodLab Docs</title>
+    <meta name="description" content="Step-by-step setup Komodo server management for FoodLab stacks">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .domain-section { margin-bottom: 4rem; }
+        .domain-section h2 { border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1.5rem; font-size: 1.6rem; font-weight: 700; color: var(--text-main); }
+        .guide-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .guide-box h3 { margin-top: 0; color: var(--accent); font-size: 1.25rem; font-weight: 600; }
+        .guide-box p, .guide-box li { color: var(--text-main); line-height: 1.6; margin-bottom: 0.5rem; font-size: 0.95rem; }
+        .guide-box ul, .guide-box ol { padding-left: 1.25rem; }
+        .guide-box code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.88em; }
+        .command-block {
+            background: var(--bg-code);
+            color: var(--text-code);
+            padding: 1rem;
+            border-radius: var(--radius);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            border: 1px solid rgba(255,255,255,0.1);
+            white-space: pre;
+            line-height: 1.55;
+        }
+        .info-callout {
+            border-left: 4px solid var(--accent);
+            background: rgba(37, 99, 235, 0.08);
+            padding: 1rem;
+            border-radius: var(--radius);
+            margin: 1rem 0;
+        }
+        [data-theme="dark"] .info-callout {
+            background: rgba(251, 191, 36, 0.08);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2><span class="nav-icon">&#127828;</span> API Docs</h2>
+                <button id="theme-toggle" class="theme-toggle" aria-label="Toggle Dark Mode">
+                    <span class="icon-sun">&#9728;&#65039;</span>
+                    <span class="icon-moon">&#127769;</span>
+                </button>
+            </div>
+
+            <a href="index.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128214;</span> API Reference</a>
+            <a href="erd.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128202;</span> Database ERD</a>
+            <a href="docker-npm.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128011;</span> Docker &amp; NPM</a>
+            <a href="log-management.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128220;</span> Log Management</a>
+            <a href="grafana-dashboard.html" class="nav-link" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#128200;</span> Grafana Dashboard</a>
+            <a href="setup-komodo.html" class="nav-link active" style="margin-bottom: 0.5rem;"><span class="nav-icon">&#9881;&#65039;</span> Setup Komodo</a>
+            <a href="cicd-komodo.html" class="nav-link" style="margin-bottom: 1.5rem;"><span class="nav-icon">&#128260;</span> CI/CD Komodo</a>
+
+            <nav id="nav-container">
+                <!-- Dynamic Navigation Links Populated by script.js -->
+            </nav>
+        </aside>
+
+        <main class="main-content" id="main-content">
+            <div class="hero">
+                <h1>Setup Komodo</h1>
+                <p>Panduan menyiapkan Komodo untuk manage server, Compose stacks, container logs, container shell, monitoring resource, dan CI/CD FoodLab.</p>
+            </div>
+
+            <div class="domain-section">
+                <h2>Overview Arsitektur</h2>
+                <div class="guide-box">
+                    <h3>Struktur /opt/stacks</h3>
+                    <p>Komodo akan ditempatkan sebagai stack sendiri di dalam convention <code>/opt/stacks</code>.</p>
+                    <div class="command-block">/opt/stacks
+|-- npm
+|-- foodlab
+|-- komodo
+|-- monitoring
+`-- future-project</div>
+                    <p>Arsitektur final akses Komodo:</p>
+                    <div class="command-block">Internet
+  - HTTPS
+Nginx Proxy Manager
+  - Docker network: proxy
+komodo-core:9120
+  - websocket
+komodo-periphery
+  - Docker socket
+Docker Engine
+  |-- nginx-proxy-manager
+  |-- foodlab-web
+  |-- foodlab-app
+  `-- future project containers</div>
+                    <p>Komodo akan diakses dari:</p>
+                    <div class="command-block">https://komodo.foodlabpens.com</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>Phase 1. DNS dan Subdomain</h2>
+                <div class="guide-box">
+                    <h3>Buat DNS record</h3>
+                    <div class="command-block">Type : A
+Name : komodo
+Value: IP_PUBLIC_VPS</div>
+                    <p>Target akhirnya:</p>
+                    <div class="command-block">komodo.foodlabpens.com -&gt; IP_PUBLIC_VPS</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>Phase 2. Persiapan Folder dan Network</h2>
+                <div class="guide-box">
+                    <h3>SSH dan buat folder Komodo</h3>
+                    <div class="command-block">ssh ubuntu@IP_VPS</div>
+                    <div class="command-block">sudo mkdir -p /opt/stacks/komodo
+sudo chown -R ubuntu:ubuntu /opt/stacks/komodo
+cd /opt/stacks/komodo</div>
+                    <div class="info-callout">
+                        <p>Pastikan network <code>proxy</code> sudah dibuat dari setup Docker &amp; NPM, karena <code>komodo-core</code> akan di-forward oleh Nginx Proxy Manager melalui network itu.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>Phase 3. Buat Environment Komodo</h2>
+                <div class="guide-box">
+                    <h3>Generate secret</h3>
+                    <p>Jalankan beberapa kali dan pakai hasilnya untuk password/admin/webhook/JWT secret.</p>
+                    <div class="command-block">openssl rand -base64 32
+openssl rand -hex 48
+openssl rand -hex 48</div>
+                    <p>Buat file environment:</p>
+                    <div class="command-block">nano compose.env</div>
+                    <p>Isi file berikut, lalu ganti semua <code>CHANGE_ME_*</code> dengan secret yang aman.</p>
+                    <div class="command-block">COMPOSE_KOMODO_IMAGE_TAG=2
+
+COMPOSE_KOMODO_BACKUPS_PATH=/opt/stacks/komodo/backups
+
+KOMODO_DATABASE_USERNAME=komodo
+KOMODO_DATABASE_PASSWORD=CHANGE_ME_DB_PASSWORD
+
+TZ=Asia/Jakarta
+
+KOMODO_HOST=https://komodo.foodlabpens.com
+KOMODO_TITLE=FoodlabKomodo
+
+KOMODO_LOCAL_AUTH=true
+KOMODO_INIT_ADMIN_USERNAME=admin
+KOMODO_INIT_ADMIN_PASSWORD=CHANGE_ME_ADMIN_PASSWORD
+
+KOMODO_FIRST_SERVER_NAME=CHANGE_ME_NAME_VPS
+
+KOMODO_WEBHOOK_SECRET=CHANGE_ME_WEBHOOK_SECRET
+KOMODO_JWT_SECRET=CHANGE_ME_JWT_SECRET
+KOMODO_JWT_TTL=1-day
+
+KOMODO_MONITORING_INTERVAL=15-sec
+KOMODO_RESOURCE_POLL_INTERVAL=1-hr
+
+KOMODO_DISABLE_USER_REGISTRATION=true
+KOMODO_ENABLE_NEW_USERS=false
+KOMODO_DISABLE_NON_ADMIN_CREATE=true
+KOMODO_TRANSPARENT_MODE=false
+
+KOMODO_OIDC_ENABLED=false
+KOMODO_GITHUB_OAUTH_ENABLED=false
+KOMODO_GOOGLE_OAUTH_ENABLED=false
+
+KOMODO_PERIPHERY_PUBLIC_KEY=file:/config/keys/periphery.pub
+
+PERIPHERY_CORE_ADDRESS=ws://core:9120
+PERIPHERY_CONNECT_AS=${KOMODO_FIRST_SERVER_NAME}
+PERIPHERY_CORE_PUBLIC_KEYS=file:/config/keys/core.pub
+
+PERIPHERY_ROOT_DIRECTORY=/opt/stacks
+PERIPHERY_DISABLE_TERMINALS=false
+PERIPHERY_DISABLE_CONTAINER_TERMINALS=false
+PERIPHERY_INCLUDE_DISK_MOUNTS=/etc/hostname
+
+KOMODO_LOGGING_PRETTY=false
+KOMODO_PRETTY_STARTUP_CONFIG=false
+PERIPHERY_LOGGING_PRETTY=false
+PERIPHERY_PRETTY_STARTUP_CONFIG=false</div>
+                    <p>Directory root yang akan dikelola Periphery:</p>
+                    <div class="command-block">PERIPHERY_ROOT_DIRECTORY=/opt/stacks</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>Phase 4. Buat Compose Komodo</h2>
+                <div class="guide-box">
+                    <h3>File compose.yaml</h3>
+                    <div class="command-block">nano compose.yaml</div>
+                    <p>Isi:</p>
+                    <div class="command-block">name: komodo
+
+services:
+  mongo:
+    image: mongo
+    container_name: komodo-mongo
+    labels:
+      komodo.skip:
+    command: --quiet --wiredTigerCacheSizeGB 0.25
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+      - mongo-config:/data/configdb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${KOMODO_DATABASE_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${KOMODO_DATABASE_PASSWORD}
+    networks:
+      - komodo-internal
+
+  core:
+    image: ghcr.io/moghtech/komodo-core:${COMPOSE_KOMODO_IMAGE_TAG:-2}
+    container_name: komodo-core
+    labels:
+      komodo.skip:
+    init: true
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    env_file:
+      - ./compose.env
+    environment:
+      KOMODO_DATABASE_ADDRESS: mongo:27017
+      KOMODO_DATABASE_USERNAME: ${KOMODO_DATABASE_USERNAME}
+      KOMODO_DATABASE_PASSWORD: ${KOMODO_DATABASE_PASSWORD}
+    volumes:
+      - keys:/config/keys
+      - ./backups:/backups
+    expose:
+      - "9120"
+    networks:
+      - komodo-internal
+      - proxy
+
+  periphery:
+    image: ghcr.io/moghtech/komodo-periphery:${COMPOSE_KOMODO_IMAGE_TAG:-2}
+    container_name: komodo-periphery
+    labels:
+      komodo.skip:
+    init: true
+    restart: unless-stopped
+    depends_on:
+      - core
+    env_file:
+      - ./compose.env
+    volumes:
+      - keys:/config/keys
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc:/proc
+      - /opt/stacks:/opt/stacks
+    networks:
+      - komodo-internal
+
+volumes:
+  mongo-data:
+  mongo-config:
+  keys:
+
+networks:
+  komodo-internal:
+    driver: bridge
+  proxy:
+    external: true</div>
+                    <p>Catatan penting: hanya <code>komodo-core</code> yang perlu diexpose ke network proxy.</p>
+                    <div class="command-block">expose:
+  - "9120"</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>Phase 5. Jalankan Komodo</h2>
+                <div class="guide-box">
+                    <h3>Pull, start, dan cek logs</h3>
+                    <div class="command-block">cd /opt/stacks/komodo</div>
+                    <p>Pull image:</p>
+                    <div class="command-block">docker compose --env-file compose.env pull</div>
+                    <p>Start:</p>
+                    <div class="command-block">docker compose --env-file compose.env up -d</div>
+                    <p>Cek container:</p>
+                    <div class="command-block">docker compose --env-file compose.env ps</div>
+                    <p>Cek logs:</p>
+                    <div class="command-block">docker logs --tail=100 komodo-core
+docker logs --tail=100 komodo-periphery
+docker logs --tail=100 komodo-mongo</div>
+                    <p>Expected:</p>
+                    <div class="command-block">komodo-core       running
+komodo-periphery  running
+komodo-mongo      running</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>Phase 6. Setup Nginx Proxy Manager</h2>
+                <div class="guide-box">
+                    <h3>Proxy Host Komodo</h3>
+                    <p>Masuk ke NPM admin panel:</p>
+                    <div class="command-block">http://IP_PUBLIC_VPS:81</div>
+                    <p>Buat Proxy Host baru:</p>
+                    <div class="command-block">Domain Names:
+komodo.foodlabpens.com
+
+Scheme:
+http
+
+Forward Hostname / IP:
+komodo-core
+
+Forward Port:
+9120
+
+Websockets Support:
+ON
+
+Block Common Exploits:
+ON</div>
+                    <p>SSL tab:</p>
+                    <div class="command-block">Request a new SSL Certificate
+Force SSL: ON
+HTTP/2 Support: ON
+HSTS: OFF dulu</div>
+                    <div class="info-callout">
+                        <p><strong>Websockets Support wajib ON.</strong> Komunikasi Komodo Core dan Periphery menggunakan websocket. Reverse proxy juga perlu meneruskan host header ke domain Komodo Core.</p>
+                    </div>
+                    <p>Setelah itu buka:</p>
+                    <div class="command-block">https://komodo.foodlabpens.com</div>
+                    <p>Login:</p>
+                    <div class="command-block">Username: admin
+Password: sesuai KOMODO_INIT_ADMIN_PASSWORD</div>
+                    <p>Setelah berhasil login, simpan password di password manager.</p>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>Phase 7. Validasi Periphery dan Server Lokal</h2>
+                <div class="guide-box">
+                    <h3>Cek server di dashboard Komodo</h3>
+                    <p>Di dashboard Komodo, cari server:</p>
+                    <div class="command-block">NAMA_VPS</div>
+                    <p>Status yang diharapkan:</p>
+                    <div class="command-block">OK / Connected</div>
+                    <p>Validasi dari server:</p>
+                    <div class="command-block">docker logs --tail=200 komodo-periphery</div>
+                    <p>Cek apakah Komodo bisa melihat container existing:</p>
+                    <div class="command-block">nginx-proxy-manager
+foodlab-web
+foodlab-app
+komodo-core
+komodo-periphery
+komodo-mongo</div>
+                </div>
+            </div>
+
+            <div class="domain-section">
+                <h2>Referensi</h2>
+                <div class="guide-box">
+                    <ul>
+                        <li><a href="https://komo.do/" target="_blank" style="color:var(--accent)">Komodo home</a></li>
+                        <li><a href="https://komo.do/docs/setup" target="_blank" style="color:var(--accent)">Setup Komodo Core</a></li>
+                        <li><a href="https://komo.do/docs/setup/advanced" target="_blank" style="color:var(--accent)">Komodo advanced setup</a></li>
+                        <li><a href="https://komo.do/docs/setup/connect-servers" target="_blank" style="color:var(--accent)">Connect more servers</a></li>
+                        <li><a href="https://komo.do/docs/deploy/compose" target="_blank" style="color:var(--accent)">Docker Compose with Komodo</a></li>
+                    </ul>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
