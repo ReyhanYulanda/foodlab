@@ -50,7 +50,12 @@ class ApiDocsController extends Controller
             $mimeType = 'text/html';
         }
 
-        // Return the protected file
-        return response()->file($path, ['Content-Type' => $mimeType]);
+        // Return the protected file without browser/proxy caching stale docs.
+        return response()->file($path, [
+            'Content-Type' => $mimeType,
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
     }
 }
