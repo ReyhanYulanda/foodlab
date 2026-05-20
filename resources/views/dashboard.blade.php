@@ -365,6 +365,10 @@
                 info: '#17a2b8',
                 secondary: '#6c757d'
             };
+            const pesanAntarRevenueData = @json($pesanAntarRevenueData);
+            const ambilSendiriRevenueData = @json($ambilSendiriRevenueData);
+            const pesanAntarSelesaiData = @json($pesanAntarSelesaiData);
+            const ambilSendiriSelesaiData = @json($ambilSendiriSelesaiData);
 
             // Main Mixed Chart (Line for Revenue, Bar for Transactions)
             // Chart.js v2.9.4 Compatibility
@@ -376,7 +380,7 @@
                     datasets: [
                         {
                             label: 'Pesan Antar - Pendapatan',
-                            data: @json($pesanAntarRevenueData),
+                            data: pesanAntarRevenueData,
                             type: 'line',
                             borderColor: colors.success,
                             backgroundColor: 'rgba(40, 167, 69, 0.08)',
@@ -387,7 +391,7 @@
                         },
                         {
                             label: 'Ambil Sendiri - Pendapatan',
-                            data: @json($ambilSendiriRevenueData),
+                            data: ambilSendiriRevenueData,
                             type: 'line',
                             borderColor: colors.warning,
                             backgroundColor: 'rgba(255, 193, 7, 0.08)',
@@ -398,7 +402,7 @@
                         },
                         {
                             label: 'Pesan Antar - Jumlah Transaksi',
-                            data: @json($pesanAntarSelesaiData),
+                            data: pesanAntarSelesaiData,
                             type: 'bar',
                             backgroundColor: 'rgba(40, 167, 69, 0.35)',
                             borderColor: colors.success,
@@ -407,7 +411,7 @@
                         },
                         {
                             label: 'Ambil Sendiri - Jumlah Transaksi',
-                            data: @json($ambilSendiriSelesaiData),
+                            data: ambilSendiriSelesaiData,
                             type: 'bar',
                             backgroundColor: 'rgba(255, 193, 7, 0.45)',
                             borderColor: colors.warning,
@@ -425,15 +429,31 @@
                         callbacks: {
                             label: function (tooltipItem, data) {
                                 var label = data.datasets[tooltipItem.datasetIndex].label || '';
+                                var dataIndex = tooltipItem.index;
                                 if (label) {
                                     label += ': ';
                                 }
                                 if (data.datasets[tooltipItem.datasetIndex].yAxisID === 'y-axis-revenue') {
-                                    label += 'Rp ' + tooltipItem.yLabel.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-                                } else {
-                                    label += tooltipItem.yLabel + ' transaksi';
+                                    var revenueLabel = label + 'Rp ' + tooltipItem.yLabel.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                                    if (tooltipItem.datasetIndex === 1) {
+                                        var totalRevenue = Number(pesanAntarRevenueData[dataIndex] || 0) + Number(ambilSendiriRevenueData[dataIndex] || 0);
+                                        return [
+                                            revenueLabel,
+                                            'Total Pendapatan: Rp ' + totalRevenue.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+                                        ];
+                                    }
+                                    return revenueLabel;
                                 }
-                                return label;
+
+                                var transactionLabel = label + tooltipItem.yLabel + ' transaksi';
+                                if (tooltipItem.datasetIndex === 3) {
+                                    var totalTransactions = Number(pesanAntarSelesaiData[dataIndex] || 0) + Number(ambilSendiriSelesaiData[dataIndex] || 0);
+                                    return [
+                                        transactionLabel,
+                                        'Total Transaksi: ' + totalTransactions + ' transaksi'
+                                    ];
+                                }
+                                return transactionLabel;
                             }
                         }
                     },
