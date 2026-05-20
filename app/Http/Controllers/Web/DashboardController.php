@@ -17,29 +17,6 @@ class DashboardController extends Controller
     {
         $mode = $request->get('mode', 'weekly'); // default weekly
 
-        $createOrderTypeQuery = function (int $isAntar) {
-            return Transaksi::query()
-                ->when(
-                    $isAntar === 1,
-                    fn($query) => $query->where('isAntar', 1),
-                    fn($query) => $query->where(fn($query) => $query->where('isAntar', '!=', 1)->orWhereNull('isAntar'))
-                );
-        };
-
-        $countSelesaiByOrderType = function (callable $dateScope, int $isAntar) use ($createOrderTypeQuery) {
-            $query = $createOrderTypeQuery($isAntar)->where('status', 'selesai');
-            $dateScope($query);
-
-            return $query->count();
-        };
-
-        $sumRevenueByOrderType = function (callable $dateScope, int $isAntar) use ($createOrderTypeQuery) {
-            $query = $createOrderTypeQuery($isAntar)->where('status', 'selesai');
-            $dateScope($query);
-
-            return $query->sum('total');
-        };
-
         // Get available years from transactions
         $availableYears = Transaksi::selectRaw('YEAR(created_at) as year')
             ->distinct()
@@ -47,22 +24,87 @@ class DashboardController extends Controller
             ->pluck('year')
             ->toArray();
 
-        // Determine the anchor date (latest transaction date or now if empty)
-        // This ensures that if the data is old (e.g. 2025), the dashboard shows that period by default
-        $latestTransaction = Transaksi::latest('created_at')->first();
-        $defaultYear = $latestTransaction ? $latestTransaction->created_at->year : now()->year;
+        // Default dashboard period follows today's date.
+        $today = now();
+        $defaultYear = $today->year;
 
         // Get selected year from request, default to latest year with data
-        $selectedYear = $request->get('year', $defaultYear);
+        $selectedYear = (int) $request->get('year', $defaultYear);
+
+        if (!in_array($selectedYear, array_map('intval', $availableYears), true)) {
+            $availableYears[] = $selectedYear;
+            rsort($availableYears);
+        }
+
+        $monthNames = [
+            1 => 'Januari',
+            2 => 'Februari',
+            3 => 'Maret',
+            4 => 'April',
+            5 => 'Mei',
+            6 => 'Juni',
+            7 => 'Juli',
+            8 => 'Agustus',
+            9 => 'September',
+            10 => 'Oktober',
+            11 => 'November',
+            12 => 'Desember',
+        ];
+
+        $defaultMonth = $selectedYear === $today->year ? $today->month : 1;
+        $selectedMonth = (int) $request->get('chart_month', $defaultMonth);
+
+        if ($selectedMonth < 1 || $selectedMonth > 12) {
+            $selectedMonth = $defaultMonth;
+        }
+
+        $selectedMonthDate = \Carbon\Carbon::create($selectedYear, $selectedMonth, 1);
+        $chartWeekCount = (int) ceil($selectedMonthDate->daysInMonth / 7);
+        $defaultWeek = $selectedYear === $today->year && $selectedMonth === $today->month
+            ? (int) ceil($today->day / 7)
+            : 1;
+        $selectedWeek = (int) $request->get('chart_week', $defaultWeek);
+
+        if ($selectedWeek < 1 || $selectedWeek > $chartWeekCount) {
+            $selectedWeek = 1;
+        }
+
+        $selectedMonthName = $monthNames[$selectedMonth];
+        $previousChartMonth = $selectedMonth === 1 ? 12 : $selectedMonth - 1;
+        $previousChartYear = $selectedMonth === 1 ? $selectedYear - 1 : $selectedYear;
+        $nextChartMonth = $selectedMonth === 12 ? 1 : $selectedMonth + 1;
+        $nextChartYear = $selectedMonth === 12 ? $selectedYear + 1 : $selectedYear;
+        $selectedWeekName = "Minggu $selectedWeek";
+
+        if ($selectedWeek === 1) {
+            $previousWeekMonthDate = $selectedMonthDate->copy()->subMonthNoOverflow();
+            $previousChartWeek = (int) ceil($previousWeekMonthDate->daysInMonth / 7);
+            $previousChartWeekMonth = $previousWeekMonthDate->month;
+            $previousChartWeekYear = $previousWeekMonthDate->year;
+        } else {
+            $previousChartWeek = $selectedWeek - 1;
+            $previousChartWeekMonth = $selectedMonth;
+            $previousChartWeekYear = $selectedYear;
+        }
+
+        if ($selectedWeek === $chartWeekCount) {
+            $nextWeekMonthDate = $selectedMonthDate->copy()->addMonthNoOverflow();
+            $nextChartWeek = 1;
+            $nextChartWeekMonth = $nextWeekMonthDate->month;
+            $nextChartWeekYear = $nextWeekMonthDate->year;
+        } else {
+            $nextChartWeek = $selectedWeek + 1;
+            $nextChartWeekMonth = $selectedMonth;
+            $nextChartWeekYear = $selectedYear;
+        }
 
         // Create anchor date based on selected year
-        // For weekly/monthly modes, use the last day of the selected year to show the most recent data
+        // For weekly/monthly modes, use the selected month to keep the chart navigable
         // For yearly mode, the year itself is what matters
         if ($mode === 'yearly' || $mode === 'all') {
             $anchorDate = now()->setYear($selectedYear)->startOfYear();
         } else {
-            // For weekly/monthly, use end of year to show latest week/month of that year
-            $anchorDate = now()->setYear($selectedYear)->endOfYear();
+            $anchorDate = $selectedMonthDate->copy()->startOfMonth();
         }
 
         // Data untuk dropdown
@@ -78,32 +120,35 @@ class DashboardController extends Controller
         $pesanAntarRevenueData = [];
         $ambilSendiriSelesaiData = [];
         $ambilSendiriRevenueData = [];
-
-        $appendChartData = function (callable $dateScope) use (
-            &$pesanAntarSelesaiData,
-            &$pesanAntarRevenueData,
-            &$ambilSendiriSelesaiData,
-            &$ambilSendiriRevenueData,
-            $countSelesaiByOrderType,
-            $sumRevenueByOrderType
-        ) {
-            $pesanAntarSelesaiData[] = $countSelesaiByOrderType($dateScope, 1);
-            $pesanAntarRevenueData[] = $sumRevenueByOrderType($dateScope, 1);
-            $ambilSendiriSelesaiData[] = $countSelesaiByOrderType($dateScope, 0);
-            $ambilSendiriRevenueData[] = $sumRevenueByOrderType($dateScope, 0);
-        };
+        $chartPeriods = [];
+        $chartRows = collect();
 
         if ($mode === 'weekly') {
-            // x = tanggal minggu ini (relative to anchorDate)
-            $start = $anchorDate->copy()->startOfWeek();
-            $end = $anchorDate->copy()->endOfWeek();
+            // x = tanggal minggu yang dipilih pada bulan yang dipilih
+            $monthEnd = $anchorDate->copy()->endOfMonth();
+            $start = $anchorDate->copy()->startOfMonth()->addDays(($selectedWeek - 1) * 7);
+            $end = $start->copy()->addDays(6);
+            if ($end > $monthEnd)
+                $end = $monthEnd;
 
             $period = \Carbon\CarbonPeriod::create($start, $end);
 
             foreach ($period as $date) {
                 $labels[] = $date->format('d M');
-                $appendChartData(fn($query) => $query->whereDate('created_at', $date));
+                $chartPeriods[] = [
+                    'keys' => [$date->format('Y-m-d')],
+                ];
             }
+
+            $chartRows = Transaksi::query()
+                ->selectRaw('DATE(created_at) as period_key')
+                ->selectRaw('CASE WHEN isAntar = 1 THEN 1 ELSE 0 END as order_type')
+                ->selectRaw('COUNT(*) as total_transactions')
+                ->selectRaw('COALESCE(SUM(total), 0) as total_revenue')
+                ->where('status', 'selesai')
+                ->whereBetween('created_at', [$start->copy()->startOfDay(), $end->copy()->endOfDay()])
+                ->groupByRaw('DATE(created_at), CASE WHEN isAntar = 1 THEN 1 ELSE 0 END')
+                ->get();
         } elseif ($mode === 'monthly') {
             // x = minggu dalam bulan ini (relative to anchorDate)
             $start = $anchorDate->copy()->startOfMonth();
@@ -112,30 +157,94 @@ class DashboardController extends Controller
 
             while ($start <= $end) {
                 $weekStart = $start->copy();
-                $weekEnd = $start->copy()->endOfWeek();
+                $weekEnd = $start->copy()->addDays(6);
                 if ($weekEnd > $end)
                     $weekEnd = $end; // Ensure weekEnd does not exceed month end
 
                 $labels[] = "Minggu $week";
-                $appendChartData(fn($query) => $query->whereBetween('created_at', [$weekStart, $weekEnd]));
+                $chartPeriods[] = [
+                    'keys' => collect(\Carbon\CarbonPeriod::create($weekStart, $weekEnd))
+                        ->map(fn($date) => $date->format('Y-m-d'))
+                        ->toArray(),
+                ];
 
-                $start->addWeek();
+                $start = $weekEnd->copy()->addDay();
                 $week++;
             }
+
+            $chartRows = Transaksi::query()
+                ->selectRaw('DATE(created_at) as period_key')
+                ->selectRaw('CASE WHEN isAntar = 1 THEN 1 ELSE 0 END as order_type')
+                ->selectRaw('COUNT(*) as total_transactions')
+                ->selectRaw('COALESCE(SUM(total), 0) as total_revenue')
+                ->where('status', 'selesai')
+                ->whereBetween('created_at', [$anchorDate->copy()->startOfMonth(), $anchorDate->copy()->endOfMonth()])
+                ->groupByRaw('DATE(created_at), CASE WHEN isAntar = 1 THEN 1 ELSE 0 END')
+                ->get();
         } elseif ($mode === 'yearly') {
             // x = bulan (relative to anchorDate year)
             $targetYear = $anchorDate->year;
 
             for ($m = 1; $m <= 12; $m++) {
                 $labels[] = date('M', mktime(0, 0, 0, $m, 1));
-                $appendChartData(fn($query) => $query->whereMonth('created_at', $m)->whereYear('created_at', $targetYear));
+                $chartPeriods[] = [
+                    'keys' => [(string) $m],
+                ];
             }
+
+            $chartRows = Transaksi::query()
+                ->selectRaw('MONTH(created_at) as period_key')
+                ->selectRaw('CASE WHEN isAntar = 1 THEN 1 ELSE 0 END as order_type')
+                ->selectRaw('COUNT(*) as total_transactions')
+                ->selectRaw('COALESCE(SUM(total), 0) as total_revenue')
+                ->where('status', 'selesai')
+                ->whereYear('created_at', $targetYear)
+                ->groupByRaw('MONTH(created_at), CASE WHEN isAntar = 1 THEN 1 ELSE 0 END')
+                ->get();
         } else {
             $years = Transaksi::selectRaw('YEAR(created_at) as year')->distinct()->orderBy('year')->pluck('year');
             foreach ($years as $y) {
                 $labels[] = $y;
-                $appendChartData(fn($query) => $query->whereYear('created_at', $y));
+                $chartPeriods[] = [
+                    'keys' => [(string) $y],
+                ];
             }
+
+            $chartRows = Transaksi::query()
+                ->selectRaw('YEAR(created_at) as period_key')
+                ->selectRaw('CASE WHEN isAntar = 1 THEN 1 ELSE 0 END as order_type')
+                ->selectRaw('COUNT(*) as total_transactions')
+                ->selectRaw('COALESCE(SUM(total), 0) as total_revenue')
+                ->where('status', 'selesai')
+                ->groupByRaw('YEAR(created_at), CASE WHEN isAntar = 1 THEN 1 ELSE 0 END')
+                ->get();
+        }
+
+        $chartStats = [];
+        foreach ($chartRows as $row) {
+            $chartStats[(string) $row->period_key][(int) $row->order_type] = [
+                'transactions' => (int) $row->total_transactions,
+                'revenue' => (float) $row->total_revenue,
+            ];
+        }
+
+        foreach ($chartPeriods as $period) {
+            $pesanAntarTransactions = 0;
+            $pesanAntarRevenue = 0;
+            $ambilSendiriTransactions = 0;
+            $ambilSendiriRevenue = 0;
+
+            foreach ($period['keys'] as $key) {
+                $pesanAntarTransactions += $chartStats[$key][1]['transactions'] ?? 0;
+                $pesanAntarRevenue += $chartStats[$key][1]['revenue'] ?? 0;
+                $ambilSendiriTransactions += $chartStats[$key][0]['transactions'] ?? 0;
+                $ambilSendiriRevenue += $chartStats[$key][0]['revenue'] ?? 0;
+            }
+
+            $pesanAntarSelesaiData[] = $pesanAntarTransactions;
+            $pesanAntarRevenueData[] = $pesanAntarRevenue;
+            $ambilSendiriSelesaiData[] = $ambilSendiriTransactions;
+            $ambilSendiriRevenueData[] = $ambilSendiriRevenue;
         }
 
         // Statistik Card Utama
@@ -173,20 +282,7 @@ class DashboardController extends Controller
         $refundMonth = $request->get('refund_month');
         $refundSelectedYear = $request->get('refund_year', $defaultYear);
 
-        $refundMonths = [
-            1 => 'Januari',
-            2 => 'Februari',
-            3 => 'Maret',
-            4 => 'April',
-            5 => 'Mei',
-            6 => 'Juni',
-            7 => 'Juli',
-            8 => 'Agustus',
-            9 => 'September',
-            10 => 'Oktober',
-            11 => 'November',
-            12 => 'Desember',
-        ];
+        $refundMonths = $monthNames;
 
         $refundQuery = DB::table('transaksi')
             ->join('transaksi_detail', 'transaksi.id', '=', 'transaksi_detail.transaksi_id')
@@ -233,7 +329,21 @@ class DashboardController extends Controller
             'refundMonth',
             'refundSelectedYear',
             'availableYears',
-            'selectedYear'
+            'selectedYear',
+            'selectedMonth',
+            'selectedMonthName',
+            'selectedWeek',
+            'selectedWeekName',
+            'previousChartMonth',
+            'previousChartYear',
+            'nextChartMonth',
+            'nextChartYear',
+            'previousChartWeek',
+            'previousChartWeekMonth',
+            'previousChartWeekYear',
+            'nextChartWeek',
+            'nextChartWeekMonth',
+            'nextChartWeekYear'
         ));
     }
 }

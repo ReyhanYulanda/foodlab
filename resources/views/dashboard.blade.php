@@ -40,6 +40,40 @@
                 color: #dc3545;
             }
 
+            .chart-month-nav {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 1.5rem;
+            }
+
+            .chart-month-nav a {
+                color: #435ebe;
+                font-size: 1.5rem;
+                font-weight: 700;
+                line-height: 1;
+                text-decoration: none;
+            }
+
+            .chart-month-nav span {
+                color: #dc3545;
+                font-size: 0.875rem;
+            }
+
+            .main-chart-container {
+                height: 300px;
+                position: relative;
+            }
+
+            .chart-period-nav {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 2.5rem;
+                margin-top: 1rem;
+                flex-wrap: wrap;
+            }
+
         </style>
     @endpush
 
@@ -121,6 +155,8 @@
                                 {{-- Preserve refund filters --}}
                                 <input type="hidden" name="refund_month" value="{{ $refundMonth }}">
                                 <input type="hidden" name="refund_year" value="{{ $refundSelectedYear }}">
+                                <input type="hidden" name="chart_month" value="{{ $selectedMonth }}">
+                                <input type="hidden" name="chart_week" value="{{ $selectedWeek }}">
                                 <div class="d-flex gap-2">
                                     <select name="mode" onchange="this.form.submit()" class="form-select form-select-sm"
                                         style="width: auto;">
@@ -142,7 +178,29 @@
                             </form>
                         </div>
                         <div class="card-body">
-                            <canvas id="mainChart"></canvas>
+                            <div class="main-chart-container">
+                                <canvas id="mainChart"></canvas>
+                            </div>
+                            @if (in_array($mode, ['weekly', 'monthly']))
+                                <div class="chart-period-nav">
+                                    <div class="chart-month-nav">
+                                        <a href="{{ route('dashboard', array_merge(request()->query(), ['year' => $previousChartYear, 'chart_month' => $previousChartMonth, 'chart_week' => 1])) }}"
+                                            aria-label="Bulan sebelumnya">&lt;</a>
+                                        <span>{{ $selectedMonthName }}</span>
+                                        <a href="{{ route('dashboard', array_merge(request()->query(), ['year' => $nextChartYear, 'chart_month' => $nextChartMonth, 'chart_week' => 1])) }}"
+                                            aria-label="Bulan berikutnya">&gt;</a>
+                                    </div>
+                                    @if ($mode === 'weekly')
+                                        <div class="chart-month-nav">
+                                            <a href="{{ route('dashboard', array_merge(request()->query(), ['year' => $previousChartWeekYear, 'chart_month' => $previousChartWeekMonth, 'chart_week' => $previousChartWeek])) }}"
+                                                aria-label="Minggu sebelumnya">&lt;</a>
+                                            <span>{{ $selectedWeekName }}</span>
+                                            <a href="{{ route('dashboard', array_merge(request()->query(), ['year' => $nextChartWeekYear, 'chart_month' => $nextChartWeekMonth, 'chart_week' => $nextChartWeek])) }}"
+                                                aria-label="Minggu berikutnya">&gt;</a>
+                                        </div>
+                                    @endif
+                                </div>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -238,6 +296,8 @@
                                 {{-- Preserve main chart filters --}}
                                 <input type="hidden" name="mode" value="{{ $mode }}">
                                 <input type="hidden" name="year" value="{{ $selectedYear }}">
+                                <input type="hidden" name="chart_month" value="{{ $selectedMonth }}">
+                                <input type="hidden" name="chart_week" value="{{ $selectedWeek }}">
                                 <div class="d-flex gap-2">
                                     <select name="refund_month" onchange="this.form.submit()"
                                         class="form-select form-select-sm" style="width: auto;">
