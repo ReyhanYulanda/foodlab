@@ -39,6 +39,7 @@
                 background-color: rgba(220, 53, 69, 0.1);
                 color: #dc3545;
             }
+
         </style>
     @endpush
 
@@ -309,27 +310,47 @@
             // Chart.js v2.9.4 Compatibility
             const ctxMain = document.getElementById('mainChart').getContext('2d');
             new Chart(ctxMain, {
-                type: 'bar', // Base type
+                type: 'bar',
                 data: {
                     labels: @json($labels),
                     datasets: [
                         {
-                            label: 'Pendapatan (Rp)',
-                            data: @json($revenueData),
+                            label: 'Pesan Antar - Pendapatan',
+                            data: @json($pesanAntarRevenueData),
                             type: 'line',
                             borderColor: colors.success,
-                            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                            backgroundColor: 'rgba(40, 167, 69, 0.08)',
                             borderWidth: 2,
                             pointRadius: 3,
-                            fill: true,
+                            fill: false,
                             yAxisID: 'y-axis-revenue'
                         },
                         {
-                            label: 'Jumlah Transaksi',
-                            data: @json($selesaiData),
+                            label: 'Ambil Sendiri - Pendapatan',
+                            data: @json($ambilSendiriRevenueData),
+                            type: 'line',
+                            borderColor: colors.warning,
+                            backgroundColor: 'rgba(255, 193, 7, 0.08)',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            fill: false,
+                            yAxisID: 'y-axis-revenue'
+                        },
+                        {
+                            label: 'Pesan Antar - Jumlah Transaksi',
+                            data: @json($pesanAntarSelesaiData),
                             type: 'bar',
-                            backgroundColor: 'rgba(67, 94, 190, 0.5)',
-                            borderColor: colors.primary,
+                            backgroundColor: 'rgba(40, 167, 69, 0.35)',
+                            borderColor: colors.success,
+                            borderWidth: 1,
+                            yAxisID: 'y-axis-transactions'
+                        },
+                        {
+                            label: 'Ambil Sendiri - Jumlah Transaksi',
+                            data: @json($ambilSendiriSelesaiData),
+                            type: 'bar',
+                            backgroundColor: 'rgba(255, 193, 7, 0.45)',
+                            borderColor: colors.warning,
                             borderWidth: 1,
                             yAxisID: 'y-axis-transactions'
                         }
@@ -347,10 +368,10 @@
                                 if (label) {
                                     label += ': ';
                                 }
-                                if (tooltipItem.datasetIndex === 0) { // Revenue
+                                if (data.datasets[tooltipItem.datasetIndex].yAxisID === 'y-axis-revenue') {
                                     label += 'Rp ' + tooltipItem.yLabel.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                                 } else {
-                                    label += tooltipItem.yLabel;
+                                    label += tooltipItem.yLabel + ' transaksi';
                                 }
                                 return label;
                             }

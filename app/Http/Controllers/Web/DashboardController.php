@@ -17,6 +17,29 @@ class DashboardController extends Controller
     {
         $mode = $request->get('mode', 'weekly'); // default weekly
 
+        $createOrderTypeQuery = function (int $isAntar) {
+            return Transaksi::query()
+                ->when(
+                    $isAntar === 1,
+                    fn($query) => $query->where('isAntar', 1),
+                    fn($query) => $query->where(fn($query) => $query->where('isAntar', '!=', 1)->orWhereNull('isAntar'))
+                );
+        };
+
+        $countSelesaiByOrderType = function (callable $dateScope, int $isAntar) use ($createOrderTypeQuery) {
+            $query = $createOrderTypeQuery($isAntar)->where('status', 'selesai');
+            $dateScope($query);
+
+            return $query->count();
+        };
+
+        $sumRevenueByOrderType = function (callable $dateScope, int $isAntar) use ($createOrderTypeQuery) {
+            $query = $createOrderTypeQuery($isAntar)->where('status', 'selesai');
+            $dateScope($query);
+
+            return $query->sum('total');
+        };
+
         // Get available years from transactions
         $availableYears = Transaksi::selectRaw('YEAR(created_at) as year')
             ->distinct()
@@ -51,9 +74,24 @@ class DashboardController extends Controller
         ];
 
         $labels = [];
-        $selesaiData = [];
-        $refundData = [];
-        $revenueData = []; // Initialize revenueData here
+        $pesanAntarSelesaiData = [];
+        $pesanAntarRevenueData = [];
+        $ambilSendiriSelesaiData = [];
+        $ambilSendiriRevenueData = [];
+
+        $appendChartData = function (callable $dateScope) use (
+            &$pesanAntarSelesaiData,
+            &$pesanAntarRevenueData,
+            &$ambilSendiriSelesaiData,
+            &$ambilSendiriRevenueData,
+            $countSelesaiByOrderType,
+            $sumRevenueByOrderType
+        ) {
+            $pesanAntarSelesaiData[] = $countSelesaiByOrderType($dateScope, 1);
+            $pesanAntarRevenueData[] = $sumRevenueByOrderType($dateScope, 1);
+            $ambilSendiriSelesaiData[] = $countSelesaiByOrderType($dateScope, 0);
+            $ambilSendiriRevenueData[] = $sumRevenueByOrderType($dateScope, 0);
+        };
 
         if ($mode === 'weekly') {
             // x = tanggal minggu ini (relative to anchorDate)
@@ -64,9 +102,7 @@ class DashboardController extends Controller
 
             foreach ($period as $date) {
                 $labels[] = $date->format('d M');
-                $selesaiData[] = Transaksi::whereDate('created_at', $date)->where('status', 'selesai')->count();
-                $refundData[] = Transaksi::whereDate('created_at', $date)->where('status', 'refund_selesai')->count();
-                $revenueData[] = Transaksi::whereDate('created_at', $date)->where('status', 'selesai')->sum('total');
+                $appendChartData(fn($query) => $query->whereDate('created_at', $date));
             }
         } elseif ($mode === 'monthly') {
             // x = minggu dalam bulan ini (relative to anchorDate)
@@ -81,9 +117,7 @@ class DashboardController extends Controller
                     $weekEnd = $end; // Ensure weekEnd does not exceed month end
 
                 $labels[] = "Minggu $week";
-                $selesaiData[] = Transaksi::whereBetween('created_at', [$weekStart, $weekEnd])->where('status', 'selesai')->count();
-                $refundData[] = Transaksi::whereBetween('created_at', [$weekStart, $weekEnd])->where('status', 'refund_selesai')->count();
-                $revenueData[] = Transaksi::whereBetween('created_at', [$weekStart, $weekEnd])->where('status', 'selesai')->sum('total');
+                $appendChartData(fn($query) => $query->whereBetween('created_at', [$weekStart, $weekEnd]));
 
                 $start->addWeek();
                 $week++;
@@ -94,17 +128,13 @@ class DashboardController extends Controller
 
             for ($m = 1; $m <= 12; $m++) {
                 $labels[] = date('M', mktime(0, 0, 0, $m, 1));
-                $selesaiData[] = Transaksi::whereMonth('created_at', $m)->whereYear('created_at', $targetYear)->where('status', 'selesai')->count();
-                $refundData[] = Transaksi::whereMonth('created_at', $m)->whereYear('created_at', $targetYear)->where('status', 'refund_selesai')->count();
-                $revenueData[] = Transaksi::whereMonth('created_at', $m)->whereYear('created_at', $targetYear)->where('status', 'selesai')->sum('total');
+                $appendChartData(fn($query) => $query->whereMonth('created_at', $m)->whereYear('created_at', $targetYear));
             }
         } else {
             $years = Transaksi::selectRaw('YEAR(created_at) as year')->distinct()->orderBy('year')->pluck('year');
             foreach ($years as $y) {
                 $labels[] = $y;
-                $selesaiData[] = Transaksi::whereYear('created_at', $y)->where('status', 'selesai')->count();
-                $refundData[] = Transaksi::whereYear('created_at', $y)->where('status', 'refund_selesai')->count();
-                $revenueData[] = Transaksi::whereYear('created_at', $y)->where('status', 'selesai')->sum('total');
+                $appendChartData(fn($query) => $query->whereYear('created_at', $y));
             }
         }
 
@@ -185,9 +215,10 @@ class DashboardController extends Controller
 
         return view('dashboard', compact(
             'labels',
-            'selesaiData',
-            'refundData',
-            'revenueData',
+            'pesanAntarSelesaiData',
+            'pesanAntarRevenueData',
+            'ambilSendiriSelesaiData',
+            'ambilSendiriRevenueData',
             'totalSelesai',
             'totalRefund',
             'totalRevenue',
