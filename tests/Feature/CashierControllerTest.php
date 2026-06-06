@@ -2,368 +2,389 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\CashierController;
-use App\Services\Cashier\Actions\StoreCashierAction;
-use App\Services\Cashier\Actions\GetCashierHistoryAction;
-use App\Services\Cashier\Actions\GetCashierHistoryByIdAction;
-use App\Services\Cashier\Actions\UpdateCashierAction;
-use App\Services\Cashier\Actions\DestroyCashierAction;
-use Illuminate\Http\Request;
+use App\Models\Cashier;
+use App\Models\CashierDetail;
+use App\Models\Menus;
+use App\Models\Tenants;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
+use Laravel\Sanctum\Sanctum;
+use Spatie\Permission\Middlewares\RoleMiddleware;
 use Tests\TestCase;
-use Mockery;
 
 class CashierControllerTest extends TestCase
 {
-    protected $controller;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->controller = new CashierController();
+
+        // Set dummy Midtrans config so the controller doesn't crash on missing keys
+        Config::set('custom.midtrans_server_key', 'dummy-server-key');
+        Config::set('custom.midtrans_is_production', false);
+        Config::set('custom.midtrans_is_sanitized', true);
+        Config::set('custom.midtrans_is_3ds', true);
+
+        // Bypass Spatie role middleware so we don't need to seed roles in every test
+        $this->withoutMiddleware(RoleMiddleware::class);
     }
 
     protected function tearDown(): void
     {
-        Mockery::close();
+        if (class_exists(\Midtrans\MT_Tests::class)) {
+            \Midtrans\MT_Tests::reset();
+        }
+
         parent::tearDown();
     }
 
-    /**
-     * Test store returns success with 201 status
-     */
-    public function test_store_returns_success_response()
+    /* ============================================================
+     * Helpers
+     * ============================================================ */
+
+    private function createTenantUser(array $overrides = []): User
     {
-        $mockAction = Mockery::mock(StoreCashierAction::class);
-        $mockAction->shouldReceive('execute')
-            ->once()
-            ->andReturn([
-                'error' => false,
-                'status' => 201,
-                'message' => 'Transaksi kasir berhasil dibuat',
-                'data' => ['id' => 1, 'total' => 25000, 'order_id_midtrans' => 'foodlabs-xxx'],
-            ]);
+        $user = User::factory()->create($overrides);
 
-        $request = Request::create('/api/kasir', 'POST');
+        Tenants::create([
+            'nama_tenant' => 'Tenant ' . $user->id,
+            'nama_kavling' => 'Kavling ' . $user->id,
+            'nama_gambar' => null,
+            'jam_buka' => '08:00',
+            'jam_tutup' => '22:00',
+            'user_id' => $user->id,
+        ]);
 
-        $response = $this->controller->store($request, $mockAction);
-        $data = json_decode($response->getContent(), true);
-
-        $this->assertEquals(201, $response->getStatusCode());
-        $this->assertEquals('success', $data['status']);
-        $this->assertEquals('Transaksi kasir berhasil dibuat', $data['message']);
-        $this->assertArrayHasKey('data', $data);
+        return $user;
     }
 
-    /**
-     * Test store returns validation error with 400 status
-     */
-    public function test_store_returns_validation_error()
+    private function createMenuForUser(User $user, array $overrides = []): Menus
     {
-        $mockAction = Mockery::mock(StoreCashierAction::class);
-        $mockAction->shouldReceive('execute')
-            ->once()
-            ->andReturn([
-                'error' => true,
-                'status' => 400,
-                'message' => ['The menus field is required.'],
-            ]);
+        $tenant = Tenants::where('user_id', $user->id)->firstOrFail();
 
-        $request = Request::create('/api/kasir', 'POST');
-
-        $response = $this->controller->store($request, $mockAction);
-        $data = json_decode($response->getContent(), true);
-
-        $this->assertEquals(400, $response->getStatusCode());
-        $this->assertEquals('failed', $data['status']);
+        return Menus::create(array_merge([
+            'nama' => 'Menu Test',
+            'harga' => 10000,
+            'tenant_id' => $tenant->id,
+            'isReady' => 1,
+        ], $overrides));
     }
 
-    /**
-     * Test store returns forbidden when not tenant owner
-     */
-    public function test_store_returns_forbidden_for_non_owner()
+    private function createCashierForUser(User $user, Menus $menu, array $overrides = []): Cashier
     {
-        $mockAction = Mockery::mock(StoreCashierAction::class);
-        $mockAction->shouldReceive('execute')
-            ->once()
-            ->andReturn([
-                'error' => true,
-                'status' => 403,
-                'message' => 'Kamu bukan pemilik tenant ini, tidak bisa menambahkan transaksi kasir',
-            ]);
+        $tenant = Tenants::where('user_id', $user->id)->firstOrFail();
 
-        $request = Request::create('/api/kasir', 'POST');
+        $cashier = Cashier::create(array_merge([
+            'user_id' => $user->id,
+            'tenant_id' => $tenant->id,
+            'order_tenant' => 1,
+            'kode_pemesanan' => 'ABC12',
+            'total' => $menu->harga,
+            'status' => 'pending',
+        ], $overrides));
 
-        $response = $this->controller->store($request, $mockAction);
-        $data = json_decode($response->getContent(), true);
+        CashierDetail::create([
+            'cashier_id' => $cashier->id,
+            'menu_id' => $menu->id,
+            'jumlah' => 1,
+            'harga' => $menu->harga,
+        ]);
 
-        $this->assertEquals(403, $response->getStatusCode());
-        $this->assertEquals('failed', $data['status']);
+        return $cashier;
     }
 
-    /**
-     * Test store returns 500 on server error
-     */
-    public function test_store_returns_server_error()
+    private function stubMidtransSuccess(): void
     {
-        $mockAction = Mockery::mock(StoreCashierAction::class);
-        $mockAction->shouldReceive('execute')
-            ->once()
-            ->andReturn([
-                'error' => true,
-                'status' => 500,
-                'message' => 'Terjadi kesalahan: Something went wrong',
-            ]);
+        if (! class_exists(\Midtrans\MT_Tests::class)) {
+            require_once base_path('vendor/midtrans/midtrans-php/tests/MT_Tests.php');
+        }
 
-        $request = Request::create('/api/kasir', 'POST');
-
-        $response = $this->controller->store($request, $mockAction);
-        $data = json_decode($response->getContent(), true);
-
-        $this->assertEquals(500, $response->getStatusCode());
-        $this->assertEquals('failed', $data['status']);
+        \Midtrans\MT_Tests::$stubHttp = true;
+        \Midtrans\MT_Tests::$stubHttpResponse = json_encode([
+            'actions' => [
+                ['url' => 'https://mock.qr/123'],
+            ],
+            'expiry_time' => now()->addHour()->toDateTimeString(),
+        ]);
     }
 
-    /**
-     * Test getHistory returns cashier history list
-     */
-    public function test_get_history_returns_cashier_list()
+    private function stubMidtransError(): void
     {
-        $mockAction = Mockery::mock(GetCashierHistoryAction::class);
-        $mockHistory = [
-            ['id' => 1, 'total' => 15000, 'order_tenant' => 1],
-            ['id' => 2, 'total' => 20000, 'order_tenant' => 2],
-        ];
-        $mockAction->shouldReceive('execute')
-            ->once()
-            ->andReturn([
-                'empty' => false,
-                'data' => $mockHistory,
-                'message' => 'Berhasil mengambil riwayat kasir',
-            ]);
+        if (! class_exists(\Midtrans\MT_Tests::class)) {
+            require_once base_path('vendor/midtrans/midtrans-php/tests/MT_Tests.php');
+        }
 
-        $request = Request::create('/api/kasir/riwayat', 'GET');
-
-        $response = $this->controller->getHistory($request, $mockAction);
-        $data = json_decode($response->getContent(), true);
-
-        $this->assertEquals(200, $response->getStatusCode());
-        $this->assertEquals('success', $data['status']);
-        $this->assertEquals('Berhasil mengambil riwayat kasir', $data['message']);
-        $this->assertCount(2, $data['data']);
+        \Midtrans\MT_Tests::$stubHttp = true;
+        \Midtrans\MT_Tests::$stubHttpResponse = json_encode([
+            'status_code' => '500',
+            'status_message' => 'Midtrans service unavailable',
+        ]);
     }
 
-    /**
-     * Test getHistory returns empty list
-     */
-    public function test_get_history_returns_empty_list()
+    /* ============================================================
+     * Store
+     * ============================================================ */
+
+    /** @test */
+    public function store_returns_validation_error()
     {
-        $mockAction = Mockery::mock(GetCashierHistoryAction::class);
-        $mockAction->shouldReceive('execute')
-            ->once()
-            ->andReturn([
-                'empty' => true,
-                'data' => [],
-                'message' => 'Belum ada transaksi kasir untuk tenant ini',
-            ]);
+        $user = $this->createTenantUser();
 
-        $request = Request::create('/api/kasir/riwayat', 'GET');
+        Sanctum::actingAs($user);
 
-        $response = $this->controller->getHistory($request, $mockAction);
-        $data = json_decode($response->getContent(), true);
+        $response = $this->postJson('/api/tenant/kasir', []);
 
-        $this->assertEquals(200, $response->getStatusCode());
-        $this->assertEquals('success', $data['status']);
-        $this->assertEmpty($data['data']);
+        $response->assertStatus(400)
+            ->assertJsonPath('status', 'failed');
     }
 
-    /**
-     * Test getHistoryById returns single cashier detail
-     */
-    public function test_get_history_by_id_returns_cashier_detail()
+    /** @test */
+    public function store_returns_forbidden_for_non_owner()
     {
-        $mockAction = Mockery::mock(GetCashierHistoryByIdAction::class);
-        $mockAction->shouldReceive('execute')
-            ->once()
-            ->with(1, Mockery::type(Request::class))
-            ->andReturn([
-                'error' => false,
-                'data' => ['id' => 1, 'total' => 25000, 'order_id_midtrans' => 'foodlabs-xxx'],
-                'message' => 'Berhasil mengambil detail transaksi kasir',
-            ]);
+        $owner = $this->createTenantUser(['email' => 'owner@example.com']);
+        $menu = $this->createMenuForUser($owner);
 
-        $request = Request::create('/api/kasir/riwayat/1', 'GET');
+        $intruder = $this->createTenantUser(['email' => 'intruder@example.com']);
 
-        $response = $this->controller->getHistoryById($request, 1, $mockAction);
-        $data = json_decode($response->getContent(), true);
+        Sanctum::actingAs($intruder);
 
-        $this->assertEquals(200, $response->getStatusCode());
-        $this->assertEquals('success', $data['status']);
-        $this->assertArrayHasKey('data', $data);
+        $response = $this->postJson('/api/tenant/kasir', [
+            'menus' => [
+                ['id' => $menu->id, 'jumlah' => 1],
+            ],
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJsonPath('status', 'failed')
+            ->assertJsonPath('message', 'Kamu bukan pemilik tenant ini, tidak bisa menambahkan transaksi kasir');
     }
 
-    /**
-     * Test getHistoryById returns 404 when not found
-     */
-    public function test_get_history_by_id_returns_not_found()
+    /** @test */
+    public function store_returns_success_response()
     {
-        $mockAction = Mockery::mock(GetCashierHistoryByIdAction::class);
-        $mockAction->shouldReceive('execute')
-            ->once()
-            ->andReturn([
-                'error' => true,
-                'status' => 404,
-                'message' => 'Transaksi kasir tidak ditemukan atau tidak memiliki akses',
-            ]);
+        $this->stubMidtransSuccess();
 
-        $request = Request::create('/api/kasir/riwayat/999', 'GET');
+        $user = $this->createTenantUser();
+        $menu = $this->createMenuForUser($user);
 
-        $response = $this->controller->getHistoryById($request, 999, $mockAction);
-        $data = json_decode($response->getContent(), true);
+        Sanctum::actingAs($user);
 
-        $this->assertEquals(404, $response->getStatusCode());
-        $this->assertEquals('failed', $data['status']);
+        $response = $this->postJson('/api/tenant/kasir', [
+            'menus' => [
+                ['id' => $menu->id, 'jumlah' => 2, 'catatan' => 'Extra pedas'],
+            ],
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('message', 'Transaksi kasir berhasil dibuat')
+            ->assertJsonStructure(['data']);
     }
 
-    /**
-     * Test update returns success
-     */
-    public function test_update_returns_success()
+    /** @test */
+    public function store_returns_server_error()
     {
-        $mockAction = Mockery::mock(UpdateCashierAction::class);
-        $mockAction->shouldReceive('execute')
-            ->once()
-            ->with(1, Mockery::type(Request::class))
-            ->andReturn([
-                'error' => false,
-                'status' => 200,
-                'message' => 'Transaksi kasir berhasil diperbarui',
-                'data' => ['id' => 1, 'total' => 30000],
-            ]);
+        $this->stubMidtransError();
 
-        $request = Request::create('/api/kasir/1', 'PUT');
+        $user = $this->createTenantUser();
+        $menu = $this->createMenuForUser($user);
 
-        $response = $this->controller->update($request, 1, $mockAction);
-        $data = json_decode($response->getContent(), true);
+        Sanctum::actingAs($user);
 
-        $this->assertEquals(200, $response->getStatusCode());
-        $this->assertEquals('success', $data['status']);
-        $this->assertEquals('Transaksi kasir berhasil diperbarui', $data['message']);
+        $response = $this->postJson('/api/tenant/kasir', [
+            'menus' => [
+                ['id' => $menu->id, 'jumlah' => 1],
+            ],
+        ]);
+
+        $response->assertStatus(500)
+            ->assertJsonPath('status', 'failed');
     }
 
-    /**
-     * Test update returns 404 when cashier not found
-     */
-    public function test_update_returns_not_found()
+    /* ============================================================
+     * Get History
+     * ============================================================ */
+
+    /** @test */
+    public function get_history_returns_cashier_list()
     {
-        $mockAction = Mockery::mock(UpdateCashierAction::class);
-        $mockAction->shouldReceive('execute')
-            ->once()
-            ->andReturn([
-                'error' => true,
-                'status' => 404,
-                'message' => 'Transaksi kasir tidak ditemukan',
-            ]);
+        $user = $this->createTenantUser();
+        $menu = $this->createMenuForUser($user);
+        $this->createCashierForUser($user, $menu);
 
-        $request = Request::create('/api/kasir/999', 'PUT');
+        Sanctum::actingAs($user);
 
-        $response = $this->controller->update($request, 999, $mockAction);
-        $data = json_decode($response->getContent(), true);
+        $response = $this->getJson('/api/tenant/kasir/riwayat');
 
-        $this->assertEquals(404, $response->getStatusCode());
-        $this->assertEquals('failed', $data['status']);
+        $response->assertStatus(200)
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('message', 'Berhasil mengambil riwayat kasir')
+            ->assertJsonCount(1, 'data');
     }
 
-    /**
-     * Test update returns 403 when not owner
-     */
-    public function test_update_returns_forbidden_for_non_owner()
+    /** @test */
+    public function get_history_returns_empty_list()
     {
-        $mockAction = Mockery::mock(UpdateCashierAction::class);
-        $mockAction->shouldReceive('execute')
-            ->once()
-            ->andReturn([
-                'error' => true,
-                'status' => 403,
-                'message' => 'Kamu bukan pemilik tenant ini, tidak bisa mengubah transaksi kasir',
-            ]);
+        $user = $this->createTenantUser();
 
-        $request = Request::create('/api/kasir/1', 'PUT');
+        Sanctum::actingAs($user);
 
-        $response = $this->controller->update($request, 1, $mockAction);
-        $data = json_decode($response->getContent(), true);
+        $response = $this->getJson('/api/tenant/kasir/riwayat');
 
-        $this->assertEquals(403, $response->getStatusCode());
-        $this->assertEquals('failed', $data['status']);
+        $response->assertStatus(200)
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('message', 'Belum ada transaksi kasir untuk tenant ini')
+            ->assertJsonCount(0, 'data');
     }
 
-    /**
-     * Test destroy returns success
-     */
-    public function test_destroy_returns_success()
+    /* ============================================================
+     * Get History By Id
+     * ============================================================ */
+
+    /** @test */
+    public function get_history_by_id_returns_cashier_detail()
     {
-        $mockAction = Mockery::mock(DestroyCashierAction::class);
-        $mockAction->shouldReceive('execute')
-            ->once()
-            ->with(1, Mockery::type(Request::class))
-            ->andReturn([
-                'error' => false,
-                'status' => 200,
-                'message' => 'Transaksi kasir berhasil dihapus',
-            ]);
+        $user = $this->createTenantUser();
+        $menu = $this->createMenuForUser($user);
+        $cashier = $this->createCashierForUser($user, $menu);
 
-        $request = Request::create('/api/kasir/1', 'DELETE');
+        Sanctum::actingAs($user);
 
-        $response = $this->controller->destroy($request, 1, $mockAction);
-        $data = json_decode($response->getContent(), true);
+        $response = $this->getJson('/api/tenant/kasir/riwayat/' . $cashier->id);
 
-        $this->assertEquals(200, $response->getStatusCode());
-        $this->assertEquals('success', $data['status']);
-        $this->assertEquals('Transaksi kasir berhasil dihapus', $data['message']);
+        $response->assertStatus(200)
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('message', 'Berhasil mengambil detail transaksi kasir')
+            ->assertJsonStructure(['data']);
     }
 
-    /**
-     * Test destroy returns 404 when not found
-     */
-    public function test_destroy_returns_not_found()
+    /** @test */
+    public function get_history_by_id_returns_not_found()
     {
-        $mockAction = Mockery::mock(DestroyCashierAction::class);
-        $mockAction->shouldReceive('execute')
-            ->once()
-            ->andReturn([
-                'error' => true,
-                'status' => 404,
-                'message' => 'Transaksi kasir tidak ditemukan',
-            ]);
+        $user = $this->createTenantUser();
 
-        $request = Request::create('/api/kasir/999', 'DELETE');
+        Sanctum::actingAs($user);
 
-        $response = $this->controller->destroy($request, 999, $mockAction);
-        $data = json_decode($response->getContent(), true);
+        $response = $this->getJson('/api/tenant/kasir/riwayat/99999');
 
-        $this->assertEquals(404, $response->getStatusCode());
-        $this->assertEquals('failed', $data['status']);
+        $response->assertStatus(404)
+            ->assertJsonPath('status', 'failed');
     }
 
-    /**
-     * Test destroy returns 403 when not owner
-     */
-    public function test_destroy_returns_forbidden_for_non_owner()
+    /* ============================================================
+     * Update
+     * ============================================================ */
+
+    /** @test */
+    public function update_returns_success()
     {
-        $mockAction = Mockery::mock(DestroyCashierAction::class);
-        $mockAction->shouldReceive('execute')
-            ->once()
-            ->andReturn([
-                'error' => true,
-                'status' => 403,
-                'message' => 'Kamu bukan pemilik tenant ini, tidak bisa menghapus transaksi kasir',
-            ]);
+        $user = $this->createTenantUser();
+        $menu = $this->createMenuForUser($user);
+        $cashier = $this->createCashierForUser($user, $menu);
 
-        $request = Request::create('/api/kasir/1', 'DELETE');
+        $newMenu = $this->createMenuForUser($user, ['nama' => 'Menu Update', 'harga' => 15000]);
 
-        $response = $this->controller->destroy($request, 1, $mockAction);
-        $data = json_decode($response->getContent(), true);
+        Sanctum::actingAs($user);
 
-        $this->assertEquals(403, $response->getStatusCode());
-        $this->assertEquals('failed', $data['status']);
+        $response = $this->putJson('/api/tenant/kasir/' . $cashier->id, [
+            'menus' => [
+                ['id' => $newMenu->id, 'jumlah' => 1],
+            ],
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('message', 'Transaksi kasir berhasil diperbarui');
+    }
+
+    /** @test */
+    public function update_returns_not_found()
+    {
+        $user = $this->createTenantUser();
+        $menu = $this->createMenuForUser($user);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->putJson('/api/tenant/kasir/99999', [
+            'menus' => [
+                ['id' => $menu->id, 'jumlah' => 1],
+            ],
+        ]);
+
+        $response->assertStatus(404)
+            ->assertJsonPath('status', 'failed');
+    }
+
+    /** @test */
+    public function update_returns_forbidden_for_non_owner()
+    {
+        $owner = $this->createTenantUser(['email' => 'owner@example.com']);
+        $menu = $this->createMenuForUser($owner);
+        $cashier = $this->createCashierForUser($owner, $menu);
+
+        $intruder = $this->createTenantUser(['email' => 'intruder@example.com']);
+
+        Sanctum::actingAs($intruder);
+
+        $response = $this->putJson('/api/tenant/kasir/' . $cashier->id, [
+            'menus' => [
+                ['id' => $menu->id, 'jumlah' => 1],
+            ],
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJsonPath('status', 'failed');
+    }
+
+    /* ============================================================
+     * Destroy
+     * ============================================================ */
+
+    /** @test */
+    public function destroy_returns_success()
+    {
+        $user = $this->createTenantUser();
+        $menu = $this->createMenuForUser($user);
+        $cashier = $this->createCashierForUser($user, $menu);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->deleteJson('/api/tenant/kasir/' . $cashier->id);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('message', 'Transaksi kasir berhasil dihapus');
+    }
+
+    /** @test */
+    public function destroy_returns_not_found()
+    {
+        $user = $this->createTenantUser();
+
+        Sanctum::actingAs($user);
+
+        $response = $this->deleteJson('/api/tenant/kasir/99999');
+
+        $response->assertStatus(404)
+            ->assertJsonPath('status', 'failed');
+    }
+
+    /** @test */
+    public function destroy_returns_forbidden_for_non_owner()
+    {
+        $owner = $this->createTenantUser(['email' => 'owner@example.com']);
+        $menu = $this->createMenuForUser($owner);
+        $cashier = $this->createCashierForUser($owner, $menu);
+
+        $intruder = $this->createTenantUser(['email' => 'intruder@example.com']);
+
+        Sanctum::actingAs($intruder);
+
+        $response = $this->deleteJson('/api/tenant/kasir/' . $cashier->id);
+
+        $response->assertStatus(403)
+            ->assertJsonPath('status', 'failed');
     }
 }

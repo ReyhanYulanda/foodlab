@@ -2,222 +2,191 @@
 
 namespace Tests\Feature\Api\SaldoKoin;
 
-use App\Http\Controllers\Api\SaldoKoin\SaldoKoinController;
+use App\Models\SaldoKoin;
+use App\Models\TransaksiSaldoKoin;
 use App\Models\User;
-use App\Services\SaldoKoin\Actions\CekSaldoAction;
-use App\Services\SaldoKoin\Actions\RiwayatTransaksiAction;
-use App\Services\SaldoKoin\Actions\TransferCoinAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Config;
+use Laravel\Sanctum\Sanctum;
+use Spatie\Permission\Middlewares\RoleMiddleware;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
-use Mockery;
 
 class SaldoKoinControllerTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected $controller;
-
     protected function setUp(): void
     {
         parent::setUp();
-        $this->controller = new SaldoKoinController();
+
+        // Align guard so Spatie permission checks work with Sanctum
+        Config::set('auth.guards.sanctum', [
+            'driver' => 'sanctum',
+            'provider' => 'users',
+        ]);
+        Config::set('auth.defaults.guard', 'sanctum');
+
+        // Bypass role middleware so we can focus on gate/permission checks
+        $this->withoutMiddleware(RoleMiddleware::class);
     }
 
-    protected function tearDown(): void
+    /* ============================================================
+     * Helpers
+     * ============================================================ */
+
+    private function givePermission(User $user, string $name): void
     {
-        Mockery::close();
-        parent::tearDown();
+        $permission = Permission::create([
+            'name' => $name,
+            'guard_name' => 'sanctum',
+        ]);
+        $user->givePermissionTo($permission);
     }
 
-    // ─── cekSaldo ───────────────────────────────────────
+    /* ============================================================
+     * Cek Saldo
+     * ============================================================ */
 
-    /**
-     * Test cekSaldo returns saldo successfully
-     */
-    public function test_cek_saldo_returns_saldo_successfully()
-    {
-        $user = User::factory()->create();
-        $this->actingAs($user);
-
-        Gate::define('read saldo_koin', fn() => true);
-
-        $mockAction = Mockery::mock(CekSaldoAction::class);
-        $mockAction->shouldReceive('execute')
-            ->once()
-            ->with(Mockery::any())
-            ->andReturn(['saldo_koin' => 50000]);
-
-        $response = $this->controller->cekSaldo($mockAction);
-        $data = json_decode($response->getContent(), true);
-
-        $this->assertEquals(200, $response->getStatusCode());
-        $this->assertTrue($data['success']);
-        $this->assertEquals(50000, $data['saldo_koin']);
-    }
-
-    /**
-     * Test cekSaldo requires authorization
-     */
-    public function test_cek_saldo_requires_authorization()
-    {
-        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
-
-        $user = User::factory()->create();
-        $this->actingAs($user);
-
-        Gate::define('read saldo_koin', fn() => false);
-
-        $mockAction = Mockery::mock(CekSaldoAction::class);
-        $this->controller->cekSaldo($mockAction);
-    }
-
-    // ─── riwayatTransaksi ───────────────────────────────
-
-    /**
-     * Test riwayatTransaksi returns paginated data
-     */
-    public function test_riwayat_transaksi_returns_paginated_data()
+    /** @test */
+    public function cek_saldo_returns_saldo_successfully()
     {
         $user = User::factory()->create();
-        $this->actingAs($user);
+        SaldoKoin::create(['user_id' => $user->id, 'jumlah' => 50000]);
+        $this->givePermission($user, 'read saldo_koin');
 
-        Gate::define('read saldo_koin', fn() => true);
+        Sanctum::actingAs($user);
 
-        $mockPaginator = new LengthAwarePaginator(
-            [
-                ['id' => 1, 'jumlah' => 10000, 'tipe' => 'masuk'],
-                ['id' => 2, 'jumlah' => -5000, 'tipe' => 'keluar'],
-            ],
-            2,
-            10,
-            1
-        );
+        $response = $this->getJson('/api/saldo');
 
-        $mockAction = Mockery::mock(RiwayatTransaksiAction::class);
-        $mockAction->shouldReceive('execute')
-            ->once()
-            ->with(Mockery::any(), 10, 1)
-            ->andReturn($mockPaginator);
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('saldo_koin', 50000);
+    }
 
-        $request = Request::create('/api/saldo/riwayat', 'GET', [
-            'per_page' => 10,
-            'page' => 1,
+    /** @test */
+    public function cek_saldo_requires_authorization()
+    {
+        $user = User::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson('/api/saldo');
+
+        $response->assertStatus(403);
+    }
+
+    /* ============================================================
+     * Riwayat Transaksi
+     * ============================================================ */
+
+    /** @test */
+    public function riwayat_transaksi_returns_paginated_data()
+    {
+        $user = User::factory()->create();
+        $this->givePermission($user, 'read saldo_koin');
+
+        TransaksiSaldoKoin::create([
+            'user_id' => $user->id,
+            'jumlah' => 10000,
+            'tipe' => 'masuk',
+            'deskripsi' => 'Top-up',
+        ]);
+        TransaksiSaldoKoin::create([
+            'user_id' => $user->id,
+            'jumlah' => -5000,
+            'tipe' => 'keluar',
+            'deskripsi' => 'Pembayaran',
         ]);
 
-        $response = $this->controller->riwayatTransaksi($request, $mockAction);
-        $data = json_decode($response->getContent(), true);
+        Sanctum::actingAs($user);
 
-        $this->assertEquals(200, $response->getStatusCode());
-        $this->assertTrue($data['success']);
-        $this->assertEquals('data berhasil didapatkan', $data['message']);
-        $this->assertArrayHasKey('transaksi', $data);
+        $response = $this->getJson('/api/saldo/riwayat');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'data berhasil didapatkan')
+            ->assertJsonStructure(['transaksi' => ['data', 'current_page', 'total']]);
     }
 
-    /**
-     * Test riwayatTransaksi requires authorization
-     */
-    public function test_riwayat_transaksi_requires_authorization()
+    /** @test */
+    public function riwayat_transaksi_requires_authorization()
     {
-        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
-
         $user = User::factory()->create();
-        $this->actingAs($user);
 
-        Gate::define('read saldo_koin', fn() => false);
+        Sanctum::actingAs($user);
 
-        $mockAction = Mockery::mock(RiwayatTransaksiAction::class);
-        $request = Request::create('/api/saldo/riwayat', 'GET');
+        $response = $this->getJson('/api/saldo/riwayat');
 
-        $this->controller->riwayatTransaksi($request, $mockAction);
+        $response->assertStatus(403);
     }
 
-    // ─── transferCoin ───────────────────────────────────
+    /* ============================================================
+     * Transfer Coin
+     * ============================================================ */
 
-    /**
-     * Test transferCoin returns success
-     */
-    public function test_transfer_coin_returns_success()
+    /** @test */
+    public function transfer_coin_returns_success()
     {
-        $user = User::factory()->create();
-        $this->actingAs($user);
+        $sender = User::factory()->create();
+        $receiver = User::factory()->create();
 
-        Gate::define('read transfer_coin', fn() => true);
+        SaldoKoin::create(['user_id' => $sender->id, 'jumlah' => 50000]);
+        SaldoKoin::create(['user_id' => $receiver->id, 'jumlah' => 0]);
 
-        $mockAction = Mockery::mock(TransferCoinAction::class);
-        $mockAction->shouldReceive('execute')
-            ->once()
-            ->andReturn([
-                'error' => false,
-                'message' => 'Transfer sebesar Rp 10.000 berhasil',
-                'data' => [
-                    'sender' => ['user_id' => 1, 'jumlah' => 40000],
-                    'receiver' => ['user_id' => 2, 'jumlah' => 10000],
-                ]
-            ]);
+        $this->givePermission($sender, 'read transfer_coin');
 
-        $request = Request::create('/api/coin/tf/backdoor', 'POST', [
-            'sender_id' => 1,
-            'receiver_id' => 2,
+        Sanctum::actingAs($sender);
+
+        $response = $this->postJson('/api/admin/coin/tf/backdoor', [
+            'sender_id' => $sender->id,
+            'receiver_id' => $receiver->id,
             'jumlah' => 10000,
         ]);
 
-        $response = $this->controller->transferCoin($request, $mockAction);
-        $data = json_decode($response->getContent(), true);
-
-        $this->assertEquals(200, $response->getStatusCode());
-        $this->assertStringContainsString('berhasil', $data['message']);
-        $this->assertArrayHasKey('data', $data);
-        $this->assertArrayHasKey('sender', $data['data']);
-        $this->assertArrayHasKey('receiver', $data['data']);
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'Transfer sebesar Rp 10.000 berhasil')
+            ->assertJsonStructure(['data' => ['sender', 'receiver']]);
     }
 
-    /**
-     * Test transferCoin returns insufficient balance
-     */
-    public function test_transfer_coin_returns_insufficient_balance()
+    /** @test */
+    public function transfer_coin_returns_insufficient_balance()
     {
-        $user = User::factory()->create();
-        $this->actingAs($user);
+        $sender = User::factory()->create();
+        $receiver = User::factory()->create();
 
-        Gate::define('read transfer_coin', fn() => true);
+        // Sender has no saldo record (or 0 balance)
+        SaldoKoin::create(['user_id' => $sender->id, 'jumlah' => 0]);
+        SaldoKoin::create(['user_id' => $receiver->id, 'jumlah' => 0]);
 
-        $mockAction = Mockery::mock(TransferCoinAction::class);
-        $mockAction->shouldReceive('execute')
-            ->once()
-            ->andReturn([
-                'error' => true,
-                'status' => 422,
-                'message' => 'Saldo pengirim tidak mencukupi'
-            ]);
+        $this->givePermission($sender, 'read transfer_coin');
 
-        $request = Request::create('/api/coin/tf/backdoor', 'POST');
+        Sanctum::actingAs($sender);
 
-        $response = $this->controller->transferCoin($request, $mockAction);
-        $data = json_decode($response->getContent(), true);
+        $response = $this->postJson('/api/admin/coin/tf/backdoor', [
+            'sender_id' => $sender->id,
+            'receiver_id' => $receiver->id,
+            'jumlah' => 10000,
+        ]);
 
-        $this->assertEquals(422, $response->getStatusCode());
-        $this->assertEquals('Saldo pengirim tidak mencukupi', $data['message']);
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Saldo pengirim tidak mencukupi');
     }
 
-    /**
-     * Test transferCoin requires authorization
-     */
-    public function test_transfer_coin_requires_authorization()
+    /** @test */
+    public function transfer_coin_requires_authorization()
     {
-        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
+        $sender = User::factory()->create();
+        $receiver = User::factory()->create();
 
-        $user = User::factory()->create();
-        $this->actingAs($user);
+        Sanctum::actingAs($sender);
 
-        Gate::define('read transfer_coin', fn() => false);
+        $response = $this->postJson('/api/admin/coin/tf/backdoor', [
+            'sender_id' => $sender->id,
+            'receiver_id' => $receiver->id,
+            'jumlah' => 10000,
+        ]);
 
-        $mockAction = Mockery::mock(TransferCoinAction::class);
-        $request = Request::create('/api/coin/tf/backdoor', 'POST');
-
-        $this->controller->transferCoin($request, $mockAction);
+        $response->assertStatus(403);
     }
 }
