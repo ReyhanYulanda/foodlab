@@ -1601,6 +1601,8 @@ class TransaksiController extends Controller
                                         }
                                     } else {
                                         $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $this->extraFee($totalItems)) - $x;
+                                        $cancelTx->ongkos_kirim = $cancelTx->ongkos_kirim - ($activeItems * 500);
+                                        $cancelTx->total = $cancelTx->total - ($activeItems * 500);
                                     }
 
                                     $cancelTx->save();
