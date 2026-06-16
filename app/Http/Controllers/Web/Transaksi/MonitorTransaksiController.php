@@ -228,8 +228,6 @@ class MonitorTransaksiController extends Controller
                                     }
                                 } else {
                                     $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $this->extraFee($totalItems)) - $x;
-                                    $cancelTx->ongkos_kirim = $cancelTx->ongkos_kirim - ($activeItems * 500);
-                                    $cancelTx->total = $cancelTx->total - ($activeItems * 500);
                                 }
 
                                 $cancelTx->save();
@@ -719,7 +717,7 @@ class MonitorTransaksiController extends Controller
 
         // 7 (7 cancel)
         if ($cancelItems <= $extraLimit && $activeItems <= $extraLimit && $totalItems > $extraLimit) {
-            return ($cancelItems) * $costPerExtra;
+            return ($totalItems - $extraLimit) * $costPerExtra;
         }
 
         // 7 (12 cancel)

@@ -397,7 +397,7 @@ class TransaksiController extends Controller
             'menus.*.id' => 'required|integer|exists:menus,id',
             'menus.*.jumlah' => 'required|integer|min:1',
             'catatan_lokasi_pengantaran' => 'nullable|string|max:255',
-        ], );
+        ],);
 
         if ($validatator->fails()) {
             return response()->json([
@@ -1599,11 +1599,9 @@ class TransaksiController extends Controller
                                             $activeTx->total += $multitenantOngkir; //new code
                                             $activeTx->ongkos_kirim += $multitenantOngkir; //new code
                                         }
-                                    } else {
-                                        $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $this->extraFee($totalItems)) - $x;
-                                        $cancelTx->ongkos_kirim = $cancelTx->ongkos_kirim - ($activeItems * 500);
-                                        $cancelTx->total = $cancelTx->total - ($activeItems * 500);
-                                    }
+                                } else {
+                                    $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $this->extraFee($totalItems)) - $x;
+                                }
 
                                     $cancelTx->save();
                                     $activeTx->save();
@@ -1893,7 +1891,7 @@ class TransaksiController extends Controller
 
         // 7 (7 cancel)
         if ($cancelItems <= $extraLimit && $activeItems <= $extraLimit && $totalItems > $extraLimit) {
-            return ($cancelItems) * $costPerExtra;
+            return ($totalItems - $extraLimit) * $costPerExtra;
         }
 
         // 7 (12 cancel)
@@ -2023,8 +2021,8 @@ class TransaksiController extends Controller
             'x-api-key' => $apiKey,
             'Accept' => 'application/json',
         ])->asJson()->post($apiUrl, [
-                    'data' => [$dataToSend]
-                ]);
+            'data' => [$dataToSend]
+        ]);
 
         if ($response->failed()) {
             return response()->json([
@@ -2343,8 +2341,8 @@ class TransaksiController extends Controller
             'x-api-key' => $apiKey,
             'Accept' => 'application/json',
         ])->asJson()->post($apiUrl, [
-                    'data' => [$dataToSend]
-                ]);
+            'data' => [$dataToSend]
+        ]);
 
         if ($response->failed()) {
             return response()->json([

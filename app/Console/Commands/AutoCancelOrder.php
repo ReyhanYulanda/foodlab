@@ -134,8 +134,6 @@ class AutoCancelOrder extends Command
                                         }
                                     } else {
                                         $activeTx->total = ($activeTx->sub_total + $activeBaseOngkir + $this->extraFee($totalItems)) - $x;
-                                        $cancelTx->ongkos_kirim = $cancelTx->ongkos_kirim - ($activeItems * 500);
-                                        $cancelTx->total = $cancelTx->total - ($activeItems * 500);
                                     }
 
                                     $cancelTx->save();
@@ -473,7 +471,7 @@ class AutoCancelOrder extends Command
 
         // 7 (7 cancel)
         if ($cancelItems <= $extraLimit && $activeItems <= $extraLimit && $totalItems > $extraLimit) {
-            return ($cancelItems) * $costPerExtra;
+            return ($totalItems - $extraLimit) * $costPerExtra;
         }
 
         // 7 (12 cancel)
