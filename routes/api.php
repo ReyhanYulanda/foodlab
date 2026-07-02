@@ -22,6 +22,7 @@ use App\Models\Transaksi;
 use App\Http\Controllers\Kelola\Tenant\ProfileTenantController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\SendNotificationController;
+use App\Http\Controllers\TestBilanganPrima;
 use App\Http\Controllers\User\TransaksiUserController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Socialite\Facades\Socialite;
@@ -114,6 +115,7 @@ Route::middleware('auth:sanctum', 'verified', 'request.logger')->group(function 
         Route::get('/get/data-driver', [UserController::class, 'getDataDriver']);
     });
 
+    Route::post('/bilangan-prima', [TestBilanganPrima::class, 'bilanganPrima']);
     Route::put('/update-fcm-token', [UserController::class, 'updateFcmToken']);
     Route::post('/order/cancel/{id}', [TransaksiController::class, 'cancel']);
 });
