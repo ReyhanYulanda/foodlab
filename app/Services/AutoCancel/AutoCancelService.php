@@ -4,27 +4,25 @@ namespace App\Services\AutoCancel;
 
 use App\Repositories\TransaksiRepository;
 use App\Services\AutoCancel\Actions\ProcessExpiredTransaksiAction;
-use App\Models\Pengaturan;
-use Carbon\Carbon;
+use App\Services\AutoCancel\Policies\TimeoutEligibilityPolicy;
 
 class AutoCancelService
 {
     public function __construct(
         private TransaksiRepository $transaksiRepository,
         private ProcessExpiredTransaksiAction $processor,
+        private TimeoutEligibilityPolicy $timeoutPolicy,
     ) {}
 
     /**
-     * Jalankan proses auto cancel.
+     * Execute the auto cancel process.
      *
-     * @return int $timeout (untuk logging/info)
+     * @return int $timeout (for logging/info)
      */
     public function execute(): int
     {
-        $timeout = Pengaturan::where('nama', 'timeout_pesanan')->value('nilai');
-        $timeout = $timeout ?? 10;
-
-        $threshold = Carbon::now()->subMinutes($timeout);
+        $timeout = $this->timeoutPolicy->getTimeoutMinutes();
+        $threshold = $this->timeoutPolicy->getThreshold();
 
         $transaksis = $this->transaksiRepository->getExpiredPesananMasuk($threshold);
 
