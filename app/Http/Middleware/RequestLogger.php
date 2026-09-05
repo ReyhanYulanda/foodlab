@@ -45,9 +45,15 @@ class RequestLogger
             }
         }
 
+        // Resolve client IP asli (bukan IP Cloudflare edge).
+        // Cloudflare selalu mengirim CF-Connecting-IP = alamat client asli (anti-spoof).
+        // nginx foodlab sudah set real_ip_header CF-Connecting-IP, jadi $request->ip() sudah benar,
+        // tapi kita pastikan dengan header eksplisit sebagai sumber paling andal.
+        $realIp = $request->header('CF-Connecting-IP') ?: $request->ip();
+
         // Log request
         Log::info('API Request', [
-            'ip' => $request->ip(),
+            'ip' => $realIp,
             'method' => $request->method(),
             'endpoint' => $request->path(),
             'url' => $request->fullUrl(),
