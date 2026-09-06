@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Log;
 class AutoCompleteSiapDiambil extends Command
 {
     protected $signature = 'transactions:auto-complete-siap-diambil';
-    protected $description = 'Otomatis mengubah status siap_diambil menjadi selesai jika sudah lebih dari 1 jam';
+    protected $description = 'Otomatis mengubah status siap_diambil menjadi selesai jika sudah lebih dari 1 jam'; 
 
     public function handle(Firebases $firebases)
     {
