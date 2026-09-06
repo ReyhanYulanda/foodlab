@@ -16,6 +16,8 @@ class ExampleTest extends TestCase
     {
         $response = $this->get('/');
 
-        $response->assertStatus(200);
+        //disengajakan gagal
+        // $response->assertStatus(200);
+        $this->assertTrue(false, 'sengaja gagal');
     }
 }
