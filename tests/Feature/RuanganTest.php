@@ -15,7 +15,6 @@ class RuanganTest extends TestCase
     {
         Ruangan::factory()->count(10000)->create();
 
-        // $this->assertGreaterThan(9999, Ruangan::count());
-        $this->assertTrue(false, 'sengaja gagal');
+        $this->assertGreaterThan(9999, Ruangan::count());
     }
 }
