@@ -3,7 +3,7 @@
         <x-slot name="logo">
             <a href="/">
                 <h1 class="mb-12 text-center text-4xl font-thin">
-                    FoodLAB test Dockerfile
+                    FoodLAB test Dockerfile Update deploy sh
                 </h1>
                 {{-- <x-application-logo class="w-20 h-20 fill-current text-gray-500" /> --}}
             </a>
