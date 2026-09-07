@@ -1,0 +1,25 @@
+name: Cleanup GHCR
+
+# Pruning package GHCR supaya versi lama tidak menumpuk seperti yang terjadi
+# di Docker Hub (427 tag). Dijadikan workflow terjadwal terpisah, bukan step di
+# workflow build, supaya kegagalan pruning tidak membuat build staging merah.
+on:
+  schedule:
+    - cron: '17 3 * * 0'   # tiap Minggu 03:17 UTC (10:17 WIB)
+  workflow_dispatch:        # bisa dijalankan manual dari tab Actions
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      # Sengaja hanya versi untagged dulu. Versi bertag (staging-<sha>) belum
+      # disentuh supaya rollback ke image lama tetap mungkin.
+      - uses: actions/delete-package-versions@v5
+        with:
+          owner: foodlabdev
+          package-name: backend_masbrocanteen
+          package-type: container
+          min-versions-to-keep: 20
+          delete-only-untagged-versions: 'true'
