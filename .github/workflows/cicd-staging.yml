@@ -60,3 +60,44 @@ jobs:
             --tag "$DST:$SHA_TAG" \
             --tag "$DST:staging" \
             "$SRC:$SHA_TAG"
+
+      # Deploy dipicu dari sini, bukan dari push ke staging. Kalau Komodo dipicu
+      # push, deploy jalan bersamaan dengan build (~3 menit) sehingga
+      # `docker compose pull` di server bisa menarik image build sebelumnya.
+      #
+      # Komodo memakai listener bergaya GitHub, jadi request harus membawa
+      # tanda tangan HMAC-SHA256 dari body memakai webhook secret.
+      - name: Trigger deploy Komodo
+        env:
+          KOMODO_URL: ${{ secrets.KOMODO_WEBHOOK_URL }}
+          KOMODO_SECRET: ${{ secrets.KOMODO_WEBHOOK_SECRET }}
+        run: |
+          set -euo pipefail
+
+          for v in KOMODO_URL KOMODO_SECRET; do
+            if [ -z "${!v:-}" ]; then
+              echo "::error::Secret $v kosong"
+              exit 1
+            fi
+          done
+
+          # Ref ini hanya untuk lolos pemeriksaan branch listener Komodo, yang
+          # mencocokkannya dengan segmen terakhir URL webhook (/main). Bukan
+          # penentu apa yang di-deploy: deploy-staging.sh selalu menarik branch
+          # staging. Kalau URL webhook diganti, samakan nilai ini.
+          BODY='{"ref":"refs/heads/main"}'
+          SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$KOMODO_SECRET" | awk '{print $NF}')
+
+          CODE=$(curl -sS --max-time 30 -o /tmp/komodo.out -w '%{http_code}' -X POST "$KOMODO_URL" -H 'Content-Type: application/json' -H 'X-GitHub-Event: push' -H "X-Hub-Signature-256: sha256=$SIG" --data "$BODY")
+
+          echo "HTTP $CODE"
+          cat /tmp/komodo.out || true
+          echo
+
+          if [ "$CODE" -ge 400 ]; then
+            echo "::error::Komodo menolak webhook (HTTP $CODE)"
+            exit 1
+          fi
+
+          echo "Webhook terkirim. Jalannya deploy dipantau di Komodo, bukan di sini."
+
