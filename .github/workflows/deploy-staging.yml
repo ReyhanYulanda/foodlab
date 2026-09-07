@@ -32,10 +32,10 @@ jobs:
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'staging')
 
+    # Tidak ada actions/checkout: job ini hanya membuka SSH ke server, dan
+    # server melakukan git pull sendiri. Checkout hanya menambah waktu dan
+    # memunculkan warning git exit 128 saat membersihkan kredensial.
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
