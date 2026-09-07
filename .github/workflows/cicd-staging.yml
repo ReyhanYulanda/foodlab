@@ -6,7 +6,9 @@ on:
 
 jobs:
   docker:
-    runs-on: ubuntu-latest
+    # Server staging (Oracle Ampere) berarsitektur arm64. Runner arm native
+    # dipakai supaya image yang dibangun cocok dengan server tanpa emulasi QEMU.
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
       packages: write
