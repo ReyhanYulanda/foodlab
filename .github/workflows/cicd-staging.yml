@@ -39,6 +39,10 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          # Image runtime yang dipakai server staging (php-fpm + ekstensi).
+          # Bukan Dockerfile di root repo — itu image lama yang menyalin kode
+          # ke dalam image, sedangkan server memasang kode lewat bind-mount.
+          file: docker/php/Dockerfile
           push: true
           tags: |
             foodlab/backend_masbrocanteen:staging
