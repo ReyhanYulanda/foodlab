@@ -1,9 +1,17 @@
 name: Deploy Foodlab Staging
 
+# Dipicu SETELAH build image selesai, bukan oleh push. Sebelumnya keduanya
+# dipicu push yang sama: deploy selesai ~12 detik sementara build butuh ~3
+# menit, sehingga `docker compose pull` di server mengambil image dari build
+# SEBELUMNYA. Tidak terlihat untuk perubahan kode PHP (kode datang dari git
+# pull), tapi salah ketika docker/php/Dockerfile berubah.
+#
+# Catatan: workflow_run hanya dibaca dari definisi di default branch.
 on:
-  push:
-    branches:
-      - staging
+  workflow_run:
+    workflows: ["Build & Push (staging)"]
+    types: [completed]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -17,6 +25,12 @@ jobs:
     name: Deploy to Oracle Cloud
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Jangan deploy kalau build-nya gagal — image untuk commit ini tidak ada.
+    # Cek head_branch supaya build dari branch lain tidak ikut men-deploy.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'staging')
 
     steps:
       - name: Checkout repository
