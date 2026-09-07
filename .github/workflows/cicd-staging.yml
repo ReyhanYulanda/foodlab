@@ -24,7 +24,14 @@ jobs:
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }} 
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build & Push
         uses: docker/build-push-action@v6
@@ -34,3 +41,16 @@ jobs:
           tags: |
             foodlab/backend_masbrocanteen:staging
             foodlab/backend_masbrocanteen:staging-${{ github.sha }}
+
+      # Salin image yang barusan dipush ke GHCR di level manifest (tanpa rebuild),
+      # supaya digest-nya identik dengan image yang sudah lolos CI.
+      - name: Mirror image to GHCR
+        env:
+          SRC: docker.io/foodlab/backend_masbrocanteen
+          DST: ghcr.io/foodlabdev/backend_masbrocanteen
+          SHA_TAG: staging-${{ github.sha }}
+        run: |
+          docker buildx imagetools create \
+            --tag "$DST:$SHA_TAG" \
+            --tag "$DST:staging" \
+            "$SRC:$SHA_TAG"
