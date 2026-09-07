@@ -60,3 +60,22 @@ jobs:
             --tag "$DST:$SHA_TAG" \
             --tag "$DST:staging" \
             "$SRC:$SHA_TAG"
+
+  # Pruning dijalankan tiap build supaya penyimpanan GHCR tidak menembus kuota
+  # 500 MB paket privat. Job terpisah dengan continue-on-error: kegagalan
+  # pruning tidak boleh menandai build sebagai gagal — image sudah terpush.
+  prune:
+    needs: docker
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      packages: write
+    steps:
+      # min-versions-to-keep juga menghapus versi BERTAG (staging-<sha>), bukan
+      # hanya untagged. Rollback karenanya terbatas pada 5 image terakhir.
+      - uses: actions/delete-package-versions@v5
+        with:
+          owner: foodlabdev
+          package-name: backend_masbrocanteen
+          package-type: container
+          min-versions-to-keep: 5
